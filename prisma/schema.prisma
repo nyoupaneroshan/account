@@ -1,0 +1,568 @@
+// Hisab Pro - Nepal Accounting Software
+// Comprehensive Prisma Schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================================
+// ORGANIZATION & MULTI-TENANCY
+// ============================================================
+
+model Organization {
+  id            String   @id @default(cuid())
+  name          String
+  nameNepali    String?
+  panNumber     String?   // PAN/VAT number for IRD compliance
+  address       String?
+  city          String?
+  province      String?
+  phone         String?
+  email         String?
+  logo          String?
+  fiscalYear    String?   // Current fiscal year e.g. "2081/82"
+  currency      String    @default("NPR")
+  vatEnabled    Boolean   @default(false)
+  vatNumber     String?
+  tdsEnabled    Boolean   @default(false)
+  ssfEnabled    Boolean   @default(false)
+  mode          String    @default("simple")  // "simple" or "advanced"
+  industry      String?   // e.g. "trading", "manufacturing", "service"
+
+  // Relations
+  users         UserOrganization[]
+  accounts      Account[]
+  accountGroups AccountGroup[]
+  journalEntries JournalEntry[]
+  parties       Party[]
+  products      Product[]
+  warehouses    Warehouse[]
+  invoices      Invoice[]
+  purchaseBills PurchaseBill[]
+  taxRates      TaxRate[]
+  auditLogs     AuditLog[]
+  settings      OrganizationSetting[]
+  fiscalYears   FiscalYear[]
+
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+model FiscalYear {
+  id             String   @id @default(cuid())
+  organizationId String
+  name           String   // e.g. "2081/82"
+  startDate      DateTime
+  endDate        DateTime
+  isCurrent      Boolean  @default(false)
+  isLocked       Boolean  @default(false)
+
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  journalEntries JournalEntry[]
+
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@index([organizationId])
+}
+
+model OrganizationSetting {
+  id             String   @id @default(cuid())
+  organizationId String
+  key            String
+  value          String   // JSON string for complex values
+
+  organization   Organization @relation(fields: [organizationId], references: [id])
+
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@unique([organizationId, key])
+  @@index([organizationId])
+}
+
+// ============================================================
+// USER & AUTHORIZATION
+// ============================================================
+
+model User {
+  id            String   @id @default(cuid())
+  email         String   @unique
+  name          String
+  nameNepali    String?
+  phone         String?
+  avatar        String?
+  passwordHash  String?
+  isActive      Boolean  @default(true)
+  lastLoginAt   DateTime?
+
+  organizations UserOrganization[]
+  auditLogs     AuditLog[]
+
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+model UserOrganization {
+  id             String   @id @default(cuid())
+  userId         String
+  organizationId String
+  role           String   @default("staff") // "admin", "accountant", "staff", "viewer"
+
+  user           User         @relation(fields: [userId], references: [id])
+  organization   Organization @relation(fields: [organizationId], references: [id])
+
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@unique([userId, organizationId])
+  @@index([userId])
+  @@index([organizationId])
+}
+
+// ============================================================
+// CHART OF ACCOUNTS
+// ============================================================
+
+model AccountGroup {
+  id             String   @id @default(cuid())
+  organizationId String
+  name           String
+  nameNepali     String?
+  code           String   // e.g. "1", "11", "1100"
+  parentGroupId  String?
+  nature         String   // "asset", "liability", "equity", "income", "expense"
+  isSystem       Boolean  @default(false)  // System groups can't be deleted
+  sortOrder      Int      @default(0)
+
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  parentGroup    AccountGroup?  @relation("AccountGroupHierarchy", fields: [parentGroupId], references: [id])
+  childGroups    AccountGroup[] @relation("AccountGroupHierarchy")
+  accounts       Account[]
+
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@unique([organizationId, code])
+  @@index([organizationId])
+  @@index([parentGroupId])
+}
+
+model Account {
+  id             String   @id @default(cuid())
+  organizationId String
+  groupId        String
+  name           String
+  nameNepali     String?
+  code           String   // e.g. "11001", "21001"
+  accountType    String   // "asset", "liability", "equity", "income", "expense"
+  subType        String?  // "bank", "cash", "receivable", "payable", "vat", "tds", etc.
+  isSystem       Boolean  @default(false)
+  isActive       Boolean  @default(true)
+  allowsDirectPosting Boolean @default(true)
+  openingBalance Float    @default(0)
+  currentBalance Float    @default(0)
+
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  group          AccountGroup @relation(fields: [groupId], references: [id])
+  journalLines   JournalEntryLine[]
+
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@unique([organizationId, code])
+  @@index([organizationId])
+  @@index([groupId])
+  @@index([accountType])
+}
+
+// ============================================================
+// JOURNAL ENTRIES & DOUBLE-ENTRY BOOKKEEPING
+// ============================================================
+
+model JournalEntry {
+  id              String   @id @default(cuid())
+  organizationId  String
+  fiscalYearId    String?
+  entryNumber     String   // Auto-generated e.g. "JE-001"
+  date            DateTime
+  narration       String   // Description of the transaction
+  voucherType     String   @default("journal") // "payment", "receipt", "journal", "contra", "sales", "purchase"
+  referenceType   String?  // "invoice", "purchase_bill", "manual"
+  referenceId     String?  // ID of the related document
+  isPosted        Boolean  @default(true)
+  isCancelled     Boolean  @default(false)
+  totalDebit      Float    @default(0)
+  totalCredit     Float    @default(0)
+  createdBy       String?
+
+  organization    Organization @relation(fields: [organizationId], references: [id])
+  fiscalYear      FiscalYear?  @relation(fields: [fiscalYearId], references: [id])
+  lines           JournalEntryLine[]
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@unique([organizationId, entryNumber])
+  @@index([organizationId])
+  @@index([date])
+  @@index([voucherType])
+  @@index([referenceType, referenceId])
+}
+
+model JournalEntryLine {
+  id              String   @id @default(cuid())
+  journalEntryId  String
+  accountId       String
+  debit           Float    @default(0)
+  credit          Float    @default(0)
+  narration       String?  // Line-level narration
+  partyId         String?  // Optional party reference
+  costCenter      String?  // For future use
+
+  journalEntry    JournalEntry @relation(fields: [journalEntryId], references: [id], onDelete: Cascade)
+  account         Account      @relation(fields: [accountId], references: [id])
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([journalEntryId])
+  @@index([accountId])
+  @@index([partyId])
+}
+
+// ============================================================
+// PARTIES (CUSTOMERS, SUPPLIERS, EMPLOYEES)
+// ============================================================
+
+model Party {
+  id             String   @id @default(cuid())
+  organizationId String
+  name           String
+  nameNepali     String?
+  panNumber      String?   // PAN for IRD compliance
+  partyType      String    // "customer", "supplier", "both", "employee"
+  email          String?
+  phone          String?
+  address        String?
+  city           String?
+  province       String?
+  contactPerson  String?
+  creditLimit    Float?
+  openingBalance Float     @default(0)
+  balanceType    String?   // "debit" or "credit" - for opening balance
+  currentBalance Float     @default(0)
+  isTdsApplicable Boolean  @default(false)
+  tdsRate        Float?    // TDS rate for this party
+  tdsPAN         String?
+  isSSFAplicable Boolean  @default(false)
+  bankName       String?
+  bankAccount    String?
+  isActive       Boolean  @default(true)
+  notes          String?
+
+  organization   Organization @relation(fields: [organizationId], references: [id])
+
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@index([organizationId])
+  @@index([partyType])
+}
+
+// ============================================================
+// PRODUCTS & INVENTORY
+// ============================================================
+
+model Product {
+  id             String   @id @default(cuid())
+  organizationId String
+  name           String
+  nameNepali     String?
+  code           String?   // SKU/Product code
+  unit           String?   // "pcs", "kg", "ltr", "box"
+  hsnCode        String?   // HSN/SAC code for GST/VAT
+  category       String?
+  brand          String?
+  productType    String    @default("goods") // "goods" or "service"
+  isVatable      Boolean   @default(true)
+  vatRate        Float?    // Override org default if set
+  sellingPrice   Float?
+  costPrice      Float?
+  minStockLevel  Float?
+  maxStockLevel  Float?
+  costingMethod  String    @default("fifo") // "fifo", "weighted_average"
+  hasBatch       Boolean   @default(false)
+  hasExpiry      Boolean   @default(false)
+  isActive       Boolean   @default(true)
+  description    String?
+
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  stockLevels    StockLevel[]
+  stockTransactions StockTransaction[]
+  invoiceLines   InvoiceLine[]
+  purchaseBillLines PurchaseBillLine[]
+
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@index([organizationId])
+  @@index([code])
+}
+
+model Warehouse {
+  id             String   @id @default(cuid())
+  organizationId String
+  name           String
+  nameNepali     String?
+  address        String?
+  isDefault      Boolean  @default(false)
+  isActive       Boolean  @default(true)
+
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  stockLevels    StockLevel[]
+  stockTransactions StockTransaction[]
+
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@index([organizationId])
+}
+
+model StockLevel {
+  id             String   @id @default(cuid())
+  organizationId String
+  productId      String
+  warehouseId    String
+  quantity       Float    @default(0)
+  reservedQty    Float    @default(0)
+  batchNumber    String?
+  expiryDate     DateTime?
+  costPrice      Float?   // Weighted average cost
+
+  product        Product   @relation(fields: [productId], references: [id])
+  warehouse      Warehouse @relation(fields: [warehouseId], references: [id])
+
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@unique([productId, warehouseId, batchNumber])
+  @@index([productId])
+  @@index([warehouseId])
+}
+
+model StockTransaction {
+  id              String   @id @default(cuid())
+  organizationId  String
+  productId       String
+  warehouseId     String
+  transactionType String   // "purchase", "sale", "adjustment", "transfer_in", "transfer_out", "return_in", "return_out"
+  quantity        Float
+  referenceType   String?  // "invoice", "purchase_bill", "adjustment"
+  referenceId     String?
+  batchNumber     String?
+  expiryDate      DateTime?
+  costPrice       Float?
+  notes           String?
+
+  product         Product   @relation(fields: [productId], references: [id])
+  warehouse       Warehouse @relation(fields: [warehouseId], references: [id])
+
+  createdAt       DateTime @default(now())
+
+  @@index([productId])
+  @@index([warehouseId])
+  @@index([transactionType])
+  @@index([referenceType, referenceId])
+}
+
+// ============================================================
+// SALES & INVOICING
+// ============================================================
+
+model Invoice {
+  id              String   @id @default(cuid())
+  organizationId  String
+  invoiceNumber   String   // Auto-generated e.g. "INV-001"
+  date            DateTime
+  dueDate         DateTime?
+  partyId         String?
+  invoiceType     String   @default("sales") // "sales", "sales_return"
+  status          String   @default("draft") // "draft", "sent", "paid", "partial", "overdue", "cancelled"
+  subtotal        Float    @default(0)
+  discountAmount  Float    @default(0)
+  taxableAmount   Float    @default(0)
+  vatAmount       Float    @default(0)
+  totalAmount     Float    @default(0)
+  amountPaid      Float    @default(0)
+  amountDue       Float    @default(0)
+  tdsAmount       Float    @default(0)
+  panNumber       String?  // Party PAN for IRD compliance
+  billingAddress  String?
+  shippingAddress String?
+  notes           String?
+  terms           String?
+  journalEntryId  String?  // Link to auto-created journal entry
+
+  organization    Organization @relation(fields: [organizationId], references: [id])
+  lines           InvoiceLine[]
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@unique([organizationId, invoiceNumber])
+  @@index([organizationId])
+  @@index([partyId])
+  @@index([date])
+  @@index([status])
+}
+
+model InvoiceLine {
+  id              String   @id @default(cuid())
+  invoiceId       String
+  productId       String?
+  description     String
+  quantity        Float    @default(1)
+  unit            String?
+  unitPrice       Float    @default(0)
+  discountPercent Float    @default(0)
+  discountAmount  Float    @default(0)
+  taxableAmount   Float    @default(0)
+  vatRate         Float?
+  vatAmount       Float    @default(0)
+  totalAmount     Float    @default(0)
+  sortOrder       Int      @default(0)
+
+  invoice         Invoice  @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  product         Product? @relation(fields: [productId], references: [id])
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([invoiceId])
+  @@index([productId])
+}
+
+// ============================================================
+// PURCHASE MANAGEMENT
+// ============================================================
+
+model PurchaseBill {
+  id              String   @id @default(cuid())
+  organizationId  String
+  billNumber      String   // Auto-generated e.g. "PUR-001"
+  supplierBillNo  String?  // Supplier's own bill number
+  date            DateTime
+  dueDate         DateTime?
+  partyId         String?
+  billType        String   @default("purchase") // "purchase", "purchase_return"
+  status          String   @default("draft") // "draft", "received", "paid", "partial", "cancelled"
+  subtotal        Float    @default(0)
+  discountAmount  Float    @default(0)
+  taxableAmount   Float    @default(0)
+  vatAmount       Float    @default(0)
+  totalAmount     Float    @default(0)
+  amountPaid      Float    @default(0)
+  amountDue       Float    @default(0)
+  tdsAmount       Float    @default(0)
+  warehouseId     String?
+  notes           String?
+  journalEntryId  String?
+
+  organization    Organization @relation(fields: [organizationId], references: [id])
+  lines           PurchaseBillLine[]
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@unique([organizationId, billNumber])
+  @@index([organizationId])
+  @@index([partyId])
+  @@index([date])
+  @@index([status])
+}
+
+model PurchaseBillLine {
+  id              String   @id @default(cuid())
+  purchaseBillId  String
+  productId       String?
+  description     String
+  quantity        Float    @default(1)
+  unit            String?
+  unitPrice       Float    @default(0)
+  discountPercent Float    @default(0)
+  discountAmount  Float    @default(0)
+  taxableAmount   Float    @default(0)
+  vatRate         Float?
+  vatAmount       Float    @default(0)
+  totalAmount     Float    @default(0)
+  batchNumber     String?
+  expiryDate      DateTime?
+  sortOrder       Int      @default(0)
+
+  purchaseBill    PurchaseBill @relation(fields: [purchaseBillId], references: [id], onDelete: Cascade)
+  product         Product?     @relation(fields: [productId], references: [id])
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([purchaseBillId])
+  @@index([productId])
+}
+
+// ============================================================
+// TAX CONFIGURATION
+// ============================================================
+
+model TaxRate {
+  id             String   @id @default(cuid())
+  organizationId String
+  name           String   // "VAT 13%", "TDS 1.5%", "SSF 31%"
+  nameNepali     String?
+  taxType        String   // "vat", "tds", "ssf", "custom"
+  rate           Float
+  isDefault      Boolean  @default(false)
+  isActive       Boolean  @default(true)
+  effectiveFrom  DateTime?
+  effectiveTo    DateTime?
+  description    String?
+
+  organization   Organization @relation(fields: [organizationId], references: [id])
+
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@index([organizationId])
+  @@index([taxType])
+}
+
+// ============================================================
+// AUDIT LOG
+// ============================================================
+
+model AuditLog {
+  id             String   @id @default(cuid())
+  organizationId String
+  userId         String?
+  action         String   // "create", "update", "delete", "cancel", "post", "print"
+  module         String   // "journal", "invoice", "purchase", "inventory", "party", "account"
+  recordId       String?
+  recordType     String?
+  details        String?  // JSON string with change details
+  ipAddress      String?
+
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  user           User?        @relation(fields: [userId], references: [id])
+
+  createdAt      DateTime @default(now())
+
+  @@index([organizationId])
+  @@index([userId])
+  @@index([module])
+  @@index([createdAt])
+}
