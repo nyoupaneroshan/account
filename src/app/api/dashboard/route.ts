@@ -88,16 +88,12 @@ export async function GET(request: Request) {
       take: 5,
     })
 
-    // Monthly data for last 6 months
-    const now = new Date()
-    const sixMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 5, 1)
-
-    const journalLines = await db.journalEntryLine.findMany({
+    // Monthly data - get ALL journal lines for the org to find months with data
+    const allJournalLines = await db.journalEntryLine.findMany({
       where: {
         journalEntry: {
           organizationId: orgId,
           isCancelled: false,
-          date: { gte: sixMonthsAgo },
         },
         account: { isActive: true },
       },
@@ -109,7 +105,7 @@ export async function GET(request: Request) {
 
     // Group by month
     const monthlyMap: Record<string, { income: number; expense: number }> = {}
-    for (const line of journalLines) {
+    for (const line of allJournalLines) {
       const d = new Date(line.journalEntry.date)
       const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
 
@@ -124,17 +120,33 @@ export async function GET(request: Request) {
       }
     }
 
-    // Generate last 6 months keys
+    // Generate 6 months: starting from the most recent month that has data, going back 5 months
+    const monthsWithData = Object.keys(monthlyMap).sort()
+    const lastDataMonth = monthsWithData.length > 0 ? monthsWithData[monthsWithData.length - 1] : null
+
     const monthlyData = []
+    const now = new Date()
+
+    // Determine the end month: use the most recent month with data, or current month
+    let endYear: number, endMonth: number
+    if (lastDataMonth) {
+      const [y, m] = lastDataMonth.split('-').map(Number)
+      endYear = y
+      endMonth = m - 1 // JS months are 0-indexed
+    } else {
+      endYear = now.getFullYear()
+      endMonth = now.getMonth()
+    }
+
     for (let i = 5; i >= 0; i--) {
-      const d = new Date(now.getFullYear(), now.getMonth() - i, 1)
+      const d = new Date(endYear, endMonth - i, 1)
       const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
       const monthName = d.toLocaleString('default', { month: 'short', year: 'numeric' })
       monthlyData.push({
         month: monthName,
         key,
-        income: monthlyMap[key]?.income || 0,
-        expense: monthlyMap[key]?.expense || 0,
+        income: Math.abs(monthlyMap[key]?.income || 0),
+        expense: Math.abs(monthlyMap[key]?.expense || 0),
       })
     }
 
