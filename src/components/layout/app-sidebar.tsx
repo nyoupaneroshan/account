@@ -27,6 +27,7 @@ import {
   Calculator,
   ClipboardList,
   ArrowRightLeft,
+  Shield,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Switch } from '@/components/ui/switch'
@@ -164,7 +165,8 @@ const ADVANCED_NAV: NavGroup[] = [
 ]
 
 export function AppSidebar() {
-  const { mode, setMode, activeModule, setActiveModule, currentOrgName, currentFiscalYear } = useAppStore()
+  const { mode, setMode, activeModule, setActiveModule, currentOrgName, currentFiscalYear, currentUser, setIsAdminPortal } = useAppStore()
+  const isSuperAdmin = currentUser?.role === 'super_admin'
   const navGroups = mode === 'simple' ? SIMPLE_NAV : ADVANCED_NAV
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>(
     Object.fromEntries(
@@ -265,6 +267,15 @@ export function AppSidebar() {
 
       {/* Footer */}
       <div className="p-3 border-t border-border">
+        {isSuperAdmin && (
+          <button
+            onClick={() => setIsAdminPortal(true)}
+            className="flex items-center gap-2 w-full px-2 py-1.5 rounded-md text-xs text-primary hover:bg-accent transition-colors mb-2"
+          >
+            <Shield className="h-3.5 w-3.5" />
+            Admin Portal
+          </button>
+        )}
         <div className="flex items-center gap-2 text-xs text-muted-foreground">
           <ArrowRightLeft className="h-3 w-3" />
           <span>Hisab Pro v1.0</span>

@@ -33,6 +33,14 @@ model Organization {
   ssfEnabled    Boolean   @default(false)
   mode          String    @default("simple")  // "simple" or "advanced"
   industry      String?   // e.g. "trading", "manufacturing", "service"
+  language      String    @default("en")  // "en", "ne", "hi", etc.
+
+  // Subscription
+  plan          String    @default("free") // "free", "pro", "enterprise"
+  subscriptionStatus String @default("active") // "active", "past_due", "cancelled", "trialing"
+  subscriptionStart DateTime?
+  subscriptionEnd   DateTime?
+  trialEndsAt       DateTime?
 
   // Relations
   users         UserOrganization[]
@@ -48,6 +56,7 @@ model Organization {
   auditLogs     AuditLog[]
   settings      OrganizationSetting[]
   fiscalYears   FiscalYear[]
+  subscription  Subscription?
 
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
@@ -98,6 +107,8 @@ model User {
   phone         String?
   avatar        String?
   passwordHash  String?
+  role          String   @default("user") // "super_admin", "user"
+  language      String   @default("en")  // "en", "ne", "hi", etc.
   isActive      Boolean  @default(true)
   lastLoginAt   DateTime?
 
@@ -106,6 +117,25 @@ model User {
 
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
+}
+
+model Subscription {
+  id             String   @id @default(cuid())
+  organizationId String   @unique
+  plan           String   @default("free") // "free", "pro", "enterprise"
+  status         String   @default("active") // "active", "past_due", "cancelled", "trialing"
+  currentPeriodStart DateTime?
+  currentPeriodEnd   DateTime?
+  trialEndsAt        DateTime?
+  cancelledAt        DateTime?
+
+  organization   Organization @relation(fields: [organizationId], references: [id])
+
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@index([organizationId])
+  @@index([status])
 }
 
 model UserOrganization {

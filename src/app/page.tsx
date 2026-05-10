@@ -3,6 +3,9 @@
 import { useAppStore } from '@/store/app-store'
 import { AppSidebar } from '@/components/layout/app-sidebar'
 import { AppHeader } from '@/components/layout/app-header'
+import { AuthScreen } from '@/components/auth/auth-screen'
+import { PricingPlans } from '@/components/auth/pricing-plans'
+import { AdminPortal } from '@/components/admin/admin-portal'
 import { DashboardView } from '@/components/dashboard/dashboard-view'
 import { SimpleIncome } from '@/components/simple-mode/simple-income'
 import { SimpleExpense } from '@/components/simple-mode/simple-expense'
@@ -22,8 +25,10 @@ import { OrganizationView } from '@/components/organizations/organization-view'
 import { UsersView } from '@/components/settings/users-view'
 import { ProductForm } from '@/components/inventory/product-form'
 import { PartyForm } from '@/components/parties/party-form'
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { cn } from '@/lib/utils'
+
+type AppView = 'auth' | 'pricing' | 'app' | 'admin'
 
 function ModuleRenderer() {
   const { activeModule } = useAppStore()
@@ -73,130 +78,52 @@ function ModuleRenderer() {
       return <OrganizationView />
     case 'users':
       return <UsersView />
+    case 'admin-portal':
+      return <AdminPortal />
     default:
       return <DashboardView />
   }
 }
 
-function SetupScreen({ onSetup }: { onSetup: (orgId: string, orgName: string) => void }) {
-  const [loading, setLoading] = useState(false)
-  const [orgName, setOrgName] = useState('My Business')
+export default function HomePage() {
+  const { currentUser, currentOrgId, isAdminPortal, sidebarOpen } = useAppStore()
+  const [pricingView, setPricingView] = useState(false)
 
-  const handleSetup = async () => {
-    setLoading(true)
-    try {
-      const res = await fetch('/api/seed', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: orgName, mode: 'simple' }),
-      })
-      const data = await res.json()
-      if (data.success) {
-        onSetup(data.organizationId, orgName)
-      }
-    } catch (err) {
-      console.error('Setup failed:', err)
-    }
-    setLoading(false)
+  // Compute view directly from store state (no useEffect + setState)
+  let view: AppView
+  if (pricingView) {
+    view = 'pricing'
+  } else if (isAdminPortal) {
+    view = 'admin'
+  } else if (currentUser && currentOrgId) {
+    view = 'app'
+  } else {
+    view = 'auth'
   }
 
-  return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background to-muted p-4">
-      <div className="w-full max-w-md">
-        <div className="text-center mb-8">
-          <div className="h-16 w-16 rounded-2xl bg-primary flex items-center justify-center text-primary-foreground font-bold text-2xl mx-auto mb-4">
-            HP
-          </div>
-          <h1 className="text-3xl font-bold tracking-tight">Hisab Pro</h1>
-          <p className="text-muted-foreground mt-2">Nepal Accounting System</p>
-          <p className="text-sm text-muted-foreground/70 mt-1">Easy like Excel, Powerful like ERP</p>
-        </div>
+  // Admin Portal
+  if (view === 'admin') {
+    return <AdminPortal />
+  }
 
-        <div className="bg-card border border-border rounded-xl p-6 shadow-lg">
-          <h2 className="text-lg font-semibold mb-4">Set Up Your Business</h2>
-
-          <div className="space-y-4">
-            <div>
-              <label className="text-sm font-medium text-foreground mb-1.5 block">
-                Business Name
-              </label>
-              <input
-                type="text"
-                value={orgName}
-                onChange={(e) => setOrgName(e.target.value)}
-                placeholder="e.g. Sharma Trading"
-                className="w-full px-3 py-2 text-sm rounded-md border border-input bg-background focus:outline-none focus:ring-2 focus:ring-ring"
-              />
-            </div>
-
-            <div className="bg-muted/50 rounded-lg p-4 space-y-2">
-              <p className="text-xs font-medium text-foreground">Setup includes:</p>
-              <ul className="text-xs text-muted-foreground space-y-1">
-                <li>✅ Nepal Chart of Accounts (NFRS compliant)</li>
-                <li>✅ VAT 13% configuration</li>
-                <li>✅ TDS rate setup</li>
-                <li>✅ Default warehouse</li>
-                <li>✅ Sample data to get started</li>
-              </ul>
-            </div>
-
-            <button
-              onClick={handleSetup}
-              disabled={loading || !orgName.trim()}
-              className="w-full py-2.5 px-4 bg-primary text-primary-foreground rounded-md font-medium text-sm hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {loading ? 'Setting up...' : 'Create Organization & Start'}
-            </button>
-          </div>
-        </div>
-
-        <div className="mt-6 text-center">
-          <p className="text-xs text-muted-foreground">
-            Dual-mode: Simple (for beginners) + Advanced (for accountants)
-          </p>
-          <p className="text-xs text-muted-foreground/60 mt-1">
-            Supports English & Nepali • VAT/TDS Compliant • IRD Ready
-          </p>
-        </div>
-      </div>
-    </div>
-  )
-}
-
-export default function HomePage() {
-  const { currentOrgId, setCurrentOrg, sidebarOpen } = useAppStore()
-  const [checking, setChecking] = useState(true)
-
-  useEffect(() => {
-    // Check if an organization already exists
-    fetch('/api/seed')
-      .then(res => res.json())
-      .then(data => {
-        if (Array.isArray(data) && data.length > 0) {
-          setCurrentOrg(data[0].id, data[0].name)
-        }
-      })
-      .catch(() => {})
-      .finally(() => setChecking(false))
-  }, [setCurrentOrg])
-
-  if (checking) {
+  // Pricing Plans
+  if (view === 'pricing') {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <div className="text-center">
-          <div className="h-12 w-12 rounded-xl bg-primary flex items-center justify-center text-primary-foreground font-bold text-xl mx-auto mb-3 animate-pulse">
-            HP
-          </div>
-          <p className="text-muted-foreground text-sm">Loading Hisab Pro...</p>
-        </div>
-      </div>
+      <PricingPlans
+        onBack={() => setPricingView(false)}
+        onSelectPlan={() => setPricingView(false)}
+      />
     )
   }
 
-  if (!currentOrgId) {
-    return <SetupScreen onSetup={(id, name) => setCurrentOrg(id, name)} />
+  // Auth Screen
+  if (view === 'auth') {
+    return (
+      <AuthScreen onShowPricing={() => setPricingView(true)} />
+    )
   }
 
+  // Main App
   return (
     <div className="h-screen flex overflow-hidden bg-background">
       {/* Sidebar */}

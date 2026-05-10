@@ -1,34 +1,33 @@
 ---
-Task ID: 1
-Agent: Main Coordinator
-Task: Build Hisab Pro - Nepal Accounting System (Full Stack)
+Task ID: 1-8
+Agent: Main Agent
+Task: Add login/register, admin portal, subscriptions, language support to Hisab Pro
 
 Work Log:
-- Created comprehensive Prisma schema with 20+ models covering: Organization, FiscalYear, User, AccountGroup, Account, JournalEntry, JournalEntryLine, Party, Product, Warehouse, StockLevel, StockTransaction, Invoice, InvoiceLine, PurchaseBill, PurchaseBillLine, TaxRate, AuditLog, OrganizationSetting, UserOrganization
-- Created Zustand store (app-store.ts) with mode toggle, active module, org state, sidebar, fiscal year, quick entry modal
-- Created Nepal accounting helpers (nepal-accounting.ts) with: VAT 13% config, TDS rates, SSF rates, Nepal COA groups (28 groups), Default accounts (20 accounts), formatNPR(), calculateVAT(), calculateTDS(), voucher type labels in English/Nepali
-- Created main layout components: AppSidebar (with Simple/Advanced mode toggle, grouped navigation, Nepali labels), AppHeader (with search, quick add buttons, theme toggle, user menu)
-- Created main page.tsx with SetupScreen (first-time org creation), ModuleRenderer (switch between 18 modules), and app shell layout
-- Created seed API route (POST) that creates: Organization, FiscalYear, Account Groups (28), Accounts (20), Tax Rates (6), Default Warehouse, Default User, Sample Parties (4), Sample Products (4), Sample Journal Entries (7 with double-entry lines)
-- Created 9 API route files covering: Dashboard, Accounts, Journal Entries, Parties, Invoices, Purchases, Inventory (+stock adjustment), Reports (5 report types), Seed
-- Created Dashboard component with: Stat cards (income/expense/profit/cash), Quick action buttons, Monthly bar chart, Income vs expense line chart (advanced), Recent activity, Top parties, Account balance summary, VAT summary, Fiscal year progress
-- Created Simple Mode components: SimpleIncome (category→account mapping, party dropdown, VAT toggle, payment method cards), SimpleExpense (same with expense categories)
-- Created Accounting components: ChartOfAccounts (tree view with groups, filter tabs, search), JournalEntries (list with filters, view dialog, cancel), JournalEntryNew (dynamic lines, real-time debit=credit validation), LedgerView (account selector, running balance)
-- Created Sales components: InvoiceList (status badges, summary cards), InvoiceForm (searchable party/product dropdowns, real-time line calculation, VAT auto-compute)
-- Created Purchase components: PurchaseList, PurchaseForm (supplier dropdown, warehouse, cost price auto-fill)
-- Created Inventory components: InventoryView (stock status badges, summary cards), ProductForm (goods/service toggle, batch/expiry tracking, costing method)
-- Created Reports component with: Report overview, Trial Balance, P&L, Balance Sheet, Cash Flow, VAT Report, TDS Report
-- Created Party components: PartyList (filter tabs, balance color-coding), PartyForm (Nepal provinces, PAN, TDS/SSF, banking)
-- Created Settings components: SettingsView (preferences, tax config, fiscal year), OrganizationView, UsersView
-- Updated layout.tsx metadata with Hisab Pro branding
-- Fixed lint error in AppHeader (setState in effect → lazy initializer)
-- All lint checks pass clean
+- Updated Prisma schema with Subscription model, Organization subscription fields (plan, subscriptionStatus, trialEndsAt), User role/language fields
+- Pushed schema to database with `bun run db:push`
+- Built auth API routes: /api/auth/register, /api/auth/login, /api/auth/session, /api/auth/logout
+- Built admin API routes: /api/admin (GET + PATCH for user/org/subscription management)
+- Created /src/lib/i18n.ts with full EN/NE/HI translations (170+ keys)
+- Created /src/lib/plans.ts with Free/Pro/Enterprise plan definitions and limit helpers
+- Created /src/components/auth/auth-screen.tsx (login/register with language selector)
+- Created /src/components/auth/pricing-plans.tsx (3-plan pricing page)
+- Created /src/components/auth/org-switcher.tsx (org dropdown with plan badges)
+- Created /src/components/admin/admin-portal.tsx (5-tab admin dashboard)
+- Updated /src/store/app-store.ts with auth state, language state, admin portal state
+- Updated /src/app/page.tsx with auth flow (auth → pricing → app → admin)
+- Updated /src/components/layout/app-header.tsx with OrgSwitcher, language selector, user menu, admin portal, logout
+- Updated /src/components/layout/app-sidebar.tsx with admin portal button for super_admin
+- Fixed admin API to match admin portal expected data format
+- Updated existing admin user to super_admin role with password hash
+- Tested login API successfully
+- All lint checks pass
 
 Stage Summary:
-- Complete Nepal accounting system with dual-mode UI (Simple + Advanced)
-- 20+ database models, 9 API routes, 18 frontend modules
-- Nepal-specific: VAT 13%, TDS, SSF, NFRS-compliant COA, IRD billing format, Nepali labels
-- Double-entry bookkeeping with automatic journal entry creation
-- Sales/Purchase with VAT auto-calculation and inventory integration
-- Professional dashboard with charts (recharts), stat cards, and financial summaries
-- Sample data seeded with 7 journal entries, 4 parties, 4 products
+- Full auth system: Login/Register with password hashing (SHA-256 + salt)
+- Admin portal: Super admin can manage users, organizations, subscriptions, plans
+- Subscription plans: Free ($0), Pro ($10/month), Enterprise (Contact Us) with feature limits
+- Language support: English, Nepali (नेपाली), Hindi (हिंदी) with 170+ translated keys
+- Multi-tenant: Users can switch between organizations, org switcher in header
+- Pricing page accessible from auth screen
+- Default credentials: admin@hisabpro.com / admin123 (super_admin)

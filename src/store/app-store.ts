@@ -27,6 +27,22 @@ export type AppModule =
   | 'settings'
   | 'organization'
   | 'users'
+  | 'admin-portal'
+
+interface CurrentUser {
+  id: string
+  email: string
+  name: string
+  role: string
+  language: string
+}
+
+interface UserOrganization {
+  id: string
+  name: string
+  role: string
+  plan: string
+}
 
 interface AppState {
   // Mode
@@ -55,6 +71,21 @@ interface AppState {
   showQuickEntry: boolean
   quickEntryType: 'income' | 'expense'
   setShowQuickEntry: (show: boolean, type?: 'income' | 'expense') => void
+
+  // Auth
+  currentUser: CurrentUser | null
+  userOrganizations: UserOrganization[]
+  setCurrentUser: (user: CurrentUser | null) => void
+  setUserOrganizations: (orgs: UserOrganization[]) => void
+  logout: () => void
+
+  // Language
+  language: string
+  setLanguage: (lang: string) => void
+
+  // Admin mode
+  isAdminPortal: boolean
+  setIsAdminPortal: (val: boolean) => void
 }
 
 export const useAppStore = create<AppState>((set) => ({
@@ -78,4 +109,26 @@ export const useAppStore = create<AppState>((set) => ({
   showQuickEntry: false,
   quickEntryType: 'income',
   setShowQuickEntry: (show, type) => set({ showQuickEntry: show, quickEntryType: type || 'income' }),
+
+  // Auth
+  currentUser: null,
+  userOrganizations: [],
+  setCurrentUser: (user) => set({ currentUser: user }),
+  setUserOrganizations: (orgs) => set({ userOrganizations: orgs }),
+  logout: () => set({
+    currentUser: null,
+    userOrganizations: [],
+    currentOrgId: null,
+    currentOrgName: 'My Business',
+    isAdminPortal: false,
+    activeModule: 'dashboard',
+  }),
+
+  // Language
+  language: 'en',
+  setLanguage: (lang) => set({ language: lang }),
+
+  // Admin mode
+  isAdminPortal: false,
+  setIsAdminPortal: (val) => set({ isAdminPortal: val }),
 }))
