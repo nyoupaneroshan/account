@@ -2,6 +2,7 @@ import { db } from '@/lib/db'
 import { NEPAL_COA_GROUPS, DEFAULT_ACCOUNTS } from '@/lib/nepal-accounting'
 import { NextResponse } from 'next/server'
 import { createHash } from 'crypto'
+import { setSessionCookie } from '@/lib/auth'
 
 const SALT = 'hisab-pro-salt'
 
@@ -69,7 +70,7 @@ export async function POST(request: Request) {
         fiscalYear: '2081/82',
         plan: 'free',
         subscriptionStatus: 'trialing',
-        trialEndsAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30-day trial
+        trialEndsAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
       }
     })
 
@@ -82,7 +83,7 @@ export async function POST(request: Request) {
       }
     })
 
-    // Create FiscalYear for the org
+    // Create FiscalYear
     await db.fiscalYear.create({
       data: {
         organizationId: org.id,
@@ -93,7 +94,7 @@ export async function POST(request: Request) {
       }
     })
 
-    // Seed Nepal COA - Create Account Groups
+    // Seed Nepal COA - Create Account Groups (batch approach to reduce memory)
     const groupMap: Record<string, string> = {}
     for (const group of NEPAL_COA_GROUPS) {
       const created = await db.accountGroup.create({
@@ -111,15 +112,14 @@ export async function POST(request: Request) {
       groupMap[group.code] = created.id
     }
 
-    // Seed Nepal COA - Create Default Accounts
-    for (const account of DEFAULT_ACCOUNTS) {
-      const groupId = groupMap[account.groupCode]
-      if (!groupId) continue
-
-      await db.account.create({
-        data: {
+    // Create Default Accounts using createMany for efficiency
+    const accountsData = DEFAULT_ACCOUNTS
+      .map(account => {
+        const groupId = groupMap[account.groupCode]
+        if (!groupId) return null
+        return {
           organizationId: org.id,
-          groupId: groupId,
+          groupId,
           name: account.name,
           nameNepali: account.nameNepali,
           code: account.code,
@@ -132,6 +132,25 @@ export async function POST(request: Request) {
           currentBalance: 0,
         }
       })
+      .filter(Boolean) as Array<{
+        organizationId: string
+        groupId: string
+        name: string
+        nameNepali: string | null
+        code: string
+        accountType: string
+        subType: string | null
+        isSystem: boolean
+        isActive: boolean
+        allowsDirectPosting: boolean
+        openingBalance: number
+        currentBalance: number
+      }>
+
+    // Create accounts in batches of 5 to avoid memory issues
+    for (let i = 0; i < accountsData.length; i += 5) {
+      const batch = accountsData.slice(i, i + 5)
+      await db.account.createMany({ data: batch })
     }
 
     // Create default tax rates
@@ -156,7 +175,7 @@ export async function POST(request: Request) {
       }
     })
 
-    // Create default Subscription with free plan and 30-day trial
+    // Create default Subscription
     await db.subscription.create({
       data: {
         organizationId: org.id,
@@ -168,8 +187,8 @@ export async function POST(request: Request) {
       }
     })
 
-    // Return user + organization data matching auth screen expectations
-    return NextResponse.json({
+    // Create response and set session cookie
+    const response = NextResponse.json({
       success: true,
       user: {
         id: user.id,
@@ -185,6 +204,11 @@ export async function POST(request: Request) {
         plan: org.plan,
       }],
     }, { status: 201 })
+
+    const cookieConfig = setSessionCookie(user.id)
+    response.cookies.set(cookieConfig.name, cookieConfig.value, cookieConfig.options)
+
+    return response
 
   } catch (error) {
     console.error('Register error:', error)

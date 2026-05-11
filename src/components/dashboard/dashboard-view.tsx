@@ -2,7 +2,9 @@
 
 import { useEffect, useState, useCallback } from 'react'
 import { useAppStore } from '@/store/app-store'
-import { formatNPR, NEPAL_FISCAL_YEARS } from '@/lib/nepal-accounting'
+import { formatNPR, NEPAL_FISCAL_YEARS, calculateVAT } from '@/lib/nepal-accounting'
+import { t } from '@/lib/i18n'
+import { hasFeature } from '@/lib/plans'
 import { cn } from '@/lib/utils'
 import {
   Card,
@@ -16,23 +18,8 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { Badge } from '@/components/ui/badge'
 import { Progress } from '@/components/ui/progress'
 import { Separator } from '@/components/ui/separator'
-import {
-  ChartContainer,
-  ChartTooltip,
-  ChartTooltipContent,
-  ChartLegend,
-  ChartLegendContent,
-  type ChartConfig,
-} from '@/components/ui/chart'
-import {
-  BarChart,
-  Bar,
-  LineChart,
-  Line,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-} from 'recharts'
+// recharts removed - using simple CSS-based bars instead
+import { useRouter } from 'next/navigation'
 import {
   TrendingUp,
   TrendingDown,
@@ -48,6 +35,9 @@ import {
   Receipt,
   Calendar,
   Users,
+  RefreshCw,
+  BookOpen,
+  Eye,
 } from 'lucide-react'
 
 // ── Types ──────────────────────────────────────────────────────
@@ -65,7 +55,6 @@ interface DashboardData {
   }
   topParties: TopParty[]
   monthlyData: MonthlyData[]
-  // Extended fields for advanced mode (derived client-side)
   cashBalance?: number
   bankBalance?: number
   accountBalances?: AccountBalance[]
@@ -117,37 +106,14 @@ interface AccountBalance {
   subType: string
 }
 
-// ── Chart Configs ──────────────────────────────────────────────
-const barChartConfig = {
-  income: {
-    label: 'आम्दानी / Income',
-    color: 'hsl(142, 71%, 45%)',
-  },
-  expense: {
-    label: 'खर्च / Expense',
-    color: 'hsl(0, 84%, 60%)',
-  },
-} satisfies ChartConfig
+// recharts config removed - using CSS-based bars
 
-const lineChartConfig = {
-  income: {
-    label: 'आम्दानी / Income',
-    color: 'hsl(142, 71%, 45%)',
-  },
-  expense: {
-    label: 'खर्च / Expense',
-    color: 'hsl(0, 84%, 60%)',
-  },
-} satisfies ChartConfig
-
-// ── Helper: Determine transaction type ─────────────────────────
+// ── Helpers ────────────────────────────────────────────────────
 function getTransactionType(tx: RecentTransaction): 'income' | 'expense' | 'neutral' {
   const incomeTypes = ['receipt', 'sales']
   const expenseTypes = ['payment', 'purchase']
   if (incomeTypes.includes(tx.voucherType)) return 'income'
   if (expenseTypes.includes(tx.voucherType)) return 'expense'
-
-  // Fallback: check if income or expense accounts are credited/debited
   const hasIncomeCredit = tx.lines.some(
     (l) => l.account.accountType === 'income' && l.credit > 0
   )
@@ -176,7 +142,7 @@ function getTransactionAmount(tx: RecentTransaction): number {
   return tx.totalDebit
 }
 
-// ── Loading Skeletons ──────────────────────────────────────────
+// ── Skeletons ──────────────────────────────────────────────────
 function StatCardSkeleton() {
   return (
     <Card>
@@ -210,27 +176,7 @@ function ChartSkeleton() {
   )
 }
 
-function TableSkeleton({ rows = 5 }: { rows?: number }) {
-  return (
-    <Card>
-      <CardHeader>
-        <Skeleton className="h-5 w-36" />
-      </CardHeader>
-      <CardContent>
-        <div className="space-y-3">
-          {Array.from({ length: rows }).map((_, i) => (
-            <div key={i} className="flex items-center justify-between">
-              <Skeleton className="h-4 w-32" />
-              <Skeleton className="h-4 w-24" />
-            </div>
-          ))}
-        </div>
-      </CardContent>
-    </Card>
-  )
-}
-
-// ── Stat Card Component ────────────────────────────────────────
+// ── Stat Card ──────────────────────────────────────────────────
 function StatCard({
   title,
   titleNepali,
@@ -251,7 +197,7 @@ function StatCard({
   iconBgClass: string
 }) {
   return (
-    <Card className="relative overflow-hidden">
+    <Card className="relative overflow-hidden transition-shadow hover:shadow-md">
       <CardHeader className="pb-2">
         <div className="flex items-center justify-between">
           <div className="flex flex-col">
@@ -290,12 +236,79 @@ function StatCard({
   )
 }
 
-// ── Main Component ─────────────────────────────────────────────
+// ── Transaction Row ────────────────────────────────────────────
+function TransactionRow({ tx }: { tx: RecentTransaction }) {
+  const txType = getTransactionType(tx)
+  const amount = getTransactionAmount(tx)
+  return (
+    <div className="flex items-center justify-between py-2.5 px-3 rounded-lg hover:bg-accent/50 transition-colors">
+      <div className="flex items-center gap-3 min-w-0 flex-1">
+        <div
+          className={cn(
+            'h-8 w-8 rounded-full flex items-center justify-center shrink-0',
+            txType === 'income'
+              ? 'bg-green-100 dark:bg-green-900/30'
+              : txType === 'expense'
+                ? 'bg-red-100 dark:bg-red-900/30'
+                : 'bg-muted'
+          )}
+        >
+          {txType === 'income' ? (
+            <ArrowUpRight className="h-4 w-4 text-green-600 dark:text-green-400" />
+          ) : txType === 'expense' ? (
+            <ArrowDownRight className="h-4 w-4 text-red-600 dark:text-red-400" />
+          ) : (
+            <ArrowUpRight className="h-4 w-4 text-muted-foreground" />
+          )}
+        </div>
+        <div className="min-w-0 flex-1">
+          <p className="text-sm font-medium truncate">{tx.narration}</p>
+          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+            <span>
+              {new Date(tx.date).toLocaleDateString('en-US', {
+                month: 'short',
+                day: 'numeric',
+                year: 'numeric',
+              })}
+            </span>
+            <span>&middot;</span>
+            <span>{tx.entryNumber}</span>
+            <Badge variant="outline" className="text-[10px] px-1.5 py-0">
+              {tx.voucherType}
+            </Badge>
+          </div>
+        </div>
+      </div>
+      <div className="text-right ml-3">
+        <p
+          className={cn(
+            'text-sm font-semibold tabular-nums',
+            txType === 'income'
+              ? 'text-green-600 dark:text-green-400'
+              : txType === 'expense'
+                ? 'text-red-600 dark:text-red-400'
+                : 'text-foreground'
+          )}
+        >
+          {txType === 'income' ? '+' : txType === 'expense' ? '-' : ''}
+          {formatNPR(amount)}
+        </p>
+      </div>
+    </div>
+  )
+}
+
+// ════════════════════════════════════════════════════════════════
+// MAIN COMPONENT
+// ════════════════════════════════════════════════════════════════
 export function DashboardView() {
-  const { currentOrgId, mode, setActiveModule } = useAppStore()
+  const { currentOrgId, mode, currentFiscalYear, userOrganizations } = useAppStore()
+  const router = useRouter()
   const [data, setData] = useState<DashboardData | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+
+  const currentPlan = userOrganizations.find(o => o.id === currentOrgId)?.plan || 'free'
 
   const fetchDashboard = useCallback(async () => {
     if (!currentOrgId) return
@@ -319,7 +332,7 @@ export function DashboardView() {
 
   // ── Fiscal Year Progress ──
   const fiscalYearProgress = (() => {
-    const currentFY = NEPAL_FISCAL_YEARS[0]
+    const currentFY = NEPAL_FISCAL_YEARS.find(fy => fy.label === currentFiscalYear) || NEPAL_FISCAL_YEARS[0]
     if (!currentFY) return 0
     const start = new Date(currentFY.start).getTime()
     const end = new Date(currentFY.end).getTime()
@@ -329,15 +342,13 @@ export function DashboardView() {
     return Math.round(((now - start) / (end - start)) * 100)
   })()
 
-  // ── Compute derived data ──
+  // ── Derived data ──
   const netWorth = data
     ? (data.totalReceivable + (data.cashBalance || 0) + (data.bankBalance || 0)) -
       data.totalPayable
     : 0
 
-  // ════════════════════════════════════════════════════════════
-  // LOADING STATE
-  // ════════════════════════════════════════════════════════════
+  // ── LOADING STATE ──
   if (loading) {
     return (
       <div className="p-4 md:p-6 space-y-6">
@@ -348,15 +359,25 @@ export function DashboardView() {
         </div>
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           <ChartSkeleton />
-          <TableSkeleton />
+          <Card>
+            <CardHeader>
+              <Skeleton className="h-5 w-36" />
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {Array.from({ length: 5 }).map((_, i) => (
+                <div key={i} className="flex items-center justify-between">
+                  <Skeleton className="h-4 w-32" />
+                  <Skeleton className="h-4 w-24" />
+                </div>
+              ))}
+            </CardContent>
+          </Card>
         </div>
       </div>
     )
   }
 
-  // ════════════════════════════════════════════════════════════
-  // ERROR STATE
-  // ════════════════════════════════════════════════════════════
+  // ── ERROR STATE ──
   if (error) {
     return (
       <div className="p-4 md:p-6 flex items-center justify-center min-h-[400px]">
@@ -370,7 +391,8 @@ export function DashboardView() {
           </CardHeader>
           <CardContent className="text-center">
             <p className="text-sm text-muted-foreground mb-4">{error}</p>
-            <Button onClick={fetchDashboard} variant="outline" size="sm">
+            <Button onClick={fetchDashboard} variant="outline" size="sm" className="gap-2">
+              <RefreshCw className="h-3.5 w-3.5" />
               पुनः प्रयास गर्नुहोस् / Retry
             </Button>
           </CardContent>
@@ -379,21 +401,29 @@ export function DashboardView() {
     )
   }
 
-  // ════════════════════════════════════════════════════════════
-  // EMPTY STATE
-  // ════════════════════════════════════════════════════════════
   if (!data) return null
 
-  const hasData =
-    data.totalIncome > 0 ||
-    data.totalExpense > 0 ||
-    data.recentTransactions.length > 0
-
-  // ════════════════════════════════════════════════════════════
-  // RENDER
-  // ════════════════════════════════════════════════════════════
+  // ── RENDER ──
   return (
     <div className="p-4 md:p-6 space-y-6 max-w-[1600px] mx-auto">
+      {/* ── Fiscal Year Progress Bar ── */}
+      <Card className="overflow-hidden">
+        <CardContent className="p-4">
+          <div className="flex items-center justify-between mb-2">
+            <div className="flex items-center gap-2">
+              <Calendar className="h-4 w-4 text-muted-foreground" />
+              <span className="text-sm font-medium">
+                आर्थिक वर्ष / {t('fiscal_year')}: {currentFiscalYear}
+              </span>
+            </div>
+            <span className="text-xs text-muted-foreground">
+              {fiscalYearProgress}% elapsed
+            </span>
+          </div>
+          <Progress value={fiscalYearProgress} className="h-2" />
+        </CardContent>
+      </Card>
+
       {/* ── SIMPLE MODE: Top Stats (4 cards) ── */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard
@@ -447,10 +477,10 @@ export function DashboardView() {
       </div>
 
       {/* ── ADVANCED MODE: Additional Stats (4 cards) ── */}
-      {mode === 'advanced' && (
+      {mode === 'advanced' && hasFeature(currentPlan, 'advancedMode') && (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           <StatCard
-            title="Total Receivable"
+            title="Receivable"
             titleNepali="कुल प्राप्य"
             value={data.totalReceivable}
             icon={HandCoins}
@@ -460,7 +490,7 @@ export function DashboardView() {
             iconBgClass="bg-green-100 dark:bg-green-900/30"
           />
           <StatCard
-            title="Total Payable"
+            title="Payable"
             titleNepali="कुल देय"
             value={data.totalPayable}
             icon={CreditCard}
@@ -518,25 +548,33 @@ export function DashboardView() {
       {mode === 'simple' && (
         <div className="flex flex-wrap gap-3">
           <Button
-            onClick={() => setActiveModule('simple-income')}
+            onClick={() => router.push('/income')}
             className="gap-2 bg-green-600 hover:bg-green-700 text-white"
           >
             <PlusCircle className="h-4 w-4" />
-            आम्दानी थप्नुहोस् / Add Income
+            {t('add_income')} / Add Income
           </Button>
           <Button
-            onClick={() => setActiveModule('simple-expense')}
+            onClick={() => router.push('/expense')}
             className="gap-2 bg-red-600 hover:bg-red-700 text-white"
           >
             <MinusCircle className="h-4 w-4" />
-            खर्च थप्नुहोस् / Add Expense
+            {t('add_expense')} / Add Expense
+          </Button>
+          <Button
+            variant="outline"
+            onClick={() => router.push('/journal/new')}
+            className="gap-2"
+          >
+            <BookOpen className="h-4 w-4" />
+            New Journal Entry
           </Button>
         </div>
       )}
 
       {/* ── Charts Row ── */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Monthly Summary Bar Chart */}
+        {/* Monthly Income vs Expense Bar Chart */}
         <Card>
           <CardHeader>
             <CardTitle className="text-base">
@@ -549,53 +587,49 @@ export function DashboardView() {
           <CardContent>
             {data.monthlyData.length > 0 &&
             data.monthlyData.some((m) => m.income > 0 || m.expense > 0) ? (
-              <ChartContainer config={barChartConfig} className="h-[280px] w-full">
-                <BarChart data={data.monthlyData} margin={{ top: 8, right: 8, bottom: 8, left: 8 }}>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                  <XAxis
-                    dataKey="month"
-                    tickLine={false}
-                    axisLine={false}
-                    tickMargin={8}
-                    fontSize={11}
-                  />
-                  <YAxis
-                    tickLine={false}
-                    axisLine={false}
-                    tickMargin={8}
-                    fontSize={11}
-                    tickFormatter={(v: number) => {
-                      if (v >= 1000000) return `${(v / 1000000).toFixed(1)}M`
-                      if (v >= 1000) return `${(v / 1000).toFixed(0)}K`
-                      return String(v)
-                    }}
-                  />
-                  <ChartTooltip
-                    content={
-                      <ChartTooltipContent
-                        formatter={(value, _name, item) => (
-                          <span className="font-mono font-medium">
-                            {formatNPR(Number(value))}
-                          </span>
-                        )}
-                      />
-                    }
-                  />
-                  <ChartLegend content={<ChartLegendContent />} />
-                  <Bar
-                    dataKey="income"
-                    fill="var(--color-income)"
-                    radius={[4, 4, 0, 0]}
-                    maxBarSize={40}
-                  />
-                  <Bar
-                    dataKey="expense"
-                    fill="var(--color-expense)"
-                    radius={[4, 4, 0, 0]}
-                    maxBarSize={40}
-                  />
-                </BarChart>
-              </ChartContainer>
+              <div className="space-y-3">
+                {/* Legend */}
+                <div className="flex items-center gap-4 text-xs mb-2">
+                  <div className="flex items-center gap-1.5">
+                    <div className="h-3 w-3 rounded-sm bg-green-500" />
+                    <span>आम्दानी / Income</span>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <div className="h-3 w-3 rounded-sm bg-red-500" />
+                    <span>खर्च / Expense</span>
+                  </div>
+                </div>
+                {/* Simple CSS-based bar chart */}
+                {(() => {
+                  const maxVal = Math.max(
+                    ...data.monthlyData.map((m) => Math.max(m.income, m.expense)),
+                    1
+                  )
+                  return data.monthlyData.map((m) => (
+                    <div key={m.key} className="space-y-1">
+                      <div className="flex items-center justify-between text-xs">
+                        <span className="font-medium w-20">{m.month}</span>
+                        <span className="text-green-600 dark:text-green-400 font-mono">
+                          {formatNPR(m.income)}
+                        </span>
+                        <span className="text-red-600 dark:text-red-400 font-mono">
+                          {formatNPR(m.expense)}
+                        </span>
+                      </div>
+                      <div className="space-y-0.5">
+                        <div
+                          className="h-4 bg-green-500/80 rounded-sm"
+                          style={{ width: `${Math.max((m.income / maxVal) * 100, 0.5)}%` }}
+                        />
+                        <div
+                          className="h-4 bg-red-500/80 rounded-sm"
+                          style={{ width: `${Math.max((m.expense / maxVal) * 100, 0.5)}%` }}
+                        />
+                      </div>
+                    </div>
+                  ))
+                })()}
+              </div>
             ) : (
               <div className="h-[280px] flex items-center justify-center text-muted-foreground">
                 <div className="text-center">
@@ -610,269 +644,53 @@ export function DashboardView() {
           </CardContent>
         </Card>
 
-        {/* Advanced: Income vs Expense Trend (Line Chart) */}
-        {mode === 'advanced' ? (
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">
-                आम्दानी बनाम खर्च प्रवृत्ति / Income vs Expense Trend
-              </CardTitle>
-              <CardDescription>
-                Monthly trend line for financial analysis
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              {data.monthlyData.length > 0 &&
-              data.monthlyData.some((m) => m.income > 0 || m.expense > 0) ? (
-                <ChartContainer config={lineChartConfig} className="h-[280px] w-full">
-                  <LineChart data={data.monthlyData} margin={{ top: 8, right: 8, bottom: 8, left: 8 }}>
-                    <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                    <XAxis
-                      dataKey="month"
-                      tickLine={false}
-                      axisLine={false}
-                      tickMargin={8}
-                      fontSize={11}
-                    />
-                    <YAxis
-                      tickLine={false}
-                      axisLine={false}
-                      tickMargin={8}
-                      fontSize={11}
-                      tickFormatter={(v: number) => {
-                        if (v >= 1000000) return `${(v / 1000000).toFixed(1)}M`
-                        if (v >= 1000) return `${(v / 1000).toFixed(0)}K`
-                        return String(v)
-                      }}
-                    />
-                    <ChartTooltip
-                      content={
-                        <ChartTooltipContent
-                          formatter={(value, _name, item) => (
-                            <span className="font-mono font-medium">
-                              {formatNPR(Number(value))}
-                            </span>
-                          )}
-                        />
-                      }
-                    />
-                    <ChartLegend content={<ChartLegendContent />} />
-                    <Line
-                      type="monotone"
-                      dataKey="income"
-                      stroke="var(--color-income)"
-                      strokeWidth={2.5}
-                      dot={{ r: 4, fill: 'var(--color-income)' }}
-                      activeDot={{ r: 6 }}
-                    />
-                    <Line
-                      type="monotone"
-                      dataKey="expense"
-                      stroke="var(--color-expense)"
-                      strokeWidth={2.5}
-                      dot={{ r: 4, fill: 'var(--color-expense)' }}
-                      activeDot={{ r: 6 }}
-                    />
-                  </LineChart>
-                </ChartContainer>
-              ) : (
-                <div className="h-[280px] flex items-center justify-center text-muted-foreground">
-                  <div className="text-center">
-                    <TrendingUp className="h-10 w-10 mx-auto mb-2 opacity-40" />
-                    <p className="text-sm">No trend data yet</p>
-                    <p className="text-xs text-muted-foreground/60">
-                      Start adding transactions to see trends
-                    </p>
-                  </div>
+        {/* Recent Transactions (last 5) */}
+        <Card>
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle className="text-base">
+                  हालको गतिविधि / Recent Activity
+                </CardTitle>
+                <CardDescription>
+                  {mode === 'simple' ? 'Latest transactions' : 'Latest journal entries'}
+                </CardDescription>
+              </div>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="text-xs gap-1"
+                onClick={() => router.push('/journal')}
+              >
+                <Eye className="h-3 w-3" />
+                View All
+              </Button>
+            </div>
+          </CardHeader>
+          <CardContent>
+            {data.recentTransactions.length > 0 ? (
+              <div className="space-y-1 max-h-[320px] overflow-y-auto pr-1">
+                {data.recentTransactions.slice(0, 5).map((tx) => (
+                  <TransactionRow key={tx.id} tx={tx} />
+                ))}
+              </div>
+            ) : (
+              <div className="h-[200px] flex items-center justify-center text-muted-foreground">
+                <div className="text-center">
+                  <Receipt className="h-10 w-10 mx-auto mb-2 opacity-40" />
+                  <p className="text-sm">कुनै लेनदेन भएको छैन</p>
+                  <p className="text-xs text-muted-foreground/60">
+                    No transactions yet
+                  </p>
                 </div>
-              )}
-            </CardContent>
-          </Card>
-        ) : (
-          /* Simple Mode: Recent Activity */
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">
-                हालको गतिविधि / Recent Activity
-              </CardTitle>
-              <CardDescription>
-                Latest transactions in your account
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              {data.recentTransactions.length > 0 ? (
-                <div className="space-y-1 max-h-[320px] overflow-y-auto pr-1">
-                  {data.recentTransactions.slice(0, 5).map((tx) => {
-                    const txType = getTransactionType(tx)
-                    const amount = getTransactionAmount(tx)
-                    return (
-                      <div
-                        key={tx.id}
-                        className="flex items-center justify-between py-2.5 px-3 rounded-lg hover:bg-accent/50 transition-colors"
-                      >
-                        <div className="flex items-center gap-3 min-w-0 flex-1">
-                          <div
-                            className={cn(
-                              'h-8 w-8 rounded-full flex items-center justify-center shrink-0',
-                              txType === 'income'
-                                ? 'bg-green-100 dark:bg-green-900/30'
-                                : txType === 'expense'
-                                  ? 'bg-red-100 dark:bg-red-900/30'
-                                  : 'bg-muted'
-                            )}
-                          >
-                            {txType === 'income' ? (
-                              <ArrowUpRight className="h-4 w-4 text-green-600 dark:text-green-400" />
-                            ) : txType === 'expense' ? (
-                              <ArrowDownRight className="h-4 w-4 text-red-600 dark:text-red-400" />
-                            ) : (
-                              <ArrowUpRight className="h-4 w-4 text-muted-foreground" />
-                            )}
-                          </div>
-                          <div className="min-w-0 flex-1">
-                            <p className="text-sm font-medium truncate">
-                              {tx.narration}
-                            </p>
-                            <p className="text-xs text-muted-foreground">
-                              {new Date(tx.date).toLocaleDateString('en-US', {
-                                month: 'short',
-                                day: 'numeric',
-                                year: 'numeric',
-                              })}{' '}
-                              &middot; {tx.entryNumber}
-                            </p>
-                          </div>
-                        </div>
-                        <div className="text-right ml-3">
-                          <p
-                            className={cn(
-                              'text-sm font-semibold tabular-nums',
-                              txType === 'income'
-                                ? 'text-green-600 dark:text-green-400'
-                                : txType === 'expense'
-                                  ? 'text-red-600 dark:text-red-400'
-                                  : 'text-foreground'
-                            )}
-                          >
-                            {txType === 'income' ? '+' : txType === 'expense' ? '-' : ''}
-                            {formatNPR(amount)}
-                          </p>
-                        </div>
-                      </div>
-                    )
-                  })}
-                </div>
-              ) : (
-                <div className="h-[200px] flex items-center justify-center text-muted-foreground">
-                  <div className="text-center">
-                    <Receipt className="h-10 w-10 mx-auto mb-2 opacity-40" />
-                    <p className="text-sm">कुनै लेनदेन भएको छैन</p>
-                    <p className="text-xs text-muted-foreground/60">
-                      No transactions yet
-                    </p>
-                  </div>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        )}
+              </div>
+            )}
+          </CardContent>
+        </Card>
       </div>
 
-      {/* ── Second Row ── */}
+      {/* ── Bottom Row ── */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Recent Activity (Advanced Mode gets the full-width version) */}
-        {mode === 'advanced' && (
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">
-                हालको गतिविधि / Recent Activity
-              </CardTitle>
-              <CardDescription>Latest journal entries</CardDescription>
-            </CardHeader>
-            <CardContent>
-              {data.recentTransactions.length > 0 ? (
-                <div className="space-y-1 max-h-[320px] overflow-y-auto pr-1">
-                  {data.recentTransactions.slice(0, 5).map((tx) => {
-                    const txType = getTransactionType(tx)
-                    const amount = getTransactionAmount(tx)
-                    return (
-                      <div
-                        key={tx.id}
-                        className="flex items-center justify-between py-2.5 px-3 rounded-lg hover:bg-accent/50 transition-colors"
-                      >
-                        <div className="flex items-center gap-3 min-w-0 flex-1">
-                          <div
-                            className={cn(
-                              'h-8 w-8 rounded-full flex items-center justify-center shrink-0',
-                              txType === 'income'
-                                ? 'bg-green-100 dark:bg-green-900/30'
-                                : txType === 'expense'
-                                  ? 'bg-red-100 dark:bg-red-900/30'
-                                  : 'bg-muted'
-                            )}
-                          >
-                            {txType === 'income' ? (
-                              <ArrowUpRight className="h-4 w-4 text-green-600 dark:text-green-400" />
-                            ) : txType === 'expense' ? (
-                              <ArrowDownRight className="h-4 w-4 text-red-600 dark:text-red-400" />
-                            ) : (
-                              <ArrowUpRight className="h-4 w-4 text-muted-foreground" />
-                            )}
-                          </div>
-                          <div className="min-w-0 flex-1">
-                            <p className="text-sm font-medium truncate">
-                              {tx.narration}
-                            </p>
-                            <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                              <span>
-                                {new Date(tx.date).toLocaleDateString('en-US', {
-                                  month: 'short',
-                                  day: 'numeric',
-                                  year: 'numeric',
-                                })}
-                              </span>
-                              <span>&middot;</span>
-                              <span>{tx.entryNumber}</span>
-                              <Badge variant="outline" className="text-[10px] px-1.5 py-0">
-                                {tx.voucherType}
-                              </Badge>
-                            </div>
-                          </div>
-                        </div>
-                        <div className="text-right ml-3">
-                          <p
-                            className={cn(
-                              'text-sm font-semibold tabular-nums',
-                              txType === 'income'
-                                ? 'text-green-600 dark:text-green-400'
-                                : txType === 'expense'
-                                  ? 'text-red-600 dark:text-red-400'
-                                  : 'text-foreground'
-                            )}
-                          >
-                            {txType === 'income' ? '+' : txType === 'expense' ? '-' : ''}
-                            {formatNPR(amount)}
-                          </p>
-                        </div>
-                      </div>
-                    )
-                  })}
-                </div>
-              ) : (
-                <div className="h-[200px] flex items-center justify-center text-muted-foreground">
-                  <div className="text-center">
-                    <Receipt className="h-10 w-10 mx-auto mb-2 opacity-40" />
-                    <p className="text-sm">कुनै लेनदेन भएको छैन</p>
-                    <p className="text-xs text-muted-foreground/60">
-                      No transactions yet
-                    </p>
-                  </div>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        )}
-
         {/* Top Parties */}
         <Card>
           <CardHeader>
@@ -891,7 +709,7 @@ export function DashboardView() {
                 variant="ghost"
                 size="sm"
                 className="text-xs"
-                onClick={() => setActiveModule('parties')}
+                onClick={() => router.push('/parties')}
               >
                 View All
               </Button>
@@ -919,9 +737,7 @@ export function DashboardView() {
                           <Users className="h-4 w-4 text-muted-foreground" />
                         </div>
                         <div className="min-w-0">
-                          <p className="text-sm font-medium truncate">
-                            {party.name}
-                          </p>
+                          <p className="text-sm font-medium truncate">{party.name}</p>
                           <Badge variant="outline" className="text-[10px] px-1.5 py-0 mt-0.5">
                             {party.partyType}
                           </Badge>
@@ -952,17 +768,15 @@ export function DashboardView() {
                 <div className="text-center">
                   <Users className="h-10 w-10 mx-auto mb-2 opacity-40" />
                   <p className="text-sm">कुनै पक्ष भेटिएन</p>
-                  <p className="text-xs text-muted-foreground/60">
-                    No parties found
-                  </p>
+                  <p className="text-xs text-muted-foreground/60">No parties found</p>
                 </div>
               </div>
             )}
           </CardContent>
         </Card>
 
-        {/* Advanced: Account Balance Summary */}
-        {mode === 'advanced' && (
+        {/* Advanced: Account Balance Summary / Simple: Quick Overview */}
+        {mode === 'advanced' && hasFeature(currentPlan, 'advancedMode') ? (
           <Card>
             <CardHeader>
               <CardTitle className="text-base">
@@ -972,7 +786,6 @@ export function DashboardView() {
             </CardHeader>
             <CardContent>
               <div className="space-y-3">
-                {/* Cash */}
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <Wallet className="h-4 w-4 text-muted-foreground" />
@@ -984,7 +797,6 @@ export function DashboardView() {
                   </span>
                 </div>
                 <Separator />
-                {/* Bank */}
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <Landmark className="h-4 w-4 text-muted-foreground" />
@@ -996,7 +808,6 @@ export function DashboardView() {
                   </span>
                 </div>
                 <Separator />
-                {/* Receivable */}
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <HandCoins className="h-4 w-4 text-muted-foreground" />
@@ -1008,7 +819,6 @@ export function DashboardView() {
                   </span>
                 </div>
                 <Separator />
-                {/* Payable */}
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <CreditCard className="h-4 w-4 text-muted-foreground" />
@@ -1020,7 +830,6 @@ export function DashboardView() {
                   </span>
                 </div>
                 <Separator />
-                {/* VAT */}
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <Receipt className="h-4 w-4 text-muted-foreground" />
@@ -1041,30 +850,21 @@ export function DashboardView() {
               </div>
             </CardContent>
           </Card>
-        )}
-      </div>
-
-      {/* ── Advanced: VAT Summary Card + Fiscal Year Progress ── */}
-      {mode === 'advanced' && (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* VAT Summary */}
+        ) : (
+          /* Simple Mode: VAT Summary mini */
           <Card>
             <CardHeader>
               <CardTitle className="text-base">
                 भ्याट सारांश / VAT Summary
               </CardTitle>
-              <CardDescription>
-                Value Added Tax breakdown for IRD compliance
-              </CardDescription>
+              <CardDescription>Value Added Tax breakdown</CardDescription>
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-sm font-medium">Output VAT (निर्गत भ्याट)</p>
-                    <p className="text-xs text-muted-foreground">
-                      VAT collected on sales
-                    </p>
+                    <p className="text-xs text-muted-foreground">VAT collected on sales</p>
                   </div>
                   <span className="text-sm font-semibold tabular-nums text-red-600 dark:text-red-400">
                     {formatNPR(data.vatSummary.outputVAT)}
@@ -1074,9 +874,7 @@ export function DashboardView() {
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-sm font-medium">Input VAT (आगत भ्याट)</p>
-                    <p className="text-xs text-muted-foreground">
-                      VAT paid on purchases
-                    </p>
+                    <p className="text-xs text-muted-foreground">VAT paid on purchases</p>
                   </div>
                   <span className="text-sm font-semibold tabular-nums text-green-600 dark:text-green-400">
                     {formatNPR(data.vatSummary.inputVAT)}
@@ -1124,142 +922,8 @@ export function DashboardView() {
               </div>
             </CardContent>
           </Card>
-
-          {/* Fiscal Year Progress */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">
-                आर्थिक वर्ष प्रगति / Fiscal Year Progress
-              </CardTitle>
-              <CardDescription>
-                {NEPAL_FISCAL_YEARS[0]
-                  ? `FY ${NEPAL_FISCAL_YEARS[0].label} (${new Date(NEPAL_FISCAL_YEARS[0].start).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })} - ${new Date(NEPAL_FISCAL_YEARS[0].end).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })})`
-                  : 'Current fiscal year tracking'}
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-6">
-                <div>
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-sm font-medium">
-                      Fiscal Year Progress
-                    </span>
-                    <span className="text-sm font-semibold tabular-nums">
-                      {fiscalYearProgress}%
-                    </span>
-                  </div>
-                  <Progress value={fiscalYearProgress} className="h-3" />
-                  <div className="flex items-center justify-between mt-2">
-                    <span className="text-xs text-muted-foreground">
-                      <Calendar className="h-3 w-3 inline mr-1" />
-                      Start: {NEPAL_FISCAL_YEARS[0] ? new Date(NEPAL_FISCAL_YEARS[0].start).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : 'N/A'}
-                    </span>
-                    <span className="text-xs text-muted-foreground">
-                      End: {NEPAL_FISCAL_YEARS[0] ? new Date(NEPAL_FISCAL_YEARS[0].end).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : 'N/A'}
-                      <Calendar className="h-3 w-3 inline ml-1" />
-                    </span>
-                  </div>
-                </div>
-
-                <Separator />
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="text-center p-3 rounded-lg bg-green-50 dark:bg-green-900/20">
-                    <p className="text-xs text-muted-foreground mb-1">YTD Income</p>
-                    <p className="text-sm font-bold text-green-600 dark:text-green-400 tabular-nums">
-                      {formatNPR(data.totalIncome)}
-                    </p>
-                    <p className="text-[10px] text-muted-foreground">आम्दानी</p>
-                  </div>
-                  <div className="text-center p-3 rounded-lg bg-red-50 dark:bg-red-900/20">
-                    <p className="text-xs text-muted-foreground mb-1">YTD Expense</p>
-                    <p className="text-sm font-bold text-red-600 dark:text-red-400 tabular-nums">
-                      {formatNPR(data.totalExpense)}
-                    </p>
-                    <p className="text-[10px] text-muted-foreground">खर्च</p>
-                  </div>
-                </div>
-
-                <div
-                  className={cn(
-                    'text-center p-3 rounded-lg',
-                    data.netProfit >= 0
-                      ? 'bg-primary/10'
-                      : 'bg-red-50 dark:bg-red-900/20'
-                  )}
-                >
-                  <p className="text-xs text-muted-foreground mb-1">
-                    YTD Net Profit / खुद नाफा
-                  </p>
-                  <p
-                    className={cn(
-                      'text-lg font-bold tabular-nums',
-                      data.netProfit >= 0
-                        ? 'text-green-600 dark:text-green-400'
-                        : 'text-red-600 dark:text-red-400'
-                    )}
-                  >
-                    {formatNPR(data.netProfit)}
-                  </p>
-                  <p className="text-[10px] text-muted-foreground">
-                    Profit Margin:{' '}
-                    {data.totalIncome > 0
-                      ? ((data.netProfit / data.totalIncome) * 100).toFixed(1)
-                      : '0.0'}
-                    %
-                  </p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-      )}
-
-      {/* ── Welcome State (no data) ── */}
-      {!hasData && (
-        <Card className="border-dashed">
-          <CardContent className="py-12 text-center">
-            <div className="mx-auto h-16 w-16 rounded-full bg-primary/10 flex items-center justify-center mb-4">
-              <Receipt className="h-8 w-8 text-primary" />
-            </div>
-            <h3 className="text-lg font-semibold mb-2">
-              Hisab Pro मा स्वागत छ! / Welcome to Hisab Pro!
-            </h3>
-            <p className="text-muted-foreground text-sm max-w-md mx-auto mb-6">
-              Your accounting system is ready. Start by adding your first income or expense
-              to see your financial dashboard come to life.
-            </p>
-            <div className="flex items-center justify-center gap-3">
-              {mode === 'simple' ? (
-                <>
-                  <Button
-                    onClick={() => setActiveModule('simple-income')}
-                    className="gap-2 bg-green-600 hover:bg-green-700 text-white"
-                  >
-                    <PlusCircle className="h-4 w-4" />
-                    Add Income
-                  </Button>
-                  <Button
-                    onClick={() => setActiveModule('simple-expense')}
-                    className="gap-2 bg-red-600 hover:bg-red-700 text-white"
-                  >
-                    <MinusCircle className="h-4 w-4" />
-                    Add Expense
-                  </Button>
-                </>
-              ) : (
-                <Button
-                  onClick={() => setActiveModule('journal-entry-new')}
-                  className="gap-2"
-                >
-                  <PlusCircle className="h-4 w-4" />
-                  Create Journal Entry
-                </Button>
-              )}
-            </div>
-          </CardContent>
-        </Card>
-      )}
+        )}
+      </div>
     </div>
   )
 }

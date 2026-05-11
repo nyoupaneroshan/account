@@ -288,6 +288,7 @@ model Party {
   balanceType    String?   // "debit" or "credit" - for opening balance
   currentBalance Float     @default(0)
   isTdsApplicable Boolean  @default(false)
+  tdsCategory    String?   // TDS category: contract, rent, interest, commission, consultancy, transport, others
   tdsRate        Float?    // TDS rate for this party
   tdsPAN         String?
   isSSFAplicable Boolean  @default(false)

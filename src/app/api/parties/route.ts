@@ -55,7 +55,7 @@ export async function POST(request: Request) {
       orgId, name, nameNepali, panNumber, partyType,
       email, phone, address, city, province, contactPerson,
       creditLimit, openingBalance, balanceType,
-      isTdsApplicable, tdsRate, tdsPAN, isSSFAplicable,
+      isTdsApplicable, tdsCategory, tdsRate, tdsPAN, isSSFAplicable,
       bankName, bankAccount, notes,
     } = body
 
@@ -92,6 +92,7 @@ export async function POST(request: Request) {
         balanceType: balanceType || null,
         currentBalance: openingBalance || 0,
         isTdsApplicable: isTdsApplicable || false,
+        tdsCategory: tdsCategory || null,
         tdsRate: tdsRate || null,
         tdsPAN: tdsPAN || null,
         isSSFAplicable: isSSFAplicable || false,
@@ -130,7 +131,7 @@ export async function PUT(request: Request) {
       'name', 'nameNepali', 'panNumber', 'partyType',
       'email', 'phone', 'address', 'city', 'province', 'contactPerson',
       'creditLimit', 'openingBalance', 'balanceType',
-      'isTdsApplicable', 'tdsRate', 'tdsPAN', 'isSSFAplicable',
+      'isTdsApplicable', 'tdsCategory', 'tdsRate', 'tdsPAN', 'isSSFAplicable',
       'bankName', 'bankAccount', 'notes',
     ]
 

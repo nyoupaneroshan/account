@@ -1,8 +1,10 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
+import { useRouter } from 'next/navigation'
 import { useAppStore } from '@/store/app-store'
 import { calculateVAT, formatNPR, NEPAL_VAT_RATE } from '@/lib/nepal-accounting'
+import { t } from '@/lib/i18n'
 import { toast } from 'sonner'
 import {
   Card,
@@ -16,6 +18,7 @@ import { Label } from '@/components/ui/label'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 import { Switch } from '@/components/ui/switch'
+import { Skeleton } from '@/components/ui/skeleton'
 import {
   Select,
   SelectContent,
@@ -41,44 +44,47 @@ import {
   Banknote,
   Building2,
   CreditCard,
+  Smartphone,
+  FileCheck,
   ChevronDown,
   Check,
   Loader2,
   Receipt,
+  RefreshCw,
 } from 'lucide-react'
 
-// ─── Account code mappings ───────────────────────────────────────────
+// ─── Account code mappings ─────────────────────────────────────
 const INCOME_CATEGORY_MAP: Record<string, string> = {
   'Sales': '41001',
-  'Service Income': '42001',
-  'Interest Income': '43001',
-  'Rent Received': '43001',
-  'Other Income': '43001',
+  'Service': '42001',
+  'Interest': '43001',
+  'Other': '43001',
 }
 
 const PAYMENT_ACCOUNT_MAP: Record<string, string> = {
   'Cash': '11001',
   'Bank': '11002',
-  'Credit': '12001',
+  'Online': '11002',
+  'Cheque': '11002',
 }
 
 const OUTPUT_VAT_CODE = '22003'
 
 const INCOME_CATEGORIES = [
-  { value: 'Sales', label: 'Sales', labelNp: 'बिक्री', icon: '📦' },
-  { value: 'Service Income', label: 'Service Income', labelNp: 'सेवा आम्दानी', icon: '🛎️' },
-  { value: 'Interest Income', label: 'Interest Income', labelNp: 'ब्याज आम्दानी', icon: '🏦' },
-  { value: 'Rent Received', label: 'Rent Received', labelNp: 'भाडा प्राप्त', icon: '🏠' },
-  { value: 'Other Income', label: 'Other Income', labelNp: 'अन्य आम्दानी', icon: '📋' },
+  { value: 'Sales', label: 'Sales', labelNp: 'बिक्री' },
+  { value: 'Service', label: 'Service', labelNp: 'सेवा' },
+  { value: 'Interest', label: 'Interest', labelNp: 'ब्याज' },
+  { value: 'Other', label: 'Other', labelNp: 'अन्य' },
 ]
 
 const PAYMENT_METHODS = [
-  { value: 'Cash', label: 'Cash', labelNp: 'नगद', icon: Banknote, color: 'text-emerald-600' },
+  { value: 'Cash', label: 'Cash', labelNp: 'नगद', icon: Banknote, color: 'text-green-600' },
   { value: 'Bank', label: 'Bank', labelNp: 'बैंक', icon: Building2, color: 'text-blue-600' },
-  { value: 'Credit', label: 'Credit', labelNp: 'क्रेडिट', icon: CreditCard, color: 'text-orange-600' },
+  { value: 'Online', label: 'Online', labelNp: 'अनलाइन', icon: Smartphone, color: 'text-teal-600' },
+  { value: 'Cheque', label: 'Cheque', labelNp: 'चेक', icon: FileCheck, color: 'text-orange-600' },
 ]
 
-// ─── Types ────────────────────────────────────────────────────────────
+// ─── Types ─────────────────────────────────────────────────────
 interface AccountItem {
   id: string
   code: string
@@ -96,25 +102,27 @@ interface PartyItem {
   phone?: string | null
 }
 
-// ─── Component ────────────────────────────────────────────────────────
+// ─── Component ─────────────────────────────────────────────────
 export function SimpleIncome() {
-  const { currentOrgId, setActiveModule } = useAppStore()
+  const { currentOrgId } = useAppStore()
+  const router = useRouter()
 
   // Form state
   const [amount, setAmount] = useState('')
-  const [description, setDescription] = useState('')
   const [category, setCategory] = useState('')
   const [partyId, setPartyId] = useState('')
   const [partyName, setPartyName] = useState('')
-  const [date, setDate] = useState(() => new Date().toISOString().split('T')[0])
-  const [vatInclusive, setVatInclusive] = useState(false)
   const [paymentMethod, setPaymentMethod] = useState('Cash')
+  const [date, setDate] = useState(() => new Date().toISOString().split('T')[0])
+  const [notes, setNotes] = useState('')
+  const [vatInclusive, setVatInclusive] = useState(false)
   const [submitting, setSubmitting] = useState(false)
 
   // Data state
   const [accounts, setAccounts] = useState<AccountItem[]>([])
   const [parties, setParties] = useState<PartyItem[]>([])
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
   const [partyPopoverOpen, setPartyPopoverOpen] = useState(false)
 
   // Build code-to-id map
@@ -132,6 +140,7 @@ export function SimpleIncome() {
 
     const fetchData = async () => {
       setLoading(true)
+      setError(null)
       try {
         const [accRes, partyRes] = await Promise.all([
           fetch(`/api/accounts?orgId=${currentOrgId}`),
@@ -147,8 +156,9 @@ export function SimpleIncome() {
           setParties(Array.isArray(partyData) ? partyData : [])
         }
       } catch (err) {
-        console.error('Failed to fetch data:', err)
-        toast.error('Failed to load form data')
+        const msg = 'Failed to load form data'
+        setError(msg)
+        toast.error(msg)
       } finally {
         setLoading(false)
       }
@@ -166,7 +176,7 @@ export function SimpleIncome() {
   const vatAmount = vatInfo ? vatInfo.vatAmount : 0
 
   // Validation
-  const isValid = parsedAmount > 0 && description.trim() !== '' && category !== '' && date !== ''
+  const isValid = parsedAmount > 0 && category !== '' && date !== ''
 
   // Submit handler
   const handleSubmit = async (e: React.FormEvent) => {
@@ -178,7 +188,6 @@ export function SimpleIncome() {
     try {
       const codeMap = accountMap()
 
-      // Resolve account IDs from codes
       const paymentAccountId = codeMap[PAYMENT_ACCOUNT_MAP[paymentMethod]]
       const incomeAccountCode = INCOME_CATEGORY_MAP[category] || '43001'
       const incomeAccountId = codeMap[incomeAccountCode]
@@ -195,7 +204,6 @@ export function SimpleIncome() {
         return
       }
 
-      // Build journal entry lines
       const lines: Array<{ accountId: string; debit: number; credit: number; partyId?: string; narration?: string }> = []
 
       // Debit: Payment account (Cash/Bank/Receivable)
@@ -211,7 +219,7 @@ export function SimpleIncome() {
         accountId: incomeAccountId,
         debit: 0,
         credit: Math.round(taxableAmount * 100) / 100,
-        narration: `${category} - ${description}`,
+        narration: `${category} - ${notes || category}`,
       })
 
       // Credit: Output VAT (if VAT inclusive)
@@ -224,13 +232,11 @@ export function SimpleIncome() {
         })
       }
 
-      // If VAT inclusive but no output VAT account found, adjust income credit to full amount
       if (vatInclusive && vatAmount > 0 && !outputVatAccountId) {
-        // Override: credit full amount to income account
         lines[1].credit = parsedAmount
       }
 
-      const narration = `Income: ${description} (${category}) via ${paymentMethod}${vatInclusive ? ' (VAT Inclusive)' : ''}`
+      const narration = `Income: ${notes || category} (${category}) via ${paymentMethod}${vatInclusive ? ' (VAT Inclusive)' : ''}`
 
       const res = await fetch('/api/journal-entries', {
         method: 'POST',
@@ -249,24 +255,22 @@ export function SimpleIncome() {
         throw new Error(errorData.error || 'Failed to create entry')
       }
 
-      toast.success('Income recorded successfully!', {
+      toast.success('आम्दानी रेकर्ड भयो! / Income recorded successfully!', {
         description: `${formatNPR(parsedAmount)} added to ${category}`,
       })
 
       // Reset form
       setAmount('')
-      setDescription('')
       setCategory('')
       setPartyId('')
       setPartyName('')
-      setDate(new Date().toISOString().split('T')[0])
-      setVatInclusive(false)
       setPaymentMethod('Cash')
+      setDate(new Date().toISOString().split('T')[0])
+      setNotes('')
+      setVatInclusive(false)
 
-      // Navigate to dashboard
-      setActiveModule('dashboard')
+      router.push('/dashboard')
     } catch (err) {
-      console.error('Submit error:', err)
       toast.error('Failed to record income', {
         description: err instanceof Error ? err.message : 'Please try again',
       })
@@ -275,13 +279,34 @@ export function SimpleIncome() {
     }
   }
 
+  // ─── Loading ─────────────────────────────────────────────────
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
         <div className="text-center space-y-3">
           <Loader2 className="h-8 w-8 animate-spin text-primary mx-auto" />
-          <p className="text-sm text-muted-foreground">Loading form...</p>
+          <p className="text-sm text-muted-foreground">{t('loading')}</p>
         </div>
+      </div>
+    )
+  }
+
+  // ─── Error ───────────────────────────────────────────────────
+
+  if (error) {
+    return (
+      <div className="flex items-center justify-center min-h-[60vh]">
+        <Card className="max-w-md w-full">
+          <CardContent className="py-12 text-center">
+            <Receipt className="size-12 text-muted-foreground/40 mx-auto mb-3" />
+            <p className="text-muted-foreground">{error}</p>
+            <Button onClick={() => window.location.reload()} variant="outline" size="sm" className="mt-4 gap-2">
+              <RefreshCw className="h-3.5 w-3.5" />
+              Retry
+            </Button>
+          </CardContent>
+        </Card>
       </div>
     )
   }
@@ -290,10 +315,10 @@ export function SimpleIncome() {
     <div className="max-w-2xl mx-auto p-4 sm:p-6 lg:p-8">
       <Card className="border-0 shadow-lg">
         <CardHeader className="text-center pb-2">
-          <div className="mx-auto mb-2 flex h-12 w-12 items-center justify-center rounded-full bg-emerald-100 dark:bg-emerald-900/30">
-            <TrendingUp className="h-6 w-6 text-emerald-600" />
+          <div className="mx-auto mb-2 flex h-12 w-12 items-center justify-center rounded-full bg-green-100 dark:bg-green-900/30">
+            <TrendingUp className="h-6 w-6 text-green-600" />
           </div>
-          <CardTitle className="text-2xl">Add Income</CardTitle>
+          <CardTitle className="text-2xl">{t('add_income')}</CardTitle>
           <CardDescription className="text-base">आम्दानी थप्नुहोस्</CardDescription>
         </CardHeader>
 
@@ -301,29 +326,29 @@ export function SimpleIncome() {
           <form onSubmit={handleSubmit} className="space-y-6">
             {/* Amount */}
             <div className="space-y-2">
-              <Label htmlFor="amount" className="text-sm font-semibold">
-                Amount (NPR) <span className="text-destructive">*</span>
+              <Label htmlFor="income-amount" className="text-sm font-semibold">
+                {t('amount')} (NPR) <span className="text-destructive">*</span>
               </Label>
               <div className="relative">
                 <span className="absolute left-3 top-1/2 -translate-y-1/2 text-lg font-bold text-muted-foreground">
                   Rs.
                 </span>
                 <Input
-                  id="amount"
+                  id="income-amount"
                   type="number"
                   min="0"
                   step="0.01"
                   placeholder="0.00"
                   value={amount}
                   onChange={(e) => setAmount(e.target.value)}
-                  className="pl-12 h-14 text-2xl font-semibold border-2 focus:border-emerald-500"
+                  className="pl-12 h-14 text-2xl font-semibold border-2 focus:border-green-500"
                   required
                 />
               </div>
               {vatInclusive && parsedAmount > 0 && (
                 <div className="bg-muted/50 rounded-lg p-3 space-y-1 text-sm">
                   <div className="flex justify-between">
-                    <span className="text-muted-foreground">Taxable Amount:</span>
+                    <span className="text-muted-foreground">Taxable {t('amount')}:</span>
                     <span className="font-medium">{formatNPR(taxableAmount)}</span>
                   </div>
                   <div className="flex justify-between">
@@ -331,32 +356,17 @@ export function SimpleIncome() {
                     <span className="font-medium text-orange-600">{formatNPR(vatAmount)}</span>
                   </div>
                   <div className="flex justify-between border-t pt-1">
-                    <span className="font-medium">Total:</span>
+                    <span className="font-medium">{t('total')}:</span>
                     <span className="font-bold">{formatNPR(parsedAmount)}</span>
                   </div>
                 </div>
               )}
             </div>
 
-            {/* Description */}
-            <div className="space-y-2">
-              <Label htmlFor="description" className="text-sm font-semibold">
-                Description <span className="text-destructive">*</span>
-              </Label>
-              <Textarea
-                id="description"
-                placeholder="e.g. Sold 10 bags of rice"
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-                className="resize-none min-h-[80px]"
-                required
-              />
-            </div>
-
             {/* Category */}
             <div className="space-y-2">
               <Label className="text-sm font-semibold">
-                Category <span className="text-destructive">*</span>
+                {t('income_category')} <span className="text-destructive">*</span>
               </Label>
               <Select value={category} onValueChange={setCategory}>
                 <SelectTrigger className="w-full h-11">
@@ -366,7 +376,6 @@ export function SimpleIncome() {
                   {INCOME_CATEGORIES.map((cat) => (
                     <SelectItem key={cat.value} value={cat.value}>
                       <span className="flex items-center gap-2">
-                        <span>{cat.icon}</span>
                         <span>{cat.label}</span>
                         <span className="text-muted-foreground text-xs">({cat.labelNp})</span>
                       </span>
@@ -376,10 +385,10 @@ export function SimpleIncome() {
               </Select>
             </div>
 
-            {/* Party / Customer */}
+            {/* Received From (Party) */}
             <div className="space-y-2">
               <Label className="text-sm font-semibold">
-                Party / Customer
+                {t('received_from')} / Party
                 <span className="text-muted-foreground font-normal ml-1">(optional)</span>
               </Label>
               <Popover open={partyPopoverOpen} onOpenChange={setPartyPopoverOpen}>
@@ -390,7 +399,7 @@ export function SimpleIncome() {
                     aria-expanded={partyPopoverOpen}
                     className="w-full h-11 justify-between font-normal"
                   >
-                    {partyName || 'Search customer...'}
+                    {partyName || `${t('search')} customer...`}
                     <ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                   </Button>
                 </PopoverTrigger>
@@ -408,7 +417,7 @@ export function SimpleIncome() {
                             setPartyPopoverOpen(false)
                           }}
                         >
-                          <Check className={`mr-2 h-4 w-4 ${!partyId ? 'opacity-100' : 'opacity-0'}`} />
+                          <Check className={cn('mr-2 h-4 w-4', !partyId ? 'opacity-100' : 'opacity-0')} />
                           <span className="text-muted-foreground">None</span>
                         </CommandItem>
                         {parties
@@ -423,7 +432,7 @@ export function SimpleIncome() {
                                 setPartyPopoverOpen(false)
                               }}
                             >
-                              <Check className={`mr-2 h-4 w-4 ${partyId === party.id ? 'opacity-100' : 'opacity-0'}`} />
+                              <Check className={cn('mr-2 h-4 w-4', partyId === party.id ? 'opacity-100' : 'opacity-0')} />
                               <div className="flex flex-col">
                                 <span>{party.name}</span>
                                 {party.phone && (
@@ -439,15 +448,64 @@ export function SimpleIncome() {
               </Popover>
             </div>
 
+            {/* Payment Method */}
+            <div className="space-y-3">
+              <Label className="text-sm font-semibold">{t('payment_method')}</Label>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                {PAYMENT_METHODS.map((method) => {
+                  const Icon = method.icon
+                  const isSelected = paymentMethod === method.value
+                  return (
+                    <button
+                      key={method.value}
+                      type="button"
+                      onClick={() => setPaymentMethod(method.value)}
+                      className={cn(
+                        'relative flex flex-col items-center gap-1.5 rounded-xl border-2 p-3 sm:p-4 transition-all',
+                        'hover:border-primary/50 hover:bg-accent/50',
+                        isSelected
+                          ? 'border-primary bg-primary/5 shadow-sm'
+                          : 'border-border'
+                      )}
+                    >
+                      {isSelected && (
+                        <div className="absolute -top-1.5 -right-1.5 h-5 w-5 rounded-full bg-primary flex items-center justify-center">
+                          <Check className="h-3 w-3 text-primary-foreground" />
+                        </div>
+                      )}
+                      <Icon className={cn('h-5 w-5 sm:h-6 sm:w-6', isSelected ? method.color : 'text-muted-foreground')} />
+                      <span className="text-xs sm:text-sm font-medium">{method.label}</span>
+                      <span className="text-[10px] text-muted-foreground">{method.labelNp}</span>
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
+
             {/* Date */}
             <div className="space-y-2">
-              <Label htmlFor="date" className="text-sm font-semibold">Date</Label>
+              <Label htmlFor="income-date" className="text-sm font-semibold">{t('date')}</Label>
               <Input
-                id="date"
+                id="income-date"
                 type="date"
                 value={date}
                 onChange={(e) => setDate(e.target.value)}
                 className="h-11"
+              />
+            </div>
+
+            {/* Notes */}
+            <div className="space-y-2">
+              <Label htmlFor="income-notes" className="text-sm font-semibold">
+                {t('notes')}
+                <span className="text-muted-foreground font-normal ml-1">(optional)</span>
+              </Label>
+              <Textarea
+                id="income-notes"
+                placeholder="e.g. Sold 10 bags of rice"
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+                className="resize-none min-h-[80px]"
               />
             </div>
 
@@ -469,46 +527,11 @@ export function SimpleIncome() {
               />
             </div>
 
-            {/* Payment Method */}
-            <div className="space-y-3">
-              <Label className="text-sm font-semibold">Payment Method</Label>
-              <div className="grid grid-cols-3 gap-3">
-                {PAYMENT_METHODS.map((method) => {
-                  const Icon = method.icon
-                  const isSelected = paymentMethod === method.value
-                  return (
-                    <button
-                      key={method.value}
-                      type="button"
-                      onClick={() => setPaymentMethod(method.value)}
-                      className={`
-                        relative flex flex-col items-center gap-1.5 rounded-xl border-2 p-4 transition-all
-                        hover:border-primary/50 hover:bg-accent/50
-                        ${isSelected
-                          ? 'border-primary bg-primary/5 shadow-sm'
-                          : 'border-border'
-                        }
-                      `}
-                    >
-                      {isSelected && (
-                        <div className="absolute -top-1.5 -right-1.5 h-5 w-5 rounded-full bg-primary flex items-center justify-center">
-                          <Check className="h-3 w-3 text-primary-foreground" />
-                        </div>
-                      )}
-                      <Icon className={`h-6 w-6 ${isSelected ? method.color : 'text-muted-foreground'}`} />
-                      <span className="text-sm font-medium">{method.label}</span>
-                      <span className="text-[10px] text-muted-foreground">{method.labelNp}</span>
-                    </button>
-                  )
-                })}
-              </div>
-            </div>
-
             {/* Submit */}
             <Button
               type="submit"
               disabled={!isValid || submitting}
-              className="w-full h-12 text-base font-semibold bg-emerald-600 hover:bg-emerald-700 text-white"
+              className="w-full h-12 text-base font-semibold bg-green-600 hover:bg-green-700 text-white"
               size="lg"
             >
               {submitting ? (
@@ -519,7 +542,7 @@ export function SimpleIncome() {
               ) : (
                 <>
                   <TrendingUp className="mr-2 h-5 w-5" />
-                  Record Income
+                  Record Income / आम्दानी रेकर्ड
                 </>
               )}
             </Button>

@@ -3,7 +3,9 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useAppStore } from '@/store/app-store'
 import { formatNPR, isDebitNature, VOUCHER_TYPE_LABELS } from '@/lib/nepal-accounting'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { t } from '@/lib/i18n'
+import { cn } from '@/lib/utils'
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
@@ -17,6 +19,7 @@ import {
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
   DialogFooter,
@@ -40,10 +43,11 @@ import {
   TrendingUp,
   TrendingDown,
   CircleDollarSign,
+  RefreshCw,
 } from 'lucide-react'
 import { toast } from 'sonner'
 
-// ─── Types ───────────────────────────────────────────────────────────────────
+// ─── Types ─────────────────────────────────────────────────────
 
 interface AccountGroup {
   id: string
@@ -70,33 +74,60 @@ interface Account {
   group: AccountGroup
 }
 
-// ─── Nature helpers ──────────────────────────────────────────────────────────
+// ─── Color scheme per spec: Asset=green, Liability=red, Equity=purple, Income=blue, Expense=orange ──
 
-const NATURE_CONFIG: Record<string, { label: string; color: string; icon: React.ElementType }> = {
-  asset: { label: 'Asset', color: 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300', icon: Landmark },
-  liability: { label: 'Liability', color: 'bg-orange-100 text-orange-800 dark:bg-orange-900/40 dark:text-orange-300', icon: Wallet },
-  equity: { label: 'Equity', color: 'bg-purple-100 text-purple-800 dark:bg-purple-900/40 dark:text-purple-300', icon: CircleDollarSign },
-  income: { label: 'Income', color: 'bg-teal-100 text-teal-800 dark:bg-teal-900/40 dark:text-teal-300', icon: TrendingUp },
-  expense: { label: 'Expense', color: 'bg-rose-100 text-rose-800 dark:bg-rose-900/40 dark:text-rose-300', icon: TrendingDown },
+const NATURE_CONFIG: Record<string, { label: string; labelNp: string; color: string; bgColor: string; icon: React.ElementType }> = {
+  asset: {
+    label: 'Asset',
+    labelNp: 'सम्पत्ति',
+    color: 'bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-300',
+    bgColor: 'border-l-green-500',
+    icon: Landmark,
+  },
+  liability: {
+    label: 'Liability',
+    labelNp: 'दायित्व',
+    color: 'bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-300',
+    bgColor: 'border-l-red-500',
+    icon: Wallet,
+  },
+  equity: {
+    label: 'Equity',
+    labelNp: 'इक्विटी',
+    color: 'bg-purple-100 text-purple-800 dark:bg-purple-900/40 dark:text-purple-300',
+    bgColor: 'border-l-purple-500',
+    icon: CircleDollarSign,
+  },
+  income: {
+    label: 'Income',
+    labelNp: 'आम्दानी',
+    color: 'bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-300',
+    bgColor: 'border-l-blue-500',
+    icon: TrendingUp,
+  },
+  expense: {
+    label: 'Expense',
+    labelNp: 'खर्च',
+    color: 'bg-orange-100 text-orange-800 dark:bg-orange-900/40 dark:text-orange-300',
+    bgColor: 'border-l-orange-500',
+    icon: TrendingDown,
+  },
 }
 
 function getBalanceColor(balance: number, accountType: string): string {
   if (balance === 0) return 'text-muted-foreground'
-  // For debit-nature accounts (assets/expenses), positive is "natural" -> green
-  // For credit-nature accounts (liabilities/equity/income), positive is "natural" -> green
-  if (isDebitNature(accountType)) {
-    return balance > 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'
-  } else {
-    return balance > 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'
-  }
+  return balance > 0
+    ? 'text-green-600 dark:text-green-400'
+    : 'text-red-600 dark:text-red-400'
 }
 
-// ─── Component ───────────────────────────────────────────────────────────────
+// ─── Component ─────────────────────────────────────────────────
 
 export function ChartOfAccounts() {
   const { currentOrgId } = useAppStore()
   const [accounts, setAccounts] = useState<Account[]>([])
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
   const [activeTab, setActiveTab] = useState('all')
   const [searchTerm, setSearchTerm] = useState('')
   const [showAddDialog, setShowAddDialog] = useState(false)
@@ -115,17 +146,18 @@ export function ChartOfAccounts() {
   const fetchAccounts = useCallback(async () => {
     if (!currentOrgId) return
     setLoading(true)
+    setError(null)
     try {
       const res = await fetch(`/api/accounts?orgId=${currentOrgId}`)
       if (!res.ok) throw new Error('Failed to fetch accounts')
       const data = await res.json()
       setAccounts(data)
-      // Expand all groups by default
       const groupIds = [...new Set(data.map((a: Account) => a.group.id))]
       setExpandedGroups(groupIds)
     } catch (err) {
-      console.error('Error fetching accounts:', err)
-      toast.error('Failed to load accounts')
+      const msg = err instanceof Error ? err.message : 'Failed to load accounts'
+      setError(msg)
+      toast.error(msg)
     } finally {
       setLoading(false)
     }
@@ -135,12 +167,10 @@ export function ChartOfAccounts() {
     fetchAccounts()
   }, [fetchAccounts])
 
-  // ─── Grouped accounts ────────────────────────────────────────────────────
+  // ─── Filtered & grouped accounts ──────────────────────────────
 
   const filteredAccounts = accounts.filter((account) => {
-    // Tab filter
     if (activeTab !== 'all' && account.accountType !== activeTab) return false
-    // Search filter
     if (searchTerm) {
       const q = searchTerm.toLowerCase()
       return (
@@ -152,27 +182,23 @@ export function ChartOfAccounts() {
     return true
   })
 
-  // Group accounts by their group
   const groupedAccounts: Record<string, Account[]> = {}
   const groups: Record<string, AccountGroup> = {}
 
   filteredAccounts.forEach((account) => {
     const groupId = account.group.id
-    if (!groupedAccounts[groupId]) {
-      groupedAccounts[groupId] = []
-    }
+    if (!groupedAccounts[groupId]) groupedAccounts[groupId] = []
     groupedAccounts[groupId].push(account)
     groups[groupId] = account.group
   })
 
-  // Sort groups by code
   const sortedGroupIds = Object.keys(groups).sort(
     (a, b) => groups[a].code.localeCompare(groups[b].code)
   )
 
-  // ─── Add account ─────────────────────────────────────────────────────────
-
   const availableGroups = Object.values(groups).sort((a, b) => a.code.localeCompare(b.code))
+
+  // ─── Add account handler ──────────────────────────────────────
 
   const handleAddAccount = async () => {
     if (!currentOrgId || !newAccount.name || !newAccount.code || !newAccount.groupId) {
@@ -194,9 +220,7 @@ export function ChartOfAccounts() {
         }),
       })
       const data = await res.json()
-      if (!res.ok) {
-        throw new Error(data.error || 'Failed to create account')
-      }
+      if (!res.ok) throw new Error(data.error || 'Failed to create account')
       toast.success(`Account "${newAccount.name}" created successfully`)
       setShowAddDialog(false)
       setNewAccount({ name: '', nameNepali: '', code: '', accountType: 'asset', groupId: '' })
@@ -208,12 +232,10 @@ export function ChartOfAccounts() {
     }
   }
 
-  // ─── Summary stats ───────────────────────────────────────────────────────
-
   const totalAccounts = filteredAccounts.length
   const totalGroups = sortedGroupIds.length
 
-  // ─── Loading skeleton ────────────────────────────────────────────────────
+  // ─── Loading ──────────────────────────────────────────────────
 
   if (loading) {
     return (
@@ -239,6 +261,31 @@ export function ChartOfAccounts() {
     )
   }
 
+  // ─── Error ────────────────────────────────────────────────────
+
+  if (error) {
+    return (
+      <div className="p-4 md:p-6 flex items-center justify-center min-h-[400px]">
+        <Card className="max-w-md w-full">
+          <CardHeader className="text-center">
+            <div className="mx-auto h-12 w-12 rounded-full bg-red-100 dark:bg-red-900/20 flex items-center justify-center mb-2">
+              <FolderTree className="h-6 w-6 text-red-600" />
+            </div>
+            <CardTitle className="text-lg">खाता योजना लोड गर्न सकिएन</CardTitle>
+            <CardDescription>Could not load chart of accounts</CardDescription>
+          </CardHeader>
+          <CardContent className="text-center">
+            <p className="text-sm text-muted-foreground mb-4">{error}</p>
+            <Button onClick={fetchAccounts} variant="outline" size="sm" className="gap-2">
+              <RefreshCw className="h-3.5 w-3.5" />
+              Retry
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    )
+  }
+
   return (
     <div className="p-4 md:p-6 space-y-4">
       {/* Header */}
@@ -246,13 +293,13 @@ export function ChartOfAccounts() {
         <div>
           <h1 className="text-2xl font-bold tracking-tight flex items-center gap-2">
             <FolderTree className="size-6 text-primary" />
-            Chart of Accounts
+            {t('chart_of_accounts')} / खाता योजना
           </h1>
           <p className="text-sm text-muted-foreground mt-1">
             Manage your organization&apos;s account structure
           </p>
         </div>
-        <Button onClick={() => setShowAddDialog(true)} size="sm">
+        <Button onClick={() => setShowAddDialog(true)} size="sm" className="gap-2">
           <Plus className="size-4" />
           Add Account
         </Button>
@@ -262,25 +309,39 @@ export function ChartOfAccounts() {
       <div className="relative max-w-sm">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
         <Input
-          placeholder="Search accounts by name, code..."
+          placeholder={`${t('search')} accounts by name, code...`}
           className="pl-9"
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
         />
       </div>
 
-      {/* Filter Tabs */}
+      {/* Filter Tabs by Account Type */}
       <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList className="flex-wrap">
           <TabsTrigger value="all">All</TabsTrigger>
-          <TabsTrigger value="asset">Assets</TabsTrigger>
-          <TabsTrigger value="liability">Liabilities</TabsTrigger>
-          <TabsTrigger value="equity">Equity</TabsTrigger>
-          <TabsTrigger value="income">Income</TabsTrigger>
-          <TabsTrigger value="expense">Expenses</TabsTrigger>
+          <TabsTrigger value="asset" className="gap-1">
+            <span className="size-2 rounded-full bg-green-500" />
+            Assets
+          </TabsTrigger>
+          <TabsTrigger value="liability" className="gap-1">
+            <span className="size-2 rounded-full bg-red-500" />
+            Liabilities
+          </TabsTrigger>
+          <TabsTrigger value="equity" className="gap-1">
+            <span className="size-2 rounded-full bg-purple-500" />
+            Equity
+          </TabsTrigger>
+          <TabsTrigger value="income" className="gap-1">
+            <span className="size-2 rounded-full bg-blue-500" />
+            Income
+          </TabsTrigger>
+          <TabsTrigger value="expense" className="gap-1">
+            <span className="size-2 rounded-full bg-orange-500" />
+            Expenses
+          </TabsTrigger>
         </TabsList>
 
-        {/* All tabs share the same content, filtered differently */}
         {['all', 'asset', 'liability', 'equity', 'income', 'expense'].map((tab) => (
           <TabsContent key={tab} value={tab}>
             {sortedGroupIds.length === 0 ? (
@@ -289,6 +350,9 @@ export function ChartOfAccounts() {
                   <FolderTree className="size-12 text-muted-foreground/40 mx-auto mb-3" />
                   <p className="text-muted-foreground">
                     {searchTerm ? 'No accounts match your search' : 'No accounts found'}
+                  </p>
+                  <p className="text-xs text-muted-foreground/60 mt-1">
+                    {searchTerm ? 'Try a different search term' : 'Add accounts to get started'}
                   </p>
                 </CardContent>
               </Card>
@@ -310,10 +374,14 @@ export function ChartOfAccounts() {
                     )
 
                     return (
-                      <AccordionItem key={groupId} value={groupId} className="border rounded-lg px-4">
+                      <AccordionItem
+                        key={groupId}
+                        value={groupId}
+                        className={cn('border rounded-lg px-4 border-l-4', natureConf.bgColor)}
+                      >
                         <AccordionTrigger className="hover:no-underline py-3">
                           <div className="flex items-center gap-3 flex-1 min-w-0">
-                            <div className={`size-8 rounded-md flex items-center justify-center shrink-0 ${natureConf.color}`}>
+                            <div className={cn('size-8 rounded-md flex items-center justify-center shrink-0', natureConf.color)}>
                               <NatureIcon className="size-4" />
                             </div>
                             <div className="flex-1 min-w-0 text-left">
@@ -331,13 +399,13 @@ export function ChartOfAccounts() {
                                 )}
                               </div>
                               <div className="flex items-center gap-2 mt-0.5">
-                                <Badge variant="outline" className={`text-[10px] px-1.5 py-0 ${natureConf.color}`}>
-                                  {natureConf.label}
+                                <Badge variant="outline" className={cn('text-[10px] px-1.5 py-0', natureConf.color)}>
+                                  {natureConf.label} ({natureConf.labelNp})
                                 </Badge>
                                 <span className="text-xs text-muted-foreground">
                                   {groupAccounts.length} account{groupAccounts.length !== 1 ? 's' : ''}
                                 </span>
-                                <span className={`text-xs font-medium ${getBalanceColor(groupBalance, group.nature)}`}>
+                                <span className={cn('text-xs font-medium', getBalanceColor(groupBalance, group.nature))}>
                                   {formatNPR(groupBalance)}
                                 </span>
                               </div>
@@ -362,9 +430,7 @@ export function ChartOfAccounts() {
                                       <span className="font-mono text-xs text-muted-foreground shrink-0">
                                         {account.code}
                                       </span>
-                                      <span className="text-sm truncate">
-                                        {account.name}
-                                      </span>
+                                      <span className="text-sm truncate">{account.name}</span>
                                       {account.nameNepali && (
                                         <span className="text-xs text-muted-foreground hidden sm:inline truncate">
                                           {account.nameNepali}
@@ -382,10 +448,10 @@ export function ChartOfAccounts() {
                                       )}
                                     </div>
                                     <span
-                                      className={`text-sm font-medium whitespace-nowrap ml-4 ${getBalanceColor(
-                                        account.currentBalance,
-                                        account.accountType
-                                      )}`}
+                                      className={cn(
+                                        'text-sm font-medium whitespace-nowrap ml-4',
+                                        getBalanceColor(account.currentBalance, account.accountType)
+                                      )}
                                     >
                                       {formatNPR(account.currentBalance)}
                                     </span>
@@ -420,12 +486,13 @@ export function ChartOfAccounts() {
       <Dialog open={showAddDialog} onOpenChange={setShowAddDialog}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Create New Account</DialogTitle>
+            <DialogTitle>Create New Account / नयाँ खाता सिर्जना</DialogTitle>
+            <DialogDescription className="sr-only">Create a new account in the chart of accounts</DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
-                <Label htmlFor="acct-code">Code *</Label>
+                <Label htmlFor="acct-code">{t('code')} *</Label>
                 <Input
                   id="acct-code"
                   placeholder="e.g. 11004"
@@ -434,7 +501,7 @@ export function ChartOfAccounts() {
                 />
               </div>
               <div className="space-y-1.5">
-                <Label htmlFor="acct-type">Type *</Label>
+                <Label htmlFor="acct-type">{t('type')} *</Label>
                 <Select
                   value={newAccount.accountType}
                   onValueChange={(v) => setNewAccount({ ...newAccount, accountType: v })}
@@ -443,17 +510,42 @@ export function ChartOfAccounts() {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="asset">Asset</SelectItem>
-                    <SelectItem value="liability">Liability</SelectItem>
-                    <SelectItem value="equity">Equity</SelectItem>
-                    <SelectItem value="income">Income</SelectItem>
-                    <SelectItem value="expense">Expense</SelectItem>
+                    <SelectItem value="asset">
+                      <span className="flex items-center gap-2">
+                        <span className="size-2 rounded-full bg-green-500" />
+                        Asset (सम्पत्ति)
+                      </span>
+                    </SelectItem>
+                    <SelectItem value="liability">
+                      <span className="flex items-center gap-2">
+                        <span className="size-2 rounded-full bg-red-500" />
+                        Liability (दायित्व)
+                      </span>
+                    </SelectItem>
+                    <SelectItem value="equity">
+                      <span className="flex items-center gap-2">
+                        <span className="size-2 rounded-full bg-purple-500" />
+                        Equity (इक्विटी)
+                      </span>
+                    </SelectItem>
+                    <SelectItem value="income">
+                      <span className="flex items-center gap-2">
+                        <span className="size-2 rounded-full bg-blue-500" />
+                        Income (आम्दानी)
+                      </span>
+                    </SelectItem>
+                    <SelectItem value="expense">
+                      <span className="flex items-center gap-2">
+                        <span className="size-2 rounded-full bg-orange-500" />
+                        Expense (खर्च)
+                      </span>
+                    </SelectItem>
                   </SelectContent>
                 </Select>
               </div>
             </div>
             <div className="space-y-1.5">
-              <Label htmlFor="acct-name">Account Name *</Label>
+              <Label htmlFor="acct-name">Account {t('name')} *</Label>
               <Input
                 id="acct-name"
                 placeholder="e.g. Office Equipment"
@@ -462,7 +554,7 @@ export function ChartOfAccounts() {
               />
             </div>
             <div className="space-y-1.5">
-              <Label htmlFor="acct-name-np">Name in Nepali</Label>
+              <Label htmlFor="acct-name-np">नेपाली नाम</Label>
               <Input
                 id="acct-name-np"
                 placeholder="e.g. कार्यालय उपकरण"
@@ -480,21 +572,33 @@ export function ChartOfAccounts() {
                   <SelectValue placeholder="Select group..." />
                 </SelectTrigger>
                 <SelectContent>
-                  {availableGroups.map((g) => (
-                    <SelectItem key={g.id} value={g.id}>
-                      {g.code} - {g.name}
-                    </SelectItem>
-                  ))}
+                  {availableGroups.map((g) => {
+                    const natureConf = NATURE_CONFIG[g.nature] || NATURE_CONFIG.asset
+                    return (
+                      <SelectItem key={g.id} value={g.id}>
+                        <span className="flex items-center gap-2">
+                          <span className={cn('size-2 rounded-full', {
+                            'bg-green-500': g.nature === 'asset',
+                            'bg-red-500': g.nature === 'liability',
+                            'bg-purple-500': g.nature === 'equity',
+                            'bg-blue-500': g.nature === 'income',
+                            'bg-orange-500': g.nature === 'expense',
+                          })} />
+                          {g.code} - {g.name}
+                        </span>
+                      </SelectItem>
+                    )
+                  })}
                 </SelectContent>
               </Select>
             </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowAddDialog(false)}>
-              Cancel
+              {t('cancel')}
             </Button>
             <Button onClick={handleAddAccount} disabled={submitting}>
-              {submitting ? 'Creating...' : 'Create Account'}
+              {submitting ? 'Creating...' : `Create ${t('account')}`}
             </Button>
           </DialogFooter>
         </DialogContent>

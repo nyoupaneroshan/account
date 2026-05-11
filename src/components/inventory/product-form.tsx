@@ -1,8 +1,9 @@
 'use client'
 
 import { useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { useAppStore } from '@/store/app-store'
-import { NEPAL_VAT_RATE } from '@/lib/nepal-accounting'
+import { formatNPR, NEPAL_VAT_RATE } from '@/lib/nepal-accounting'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -14,39 +15,56 @@ import {
 import { Switch } from '@/components/ui/switch'
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 import { Separator } from '@/components/ui/separator'
-import { ArrowLeft } from 'lucide-react'
+import { ArrowLeft, Package } from 'lucide-react'
 import { toast } from 'sonner'
 
-const UNITS = ['pcs', 'kg', 'ltr', 'box', 'ream', 'set', 'pair', 'meter']
+const UNITS = ['pcs', 'kg', 'ltr', 'box', 'ream', 'set', 'pair', 'meter', 'dozen', 'packet', 'gram', 'ml', 'ton', 'bundle', 'carton']
 const CATEGORIES = [
   'Electronics', 'Grocery', 'Clothing', 'Stationery', 'Hardware',
   'Furniture', 'Food & Beverage', 'Medical', 'Construction', 'Automobile',
-  'Software', 'Other',
+  'Software', 'Consulting', 'Printing', 'Textiles', 'Other',
 ]
 
 export function ProductForm() {
-  const { currentOrgId, setActiveModule } = useAppStore()
+  const { currentOrgId } = useAppStore()
+  const router = useRouter()
   const [submitting, setSubmitting] = useState(false)
 
-  // Form fields
+  // Basic fields
   const [name, setName] = useState('')
   const [nameNepali, setNameNepali] = useState('')
   const [code, setCode] = useState('')
   const [unit, setUnit] = useState('pcs')
+  const [hsnCode, setHsnCode] = useState('')
   const [category, setCategory] = useState('')
   const [brand, setBrand] = useState('')
   const [productType, setProductType] = useState('goods')
-  const [hsnCode, setHsnCode] = useState('')
+
+  // Tax & pricing
   const [isVatable, setIsVatable] = useState(true)
   const [vatRate, setVatRate] = useState(NEPAL_VAT_RATE * 100)
   const [sellingPrice, setSellingPrice] = useState('')
   const [costPrice, setCostPrice] = useState('')
+
+  // Stock settings
   const [minStockLevel, setMinStockLevel] = useState('')
   const [maxStockLevel, setMaxStockLevel] = useState('')
   const [costingMethod, setCostingMethod] = useState('fifo')
+
+  // Tracking toggles
   const [hasBatch, setHasBatch] = useState(false)
   const [hasExpiry, setHasExpiry] = useState(false)
+
+  // Description
   const [description, setDescription] = useState('')
+
+  // Computed VAT preview
+  const vatPreview = (() => {
+    if (!isVatable || !sellingPrice) return null
+    const price = parseFloat(sellingPrice) || 0
+    const vat = price * NEPAL_VAT_RATE
+    return formatNPR(vat)
+  })()
 
   const handleSubmit = async () => {
     if (!currentOrgId) return
@@ -86,7 +104,7 @@ export function ProductForm() {
 
       if (res.ok) {
         toast.success('Product created successfully')
-        setActiveModule('inventory')
+        router.push('/inventory')
       } else {
         const data = await res.json()
         toast.error(data.error || 'Failed to create product')
@@ -102,12 +120,17 @@ export function ProductForm() {
     <div className="p-4 md:p-6 space-y-6 max-w-4xl mx-auto">
       {/* Header */}
       <div className="flex items-center gap-4">
-        <Button variant="ghost" size="icon" onClick={() => setActiveModule('inventory')}>
+        <Button variant="ghost" size="icon" onClick={() => router.push('/inventory')}>
           <ArrowLeft className="size-5" />
         </Button>
-        <div>
+        <div className="flex-1">
           <h1 className="text-2xl font-bold tracking-tight">Add Product</h1>
-          <p className="text-muted-foreground text-sm">Add a new product or service to your inventory</p>
+          <p className="text-muted-foreground text-sm">
+            Add a new product or service to your inventory
+          </p>
+        </div>
+        <div className="size-10 rounded-lg bg-muted flex items-center justify-center">
+          <Package className="size-5 text-muted-foreground" />
         </div>
       </div>
 
@@ -133,12 +156,12 @@ export function ProductForm() {
                 id="nameNepali"
                 value={nameNepali}
                 onChange={(e) => setNameNepali(e.target.value)}
-                placeholder="उत्पादनको नाम"
+                placeholder="\u0909\u0924\u094D\u092A\u093E\u0926\u0928\u0915\u094B \u0928\u093E\u092E"
               />
             </div>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div className="space-y-1.5">
               <Label htmlFor="code">Code / SKU</Label>
               <Input
@@ -156,12 +179,19 @@ export function ProductForm() {
                 </SelectTrigger>
                 <SelectContent>
                   {UNITS.map((u) => (
-                    <SelectItem key={u} value={u}>
-                      {u}
-                    </SelectItem>
+                    <SelectItem key={u} value={u}>{u}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="hsnCode">HSN Code</Label>
+              <Input
+                id="hsnCode"
+                value={hsnCode}
+                onChange={(e) => setHsnCode(e.target.value)}
+                placeholder="HSN/SAC code"
+              />
             </div>
           </div>
 
@@ -174,9 +204,7 @@ export function ProductForm() {
                 </SelectTrigger>
                 <SelectContent>
                   {CATEGORIES.map((cat) => (
-                    <SelectItem key={cat} value={cat}>
-                      {cat}
-                    </SelectItem>
+                    <SelectItem key={cat} value={cat}>{cat}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
@@ -223,34 +251,23 @@ export function ProductForm() {
           <CardTitle className="text-base">Tax & Pricing</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div className="space-y-1.5">
-              <Label htmlFor="hsnCode">HSN Code</Label>
-              <Input
-                id="hsnCode"
-                value={hsnCode}
-                onChange={(e) => setHsnCode(e.target.value)}
-                placeholder="HSN/SAC code for VAT"
-              />
-            </div>
-            <div className="flex items-center gap-3 pt-6">
-              <Switch
-                id="isVatable"
-                checked={isVatable}
-                onCheckedChange={(checked) => {
-                  setIsVatable(checked)
-                  if (checked) setVatRate(NEPAL_VAT_RATE * 100)
-                  else setVatRate(0)
-                }}
-              />
-              <Label htmlFor="isVatable" className="cursor-pointer">
-                Is Vatable (VAT applicable)
-              </Label>
-            </div>
+          <div className="flex items-center gap-3">
+            <Switch
+              id="isVatable"
+              checked={isVatable}
+              onCheckedChange={(checked) => {
+                setIsVatable(checked)
+                if (checked) setVatRate(NEPAL_VAT_RATE * 100)
+                else setVatRate(0)
+              }}
+            />
+            <Label htmlFor="isVatable" className="cursor-pointer">
+              VAT Applicable (Nepal {NEPAL_VAT_RATE * 100}% standard rate)
+            </Label>
           </div>
 
           {isVatable && (
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pl-2 border-l-2 border-muted">
               <div className="space-y-1.5">
                 <Label htmlFor="vatRate">VAT Rate (%)</Label>
                 <Input
@@ -261,7 +278,18 @@ export function ProductForm() {
                   value={vatRate}
                   onChange={(e) => setVatRate(parseFloat(e.target.value) || 0)}
                 />
+                <p className="text-xs text-muted-foreground">
+                  Default: {NEPAL_VAT_RATE * 100}% (Nepal standard)
+                </p>
               </div>
+              {vatPreview && (
+                <div className="flex items-end">
+                  <div className="p-3 rounded-lg bg-muted text-sm">
+                    <p className="text-xs text-muted-foreground">VAT on selling price</p>
+                    <p className="font-semibold">{vatPreview}</p>
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
@@ -279,6 +307,11 @@ export function ProductForm() {
                 onChange={(e) => setSellingPrice(e.target.value)}
                 placeholder="0.00"
               />
+              {sellingPrice && isVatable && (
+                <p className="text-xs text-muted-foreground">
+                  Incl. VAT: {formatNPR(parseFloat(sellingPrice) * (1 + NEPAL_VAT_RATE))}
+                </p>
+              )}
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="costPrice">Cost Price (NPR)</Label>
@@ -291,6 +324,12 @@ export function ProductForm() {
                 onChange={(e) => setCostPrice(e.target.value)}
                 placeholder="0.00"
               />
+              {sellingPrice && costPrice && (
+                <p className="text-xs text-muted-foreground">
+                  Margin: {formatNPR(parseFloat(sellingPrice) - parseFloat(costPrice))}{' '}
+                  ({((parseFloat(sellingPrice) - parseFloat(costPrice)) / parseFloat(sellingPrice) * 100).toFixed(1)}%)
+                </p>
+              )}
             </div>
           </div>
         </CardContent>
@@ -314,6 +353,9 @@ export function ProductForm() {
                 onChange={(e) => setMinStockLevel(e.target.value)}
                 placeholder="Reorder point"
               />
+              <p className="text-xs text-muted-foreground">
+                Alert when stock falls below this level
+              </p>
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="maxStock">Max Stock Level</Label>
@@ -399,7 +441,7 @@ export function ProductForm() {
 
       {/* Submit */}
       <div className="flex items-center justify-end gap-3 pb-6">
-        <Button variant="outline" onClick={() => setActiveModule('inventory')}>
+        <Button variant="outline" onClick={() => router.push('/inventory')}>
           Cancel
         </Button>
         <Button onClick={handleSubmit} disabled={submitting} className="min-w-[140px]">

@@ -1,11 +1,13 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
+import { useRouter } from 'next/navigation'
 import { useAppStore } from '@/store/app-store'
-import { formatNPR } from '@/lib/nepal-accounting'
+import { formatNPR, calculateVAT, NEPAL_VAT_RATE } from '@/lib/nepal-accounting'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
 import { Badge } from '@/components/ui/badge'
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
@@ -14,12 +16,20 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select'
 import {
-  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
+import {
+  Popover, PopoverContent, PopoverTrigger,
+} from '@/components/ui/popover'
 import { Skeleton } from '@/components/ui/skeleton'
-import { Plus, Search, MoreHorizontal, Eye, CheckCircle, XCircle, ShoppingCart, ChevronLeft, ChevronRight } from 'lucide-react'
+import {
+  Plus, Search, MoreHorizontal, Eye, CheckCircle, XCircle, ShoppingCart,
+  ChevronLeft, ChevronRight, Calendar, Pencil, Truck,
+} from 'lucide-react'
 import { toast } from 'sonner'
+import { cn } from '@/lib/utils'
 
+// ─── Types ────────────────────────────────────────────────────
 interface PurchaseBillLine {
   id: string
   productId: string | null
@@ -61,49 +71,77 @@ interface PurchaseBill {
   } | null
 }
 
-const STATUS_CONFIG: Record<string, { label: string; className: string }> = {
-  draft: { label: 'Draft', className: 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300' },
-  received: { label: 'Received', className: 'bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300' },
-  paid: { label: 'Paid', className: 'bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300' },
-  partial: { label: 'Partial', className: 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900 dark:text-yellow-300' },
-  cancelled: { label: 'Cancelled', className: 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400' },
+// ─── Status Config ────────────────────────────────────────────
+const STATUS_CONFIG: Record<string, { label: string; className: string; lineThrough?: boolean }> = {
+  draft: {
+    label: 'Draft',
+    className: 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300',
+  },
+  received: {
+    label: 'Received',
+    className: 'bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300',
+  },
+  paid: {
+    label: 'Paid',
+    className: 'bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300',
+  },
+  partial: {
+    label: 'Partial',
+    className: 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900 dark:text-yellow-300',
+  },
+  overdue: {
+    label: 'Overdue',
+    className: 'bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300',
+  },
+  cancelled: {
+    label: 'Cancelled',
+    className: 'bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400 line-through',
+    lineThrough: true,
+  },
 }
 
 const ITEMS_PER_PAGE = 10
 
+// ─── Component ────────────────────────────────────────────────
 export function PurchaseList() {
-  const { currentOrgId, setActiveModule } = useAppStore()
+  const { currentOrgId } = useAppStore()
+  const router = useRouter()
   const [purchaseBills, setPurchaseBills] = useState<PurchaseBill[]>([])
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
   const [statusFilter, setStatusFilter] = useState('all')
   const [searchQuery, setSearchQuery] = useState('')
+  const [dateFrom, setDateFrom] = useState('')
+  const [dateTo, setDateTo] = useState('')
+  const [dateFilterOpen, setDateFilterOpen] = useState(false)
   const [page, setPage] = useState(1)
 
   const fetchPurchases = useCallback(async () => {
     if (!currentOrgId) return
     setLoading(true)
+    setError(null)
     try {
       const params = new URLSearchParams({ orgId: currentOrgId })
       if (statusFilter !== 'all') params.set('status', statusFilter)
+      if (dateFrom) params.set('dateFrom', dateFrom)
+      if (dateTo) params.set('dateTo', dateTo)
       const res = await fetch(`/api/purchases?${params}`)
       if (res.ok) {
         const data = await res.json()
-        setPurchaseBills(data)
+        setPurchaseBills(Array.isArray(data) ? data : [])
+      } else {
+        setError('Failed to load purchase bills')
       }
     } catch {
+      setError('Network error. Please try again.')
       toast.error('Failed to fetch purchase bills')
     } finally {
       setLoading(false)
     }
-  }, [currentOrgId, statusFilter])
+  }, [currentOrgId, statusFilter, dateFrom, dateTo])
 
-  useEffect(() => {
-    fetchPurchases()
-  }, [fetchPurchases])
-
-  useEffect(() => {
-    setPage(1)
-  }, [statusFilter, searchQuery])
+  useEffect(() => { fetchPurchases() }, [fetchPurchases])
+  useEffect(() => { setPage(1) }, [statusFilter, searchQuery, dateFrom, dateTo])
 
   const filteredBills = purchaseBills.filter((bill) => {
     if (!searchQuery) return true
@@ -115,10 +153,11 @@ export function PurchaseList() {
     )
   })
 
-  const totalPages = Math.ceil(filteredBills.length / ITEMS_PER_PAGE)
+  const totalPages = Math.max(1, Math.ceil(filteredBills.length / ITEMS_PER_PAGE))
+  const currentPage = Math.min(page, totalPages)
   const paginatedBills = filteredBills.slice(
-    (page - 1) * ITEMS_PER_PAGE,
-    page * ITEMS_PER_PAGE
+    (currentPage - 1) * ITEMS_PER_PAGE,
+    currentPage * ITEMS_PER_PAGE,
   )
 
   const handleMarkAsPaid = async (billId: string, totalAmount: number) => {
@@ -132,8 +171,7 @@ export function PurchaseList() {
         toast.success('Purchase bill marked as paid')
         fetchPurchases()
       } else {
-        const data = await res.json()
-        toast.error(data.error || 'Failed to update purchase bill')
+        toast.error('Failed to update purchase bill')
       }
     } catch {
       toast.error('Failed to update purchase bill')
@@ -151,8 +189,7 @@ export function PurchaseList() {
         toast.success('Purchase bill cancelled')
         fetchPurchases()
       } else {
-        const data = await res.json()
-        toast.error(data.error || 'Failed to cancel purchase bill')
+        toast.error('Failed to cancel purchase bill')
       }
     } catch {
       toast.error('Failed to cancel purchase bill')
@@ -162,7 +199,14 @@ export function PurchaseList() {
   const getStatusBadge = (status: string) => {
     const config = STATUS_CONFIG[status] || STATUS_CONFIG.draft
     return (
-      <Badge variant="outline" className={`text-xs font-medium border-0 ${config.className}`}>
+      <Badge
+        variant="outline"
+        className={cn(
+          'text-xs font-medium border-0',
+          config.className,
+          config.lineThrough && 'line-through',
+        )}
+      >
         {config.label}
       </Badge>
     )
@@ -178,13 +222,14 @@ export function PurchaseList() {
     }
   }
 
-  // Summary counts
   const summaryCounts = {
     total: purchaseBills.length,
+    totalValue: purchaseBills.reduce((s, b) => s + b.totalAmount, 0),
     paid: purchaseBills.filter((b) => b.status === 'paid').length,
     draft: purchaseBills.filter((b) => b.status === 'draft').length,
-    totalValue: purchaseBills.reduce((s, b) => s + b.totalAmount, 0),
   }
+
+  const activeDateFilter = dateFrom || dateTo
 
   return (
     <div className="p-4 md:p-6 space-y-6">
@@ -194,7 +239,7 @@ export function PurchaseList() {
           <h1 className="text-2xl font-bold tracking-tight">Purchase Bills</h1>
           <p className="text-muted-foreground text-sm">Manage your purchase bills and suppliers</p>
         </div>
-        <Button onClick={() => setActiveModule('purchase-new')} className="shrink-0">
+        <Button onClick={() => router.push('/purchases/new')} className="shrink-0">
           <Plus className="size-4 mr-2" />
           New Purchase
         </Button>
@@ -206,12 +251,9 @@ export function PurchaseList() {
           <CardContent className="p-4">
             <p className="text-xs text-muted-foreground">Total Bills</p>
             <p className="text-2xl font-bold">{summaryCounts.total}</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-4">
-            <p className="text-xs text-muted-foreground">Total Value</p>
-            <p className="text-xl font-bold">{formatNPR(summaryCounts.totalValue)}</p>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              Value: {formatNPR(summaryCounts.totalValue)}
+            </p>
           </CardContent>
         </Card>
         <Card>
@@ -226,6 +268,14 @@ export function PurchaseList() {
             <p className="text-2xl font-bold text-gray-600">{summaryCounts.draft}</p>
           </CardContent>
         </Card>
+        <Card>
+          <CardContent className="p-4">
+            <p className="text-xs text-muted-foreground">Total VAT</p>
+            <p className="text-xl font-bold">
+              {formatNPR(purchaseBills.reduce((s, b) => s + b.vatAmount, 0))}
+            </p>
+          </CardContent>
+        </Card>
       </div>
 
       {/* Filters */}
@@ -236,7 +286,7 @@ export function PurchaseList() {
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
                 <Input
-                  placeholder="Search purchase bills..."
+                  placeholder="Search by bill #, supplier, ref..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   className="pl-9"
@@ -253,9 +303,45 @@ export function PurchaseList() {
                 <SelectItem value="received">Received</SelectItem>
                 <SelectItem value="paid">Paid</SelectItem>
                 <SelectItem value="partial">Partial</SelectItem>
+                <SelectItem value="overdue">Overdue</SelectItem>
                 <SelectItem value="cancelled">Cancelled</SelectItem>
               </SelectContent>
             </Select>
+            {/* Date Range Filter */}
+            <Popover open={dateFilterOpen} onOpenChange={setDateFilterOpen}>
+              <PopoverTrigger asChild>
+                <Button
+                  variant={activeDateFilter ? 'default' : 'outline'}
+                  className="w-full sm:w-auto shrink-0"
+                >
+                  <Calendar className="size-4 mr-2" />
+                  {activeDateFilter ? 'Date Filtered' : 'Date Range'}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-4" align="end">
+                <div className="space-y-3">
+                  <div className="space-y-1.5">
+                    <Label className="text-xs">From</Label>
+                    <Input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs">To</Label>
+                    <Input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} />
+                  </div>
+                  <div className="flex gap-2">
+                    <Button
+                      variant="ghost" size="sm" className="flex-1"
+                      onClick={() => { setDateFrom(''); setDateTo(''); setDateFilterOpen(false) }}
+                    >
+                      Clear
+                    </Button>
+                    <Button size="sm" className="flex-1" onClick={() => setDateFilterOpen(false)}>
+                      Apply
+                    </Button>
+                  </div>
+                </div>
+              </PopoverContent>
+            </Popover>
           </div>
         </CardContent>
       </Card>
@@ -269,20 +355,28 @@ export function PurchaseList() {
                 <Skeleton key={i} className="h-12 w-full" />
               ))}
             </div>
+          ) : error ? (
+            <div className="p-12 text-center">
+              <ShoppingCart className="size-12 text-red-300 mx-auto mb-3" />
+              <h3 className="text-lg font-medium text-red-600">{error}</h3>
+              <Button variant="outline" className="mt-4" onClick={fetchPurchases}>
+                Retry
+              </Button>
+            </div>
           ) : paginatedBills.length === 0 ? (
             <div className="p-12 text-center">
               <ShoppingCart className="size-12 text-muted-foreground/30 mx-auto mb-3" />
               <h3 className="text-lg font-medium text-muted-foreground">No purchase bills found</h3>
               <p className="text-sm text-muted-foreground/70 mt-1">
-                {searchQuery || statusFilter !== 'all'
+                {searchQuery || statusFilter !== 'all' || activeDateFilter
                   ? 'Try adjusting your filters'
                   : 'Create your first purchase bill to get started'}
               </p>
-              {!searchQuery && statusFilter === 'all' && (
+              {!searchQuery && statusFilter === 'all' && !activeDateFilter && (
                 <Button
                   variant="outline"
                   className="mt-4"
-                  onClick={() => setActiveModule('purchase-new')}
+                  onClick={() => router.push('/purchases/new')}
                 >
                   <Plus className="size-4 mr-2" />
                   Create Purchase Bill
@@ -298,78 +392,100 @@ export function PurchaseList() {
                       <TableHead>Bill #</TableHead>
                       <TableHead>Date</TableHead>
                       <TableHead>Supplier</TableHead>
-                      <TableHead className="text-right">Total</TableHead>
-                      <TableHead className="text-right">VAT</TableHead>
+                      <TableHead className="text-right">Total Amount</TableHead>
+                      <TableHead className="text-right">VAT Amount</TableHead>
                       <TableHead>Status</TableHead>
                       <TableHead className="text-right">Amount Due</TableHead>
                       <TableHead className="text-right">Actions</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {paginatedBills.map((bill) => (
-                      <TableRow key={bill.id}>
-                        <TableCell>
-                          <div>
-                            <span className="font-medium">{bill.billNumber}</span>
-                            {bill.supplierBillNo && (
-                              <span className="block text-xs text-muted-foreground">
-                                Ref: {bill.supplierBillNo}
-                              </span>
-                            )}
-                          </div>
-                        </TableCell>
-                        <TableCell>{formatDate(bill.date)}</TableCell>
-                        <TableCell>{bill.party?.name || '—'}</TableCell>
-                        <TableCell className="text-right font-medium">
-                          {formatNPR(bill.totalAmount)}
-                        </TableCell>
-                        <TableCell className="text-right text-muted-foreground">
-                          {formatNPR(bill.vatAmount)}
-                        </TableCell>
-                        <TableCell>{getStatusBadge(bill.status)}</TableCell>
-                        <TableCell className="text-right">
-                          {bill.amountDue > 0 ? (
-                            <span className="font-medium text-red-600">
-                              {formatNPR(bill.amountDue)}
-                            </span>
-                          ) : (
-                            <span className="text-green-600 text-sm">Cleared</span>
+                    {paginatedBills.map((bill) => {
+                      const isCancelled = bill.status === 'cancelled'
+                      return (
+                        <TableRow
+                          key={bill.id}
+                          className={cn(
+                            'cursor-pointer hover:bg-muted/50',
+                            isCancelled && 'opacity-60',
                           )}
-                        </TableCell>
-                        <TableCell className="text-right">
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <Button variant="ghost" size="icon" className="size-8">
-                                <MoreHorizontal className="size-4" />
-                              </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end">
-                              <DropdownMenuItem>
-                                <Eye className="size-4 mr-2" />
-                                View Details
-                              </DropdownMenuItem>
-                              {bill.status !== 'paid' && bill.status !== 'cancelled' && (
-                                <DropdownMenuItem
-                                  onClick={() => handleMarkAsPaid(bill.id, bill.totalAmount)}
-                                >
-                                  <CheckCircle className="size-4 mr-2" />
-                                  Mark as Paid
-                                </DropdownMenuItem>
+                          onClick={() => router.push('/purchases/new')}
+                        >
+                          <TableCell className={cn('font-medium', isCancelled && 'line-through')}>
+                            <div>
+                              <span>{bill.billNumber}</span>
+                              {bill.supplierBillNo && (
+                                <span className="block text-xs text-muted-foreground">
+                                  Ref: {bill.supplierBillNo}
+                                </span>
                               )}
-                              {bill.status !== 'cancelled' && bill.status !== 'paid' && (
-                                <DropdownMenuItem
-                                  onClick={() => handleCancel(bill.id)}
-                                  className="text-red-600 focus:text-red-600"
+                            </div>
+                          </TableCell>
+                          <TableCell className={isCancelled && 'line-through'}>
+                            {formatDate(bill.date)}
+                          </TableCell>
+                          <TableCell className={isCancelled && 'line-through'}>
+                            {bill.party?.name || '\u2014'}
+                          </TableCell>
+                          <TableCell className={cn('text-right font-medium', isCancelled && 'line-through')}>
+                            {formatNPR(bill.totalAmount)}
+                          </TableCell>
+                          <TableCell className={cn('text-right text-muted-foreground', isCancelled && 'line-through')}>
+                            {formatNPR(bill.vatAmount)}
+                          </TableCell>
+                          <TableCell>{getStatusBadge(bill.status)}</TableCell>
+                          <TableCell className="text-right">
+                            {bill.amountDue > 0 ? (
+                              <span className={cn('font-medium', isCancelled ? 'line-through text-muted-foreground' : 'text-red-600')}>
+                                {formatNPR(bill.amountDue)}
+                              </span>
+                            ) : (
+                              <span className="text-green-600 text-sm">Cleared</span>
+                            )}
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="size-8"
+                                  onClick={(e) => e.stopPropagation()}
                                 >
-                                  <XCircle className="size-4 mr-2" />
-                                  Cancel Bill
+                                  <MoreHorizontal className="size-4" />
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end">
+                                <DropdownMenuItem onClick={(e) => { e.stopPropagation(); router.push('/purchases/new') }}>
+                                  <Eye className="size-4 mr-2" />
+                                  View Details
                                 </DropdownMenuItem>
-                              )}
-                            </DropdownMenuContent>
-                          </DropdownMenu>
-                        </TableCell>
-                      </TableRow>
-                    ))}
+                                <DropdownMenuItem onClick={(e) => { e.stopPropagation(); router.push('/purchases/new') }}>
+                                  <Pencil className="size-4 mr-2" />
+                                  Edit
+                                </DropdownMenuItem>
+                                {bill.status !== 'paid' && bill.status !== 'cancelled' && (
+                                  <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleMarkAsPaid(bill.id, bill.totalAmount) }}>
+                                    <CheckCircle className="size-4 mr-2" />
+                                    Mark as Paid
+                                  </DropdownMenuItem>
+                                )}
+                                <DropdownMenuSeparator />
+                                {bill.status !== 'cancelled' && bill.status !== 'paid' && (
+                                  <DropdownMenuItem
+                                    onClick={(e) => { e.stopPropagation(); handleCancel(bill.id) }}
+                                    className="text-red-600 focus:text-red-600"
+                                  >
+                                    <XCircle className="size-4 mr-2" />
+                                    Cancel Bill
+                                  </DropdownMenuItem>
+                                )}
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                          </TableCell>
+                        </TableRow>
+                      )
+                    })}
                   </TableBody>
                 </Table>
               </div>
@@ -378,27 +494,23 @@ export function PurchaseList() {
               {totalPages > 1 && (
                 <div className="flex items-center justify-between px-4 py-3 border-t">
                   <p className="text-sm text-muted-foreground">
-                    Showing {(page - 1) * ITEMS_PER_PAGE + 1}–
-                    {Math.min(page * ITEMS_PER_PAGE, filteredBills.length)} of{' '}
+                    Showing {(currentPage - 1) * ITEMS_PER_PAGE + 1}\u2013
+                    {Math.min(currentPage * ITEMS_PER_PAGE, filteredBills.length)} of{' '}
                     {filteredBills.length}
                   </p>
                   <div className="flex items-center gap-2">
                     <Button
-                      variant="outline"
-                      size="sm"
+                      variant="outline" size="sm"
                       onClick={() => setPage((p) => Math.max(1, p - 1))}
-                      disabled={page === 1}
+                      disabled={currentPage === 1}
                     >
                       <ChevronLeft className="size-4" />
                     </Button>
-                    <span className="text-sm">
-                      {page} / {totalPages}
-                    </span>
+                    <span className="text-sm">{currentPage} / {totalPages}</span>
                     <Button
-                      variant="outline"
-                      size="sm"
+                      variant="outline" size="sm"
                       onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-                      disabled={page === totalPages}
+                      disabled={currentPage === totalPages}
                     >
                       <ChevronRight className="size-4" />
                     </Button>

@@ -1,15 +1,16 @@
 import { db } from '@/lib/db'
 import { NextResponse } from 'next/server'
+import { getSessionUserId } from '@/lib/auth'
 
 export async function GET(request: Request) {
   try {
-    const { searchParams } = new URL(request.url)
-    const userId = searchParams.get('userId')
+    // Read userId from session cookie - secure way
+    const userId = await getSessionUserId()
 
     if (!userId) {
       return NextResponse.json(
-        { error: 'userId is required' },
-        { status: 400 }
+        { error: 'Not authenticated' },
+        { status: 401 }
       )
     }
 

@@ -1,6 +1,7 @@
 import { db } from '@/lib/db'
 import { NextResponse } from 'next/server'
 import { createHash } from 'crypto'
+import { setSessionCookie } from '@/lib/auth'
 
 const SALT = 'hisab-pro-salt'
 
@@ -66,7 +67,8 @@ export async function POST(request: Request) {
     // Return user data with their organizations (exclude passwordHash)
     const { passwordHash: _, ...userSafe } = user
 
-    return NextResponse.json({
+    // Create the response first, then set the cookie on it
+    const response = NextResponse.json({
       success: true,
       user: {
         id: userSafe.id,
@@ -82,6 +84,12 @@ export async function POST(request: Request) {
         plan: uo.organization.plan,
       })),
     })
+
+    // Set the session cookie
+    const cookieConfig = setSessionCookie(user.id)
+    response.cookies.set(cookieConfig.name, cookieConfig.value, cookieConfig.options)
+
+    return response
 
   } catch (error) {
     console.error('Login error:', error)

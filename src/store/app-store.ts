@@ -86,6 +86,10 @@ interface AppState {
   // Admin mode
   isAdminPortal: boolean
   setIsAdminPortal: (val: boolean) => void
+
+  // Session refresh - allows components to trigger a session data refresh
+  refreshSession: () => Promise<void>
+  setRefreshSession: (fn: () => Promise<void>) => void
 }
 
 export const useAppStore = create<AppState>((set) => ({
@@ -131,4 +135,8 @@ export const useAppStore = create<AppState>((set) => ({
   // Admin mode
   isAdminPortal: false,
   setIsAdminPortal: (val) => set({ isAdminPortal: val }),
+
+  // Session refresh
+  refreshSession: async () => {},
+  setRefreshSession: (fn) => set({ refreshSession: fn }),
 }))

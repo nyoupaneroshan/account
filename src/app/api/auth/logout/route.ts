@@ -1,15 +1,19 @@
 import { NextResponse } from 'next/server'
+import { clearSessionCookieOptions } from '@/lib/auth'
 
 export async function POST() {
   try {
-    // Since we're using a simple token-based approach (no server sessions),
-    // logout is handled client-side by clearing the stored credentials.
-    // This endpoint exists for API completeness and future session management.
-
-    return NextResponse.json({
+    // Create the response first, then clear the cookie on it
+    const response = NextResponse.json({
       success: true,
       message: 'Logged out successfully',
     })
+
+    // Clear the session cookie
+    const cookieConfig = clearSessionCookieOptions()
+    response.cookies.set(cookieConfig.name, cookieConfig.value, cookieConfig.options)
+
+    return response
   } catch (error) {
     console.error('Logout error:', error)
     return NextResponse.json(

@@ -1,5 +1,6 @@
 'use client'
 
+import { useRouter, usePathname } from 'next/navigation'
 import { useAppStore } from '@/store/app-store'
 import { OrgSwitcher } from '@/components/auth/org-switcher'
 import { Button } from '@/components/ui/button'
@@ -36,16 +37,39 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 
-export function AppHeader() {
+// Pathname to title mapping
+const PATH_TITLE_MAP: Record<string, string> = {
+  '/dashboard': 'Dashboard',
+  '/income': 'Add Income',
+  '/expense': 'Add Expense',
+  '/accounts': 'Chart of Accounts',
+  '/journal': 'Journal Entries',
+  '/journal/new': 'New Journal Entry',
+  '/ledgers': 'Ledgers',
+  '/parties': 'Customers & Suppliers',
+  '/parties/new': 'New Party',
+  '/invoices': 'Sales Invoices',
+  '/invoices/new': 'New Invoice',
+  '/purchases': 'Purchase Bills',
+  '/purchases/new': 'New Purchase Bill',
+  '/inventory': 'Stock Management',
+  '/inventory/new': 'New Product',
+  '/reports': 'Reports',
+  '/settings': 'Settings',
+  '/organization': 'Organization',
+  '/users': 'Users & Roles',
+  '/admin': 'Admin Portal',
+}
+
+export function AppHeader({ onLogout }: { onLogout?: () => void }) {
+  const router = useRouter()
+  const pathname = usePathname()
   const {
     mode,
     setSidebarOpen,
     sidebarOpen,
-    setActiveModule,
-    activeModule,
     currentUser,
     setIsAdminPortal,
-    logout,
     userOrganizations,
     language,
     setLanguage,
@@ -72,43 +96,30 @@ export function AppHeader() {
     localStorage.setItem('hisab-theme', next ? 'dark' : 'light')
   }
 
-  // Get module title
-  const getModuleTitle = () => {
-    const titles: Record<string, string> = {
-      dashboard: 'Dashboard',
-      'simple-income': 'Add Income',
-      'simple-expense': 'Add Expense',
-      'chart-of-accounts': 'Chart of Accounts',
-      'journal-entries': 'Journal Entries',
-      'journal-entry-new': 'New Journal Entry',
-      ledgers: 'Ledgers',
-      parties: 'Customers & Suppliers',
-      'party-new': 'New Party',
-      invoices: 'Sales Invoices',
-      'invoice-new': 'New Invoice',
-      purchases: 'Purchase Bills',
-      'purchase-new': 'New Purchase Bill',
-      inventory: 'Stock Management',
-      'product-new': 'New Product',
-      reports: 'Reports',
-      'trial-balance': 'Trial Balance',
-      'profit-loss': 'Profit & Loss',
-      'balance-sheet': 'Balance Sheet',
-      'cash-flow': 'Cash Flow',
-      'vat-report': 'VAT Report',
-      'tds-report': 'TDS Report',
-      settings: 'Settings',
-      organization: 'Organization',
-      users: 'Users & Roles',
+  // Get page title from current pathname
+  const getPageTitle = () => {
+    // Try exact match first
+    if (PATH_TITLE_MAP[pathname]) return PATH_TITLE_MAP[pathname]
+    // Try matching parent path
+    const segments = pathname.split('/')
+    for (let i = segments.length; i >= 2; i--) {
+      const parentPath = segments.slice(0, i).join('/')
+      if (PATH_TITLE_MAP[parentPath]) return PATH_TITLE_MAP[parentPath]
     }
-    return titles[activeModule] || 'Hisab Pro'
+    return 'Hisab Pro'
   }
 
   const isSuperAdmin = currentUser?.role === 'super_admin'
   const userInitial = currentUser?.name?.charAt(0)?.toUpperCase() || 'U'
 
+  const handleLogout = () => {
+    if (onLogout) {
+      onLogout()
+    }
+  }
+
   return (
-    <header className="h-14 border-b border-border bg-card flex items-center justify-between px-4 gap-4">
+    <header className="h-14 border-b border-border bg-card flex items-center justify-between px-4 gap-4 shrink-0">
       {/* Left section */}
       <div className="flex items-center gap-3">
         <Button
@@ -125,7 +136,7 @@ export function AppHeader() {
           <OrgSwitcher />
         </div>
 
-        <h1 className="text-lg font-semibold hidden sm:block">{getModuleTitle()}</h1>
+        <h1 className="text-lg font-semibold hidden sm:block">{getPageTitle()}</h1>
       </div>
 
       {/* Center - Search */}
@@ -149,7 +160,7 @@ export function AppHeader() {
               variant="outline"
               size="sm"
               className="h-8 gap-1 text-xs"
-              onClick={() => setActiveModule('simple-income')}
+              onClick={() => router.push('/income')}
             >
               <PlusCircle className="h-3.5 w-3.5 text-green-600" />
               <span className="hidden sm:inline">Income</span>
@@ -158,7 +169,7 @@ export function AppHeader() {
               variant="outline"
               size="sm"
               className="h-8 gap-1 text-xs"
-              onClick={() => setActiveModule('simple-expense')}
+              onClick={() => router.push('/expense')}
             >
               <MinusCircle className="h-3.5 w-3.5 text-red-600" />
               <span className="hidden sm:inline">Expense</span>
@@ -172,7 +183,7 @@ export function AppHeader() {
             variant="outline"
             size="sm"
             className="h-8 gap-1 text-xs"
-            onClick={() => setActiveModule('journal-entry-new')}
+            onClick={() => router.push('/journal/new')}
           >
             <Plus className="h-3.5 w-3.5" />
             <span className="hidden sm:inline">New Entry</span>
@@ -180,7 +191,19 @@ export function AppHeader() {
         )}
 
         {/* Language Switcher */}
-        <Select value={language} onValueChange={setLanguage}>
+        <Select value={language} onValueChange={async (val) => {
+          setLanguage(val)
+          // Persist language preference to database
+          try {
+            await fetch('/api/user/language', {
+              method: 'PUT',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ language: val }),
+            })
+          } catch {
+            // silently fail - language is already saved in Zustand
+          }
+        }}>
           <SelectTrigger className="h-8 w-auto gap-1 border-none shadow-none bg-transparent text-xs font-medium">
             <Globe className="h-4 w-4 text-muted-foreground" />
             <SelectValue />
@@ -225,17 +248,17 @@ export function AppHeader() {
               </>
             )}
 
-            <DropdownMenuItem onClick={() => setActiveModule('settings')} className="gap-2">
+            <DropdownMenuItem onClick={() => router.push('/settings')} className="gap-2">
               <Settings className="h-4 w-4" />
               Settings
             </DropdownMenuItem>
 
-            <DropdownMenuItem onClick={() => setActiveModule('organization')} className="gap-2">
+            <DropdownMenuItem onClick={() => router.push('/organization')} className="gap-2">
               <Building2 className="h-4 w-4" />
               Organization
             </DropdownMenuItem>
 
-            <DropdownMenuItem onClick={() => setActiveModule('users')} className="gap-2">
+            <DropdownMenuItem onClick={() => router.push('/users')} className="gap-2">
               <UserCog className="h-4 w-4" />
               Users & Roles
             </DropdownMenuItem>
@@ -266,7 +289,13 @@ export function AppHeader() {
             {isSuperAdmin && (
               <>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={() => setIsAdminPortal(true)} className="gap-2">
+                <DropdownMenuItem
+                  onClick={() => {
+                    setIsAdminPortal(true)
+                    router.push('/admin')
+                  }}
+                  className="gap-2"
+                >
                   <Shield className="h-4 w-4" />
                   Admin Portal
                 </DropdownMenuItem>
@@ -275,7 +304,7 @@ export function AppHeader() {
 
             <DropdownMenuSeparator />
 
-            <DropdownMenuItem onClick={logout} className="gap-2 text-destructive focus:text-destructive">
+            <DropdownMenuItem onClick={handleLogout} className="gap-2 text-destructive focus:text-destructive">
               <LogOut className="h-4 w-4" />
               Logout
             </DropdownMenuItem>

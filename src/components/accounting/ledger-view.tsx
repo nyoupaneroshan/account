@@ -3,7 +3,9 @@
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import { useAppStore } from '@/store/app-store'
 import { formatNPR, isDebitNature } from '@/lib/nepal-accounting'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { t } from '@/lib/i18n'
+import { cn } from '@/lib/utils'
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
@@ -16,7 +18,6 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-  TableFooter,
 } from '@/components/ui/table'
 import {
   Popover,
@@ -39,10 +40,11 @@ import {
   Check,
   FileSpreadsheet,
   ArrowRightLeft,
+  RefreshCw,
 } from 'lucide-react'
 import { toast } from 'sonner'
 
-// ─── Types ───────────────────────────────────────────────────────────────────
+// ─── Types ─────────────────────────────────────────────────────
 
 interface AccountGroup {
   id: string
@@ -97,7 +99,7 @@ interface LedgerRow {
   isCancelled: boolean
 }
 
-// ─── Component ───────────────────────────────────────────────────────────────
+// ─── Component ─────────────────────────────────────────────────
 
 export function LedgerView() {
   const { currentOrgId } = useAppStore()
@@ -116,8 +118,9 @@ export function LedgerView() {
   const [entries, setEntries] = useState<JournalEntry[]>([])
   const [loadingAccounts, setLoadingAccounts] = useState(true)
   const [loadingEntries, setLoadingEntries] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
-  // ─── Fetch accounts ─────────────────────────────────────────────────────
+  // ─── Fetch accounts ──────────────────────────────────────────
 
   const fetchAccounts = useCallback(async () => {
     if (!currentOrgId) return
@@ -128,7 +131,7 @@ export function LedgerView() {
       const data = await res.json()
       setAccounts(data)
     } catch (err) {
-      console.error('Error fetching accounts:', err)
+      setError('Failed to load accounts')
       toast.error('Failed to load accounts')
     } finally {
       setLoadingAccounts(false)
@@ -139,16 +142,15 @@ export function LedgerView() {
     fetchAccounts()
   }, [fetchAccounts])
 
-  // ─── Fetch journal entries ──────────────────────────────────────────────
+  // ─── Fetch journal entries ───────────────────────────────────
 
   const fetchEntries = useCallback(async () => {
     if (!currentOrgId) return
     setLoadingEntries(true)
     try {
-      // Fetch all journal entries (we'll filter client-side)
       const params = new URLSearchParams({
         orgId: currentOrgId,
-        limit: '500', // Get a large batch for ledger view
+        limit: '500',
       })
       if (fromDate) params.set('fromDate', fromDate)
       if (toDate) params.set('toDate', toDate)
@@ -158,7 +160,6 @@ export function LedgerView() {
       const data = await res.json()
       setEntries(data.data || [])
     } catch (err) {
-      console.error('Error fetching entries:', err)
       toast.error('Failed to load ledger data')
     } finally {
       setLoadingEntries(false)
@@ -169,7 +170,7 @@ export function LedgerView() {
     fetchEntries()
   }, [fetchEntries])
 
-  // ─── Handle account selection ───────────────────────────────────────────
+  // ─── Handle account selection ────────────────────────────────
 
   const handleSelectAccount = (account: Account) => {
     setSelectedAccountId(account.id)
@@ -177,7 +178,7 @@ export function LedgerView() {
     setAccountDropdownOpen(false)
   }
 
-  // ─── Build ledger rows ──────────────────────────────────────────────────
+  // ─── Build ledger rows ───────────────────────────────────────
 
   const { ledgerRows, openingBalance, closingBalance } = useMemo(() => {
     if (!selectedAccountId || !selectedAccount) {
@@ -186,12 +187,10 @@ export function LedgerView() {
 
     const isDebit = isDebitNature(selectedAccount.accountType)
 
-    // Filter entries that have lines referencing the selected account
     const relevantEntries = entries.filter((entry) =>
       entry.lines.some((line) => line.accountId === selectedAccountId)
     )
 
-    // Sort by date ascending, then entryNumber
     relevantEntries.sort((a, b) => {
       const dateA = new Date(a.date).getTime()
       const dateB = new Date(b.date).getTime()
@@ -199,15 +198,6 @@ export function LedgerView() {
       return a.entryNumber.localeCompare(b.entryNumber)
     })
 
-    // Opening balance = account's current balance minus all changes from the fetched entries
-    let runningBalance = selectedAccount.openingBalance || 0
-
-    // We need to calculate what the balance was before the filtered period entries
-    // For simplicity, use the current balance and subtract entry effects
-    // This gives us opening balance at the start of the filtered period
-    let balanceBeforePeriod = selectedAccount.currentBalance
-
-    // Build rows
     const rows: LedgerRow[] = []
     let balance = selectedAccount.openingBalance || 0
 
@@ -239,7 +229,7 @@ export function LedgerView() {
     }
   }, [selectedAccountId, selectedAccount, entries])
 
-  // ─── Group accounts for dropdown ────────────────────────────────────────
+  // ─── Group accounts for dropdown ─────────────────────────────
 
   const groupedAccounts = accounts.reduce(
     (groups, account) => {
@@ -252,14 +242,12 @@ export function LedgerView() {
   )
 
   const natureLabels: Record<string, string> = {
-    asset: 'Assets',
-    liability: 'Liabilities',
-    equity: 'Equity',
-    income: 'Income',
-    expense: 'Expenses',
+    asset: 'Assets (सम्पत्ति)',
+    liability: 'Liabilities (दायित्व)',
+    equity: 'Equity (इक्विटी)',
+    income: 'Income (आम्दानी)',
+    expense: 'Expenses (खर्च)',
   }
-
-  // ─── Format date ────────────────────────────────────────────────────────
 
   const formatDate = (dateStr: string) => {
     const d = new Date(dateStr)
@@ -270,7 +258,7 @@ export function LedgerView() {
     })
   }
 
-  // ─── Loading ────────────────────────────────────────────────────────────
+  // ─── Loading ─────────────────────────────────────────────────
 
   if (loadingAccounts) {
     return (
@@ -286,6 +274,25 @@ export function LedgerView() {
     )
   }
 
+  // ─── Error ───────────────────────────────────────────────────
+
+  if (error) {
+    return (
+      <div className="p-4 md:p-6 flex items-center justify-center min-h-[400px]">
+        <Card className="max-w-md w-full">
+          <CardContent className="py-12 text-center">
+            <BookOpen className="size-12 text-muted-foreground/40 mx-auto mb-3" />
+            <p className="text-muted-foreground">{error}</p>
+            <Button onClick={fetchAccounts} variant="outline" size="sm" className="mt-4 gap-2">
+              <RefreshCw className="h-3.5 w-3.5" />
+              Retry
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    )
+  }
+
   return (
     <div className="p-4 md:p-6 space-y-4">
       {/* Header */}
@@ -293,7 +300,7 @@ export function LedgerView() {
         <div>
           <h1 className="text-2xl font-bold tracking-tight flex items-center gap-2">
             <BookOpen className="size-6 text-primary" />
-            Ledger View
+            {t('ledger')} / खाता
           </h1>
           <p className="text-sm text-muted-foreground mt-1">
             View individual account transactions and running balance
@@ -304,9 +311,10 @@ export function LedgerView() {
           size="sm"
           onClick={() => toast.info('Export feature coming soon')}
           disabled={!selectedAccountId}
+          className="gap-2"
         >
           <Download className="size-4" />
-          Export
+          {t('export')}
         </Button>
       </div>
 
@@ -316,7 +324,7 @@ export function LedgerView() {
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {/* Account selector */}
             <div className="space-y-1.5 lg:col-span-1">
-              <Label>Account</Label>
+              <Label>{t('account')}</Label>
               <Popover open={accountDropdownOpen} onOpenChange={setAccountDropdownOpen}>
                 <PopoverTrigger asChild>
                   <Button
@@ -352,15 +360,12 @@ export function LedgerView() {
                               onSelect={() => handleSelectAccount(account)}
                             >
                               <Check
-                                className={`size-3.5 mr-1 ${
-                                  selectedAccountId === account.id
-                                    ? 'opacity-100'
-                                    : 'opacity-0'
-                                }`}
+                                className={cn(
+                                  'size-3.5 mr-1',
+                                  selectedAccountId === account.id ? 'opacity-100' : 'opacity-0'
+                                )}
                               />
-                              <span className="font-mono text-xs text-muted-foreground">
-                                {account.code}
-                              </span>
+                              <span className="font-mono text-xs text-muted-foreground">{account.code}</span>
                               <span className="ml-1.5 text-sm">{account.name}</span>
                             </CommandItem>
                           ))}
@@ -374,7 +379,7 @@ export function LedgerView() {
 
             {/* From date */}
             <div className="space-y-1.5">
-              <Label>From Date</Label>
+              <Label>{t('from_date')}</Label>
               <Input
                 type="date"
                 value={fromDate}
@@ -385,7 +390,7 @@ export function LedgerView() {
 
             {/* To date */}
             <div className="space-y-1.5">
-              <Label>To Date</Label>
+              <Label>{t('to_date')}</Label>
               <Input
                 type="date"
                 value={toDate}
@@ -422,7 +427,7 @@ export function LedgerView() {
             <ArrowRightLeft className="size-12 text-muted-foreground/40 mx-auto mb-3" />
             <p className="text-muted-foreground">No transactions found for this account</p>
             <p className="text-xs text-muted-foreground/70 mt-1">
-              {selectedAccount && `Current Balance: ${formatNPR(selectedAccount.currentBalance)}`}
+              {selectedAccount && `${t('current_balance')}: ${formatNPR(selectedAccount.currentBalance)}`}
             </p>
           </CardContent>
         </Card>
@@ -449,87 +454,94 @@ export function LedgerView() {
             </div>
           </CardHeader>
           <CardContent className="p-0">
-            <Table>
-              <TableHeader>
-                <TableRow className="bg-muted/50">
-                  <TableHead className="w-28">Date</TableHead>
-                  <TableHead className="w-24">Entry #</TableHead>
-                  <TableHead>Narration</TableHead>
-                  <TableHead className="text-right w-32">Debit</TableHead>
-                  <TableHead className="text-right w-32">Credit</TableHead>
-                  <TableHead className="text-right w-36">Balance</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {/* Opening Balance Row */}
-                <TableRow className="bg-muted/20 font-medium">
-                  <TableCell colSpan={5} className="text-sm">
-                    Opening Balance
-                  </TableCell>
-                  <TableCell className="text-right font-mono text-sm">
-                    {formatNPR(openingBalance)}
-                  </TableCell>
-                </TableRow>
-
-                {/* Transaction rows */}
-                {ledgerRows.map((row, idx) => (
-                  <TableRow
-                    key={`${row.entryNumber}-${idx}`}
-                    className={`${row.isCancelled ? 'opacity-50 line-through' : ''} ${idx % 2 === 1 ? 'bg-muted/10' : ''}`}
-                  >
-                    <TableCell className="text-sm">
-                      {formatDate(row.date)}
-                    </TableCell>
-                    <TableCell className="font-mono text-xs">
-                      {row.entryNumber}
-                    </TableCell>
-                    <TableCell className="text-sm max-w-48 truncate">
-                      {row.narration}
-                      {row.isCancelled && (
-                        <Badge variant="destructive" className="text-[9px] ml-2 py-0">
-                          Cancelled
-                        </Badge>
-                      )}
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow className="bg-muted/50">
+                    <TableHead className="w-28">{t('date')}</TableHead>
+                    <TableHead className="w-24">Entry #</TableHead>
+                    <TableHead>{t('narration')}</TableHead>
+                    <TableHead className="text-right w-32">{t('debit')}</TableHead>
+                    <TableHead className="text-right w-32">{t('credit')}</TableHead>
+                    <TableHead className="text-right w-36">{t('balance')}</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {/* Opening Balance Row */}
+                  <TableRow className="bg-muted/20 font-medium">
+                    <TableCell colSpan={5} className="text-sm">
+                      {t('opening_balance')} / सुरु मौज्दात
                     </TableCell>
                     <TableCell className="text-right font-mono text-sm">
-                      {row.debit > 0 ? formatNPR(row.debit) : '—'}
-                    </TableCell>
-                    <TableCell className="text-right font-mono text-sm">
-                      {row.credit > 0 ? formatNPR(row.credit) : '—'}
-                    </TableCell>
-                    <TableCell
-                      className={`text-right font-mono text-sm font-semibold ${
-                        row.balance > 0
-                          ? 'text-emerald-600 dark:text-emerald-400'
-                          : row.balance < 0
-                          ? 'text-red-600 dark:text-red-400'
-                          : 'text-muted-foreground'
-                      }`}
-                    >
-                      {formatNPR(row.balance)}
+                      {formatNPR(openingBalance)}
                     </TableCell>
                   </TableRow>
-                ))}
 
-                {/* Closing Balance Row */}
-                <TableRow className="bg-muted/30 font-semibold border-t-2">
-                  <TableCell colSpan={5} className="text-sm">
-                    Closing Balance
-                  </TableCell>
-                  <TableCell
-                    className={`text-right font-mono text-sm ${
-                      closingBalance > 0
-                        ? 'text-emerald-600 dark:text-emerald-400'
-                        : closingBalance < 0
-                        ? 'text-red-600 dark:text-red-400'
-                        : 'text-muted-foreground'
-                    }`}
-                  >
-                    {formatNPR(closingBalance)}
-                  </TableCell>
-                </TableRow>
-              </TableBody>
-            </Table>
+                  {/* Transaction rows */}
+                  {ledgerRows.map((row, idx) => (
+                    <TableRow
+                      key={`${row.entryNumber}-${idx}`}
+                      className={cn(
+                        row.isCancelled && 'opacity-50 line-through',
+                        idx % 2 === 1 && 'bg-muted/10'
+                      )}
+                    >
+                      <TableCell className="text-sm">
+                        {formatDate(row.date)}
+                      </TableCell>
+                      <TableCell className="font-mono text-xs">
+                        {row.entryNumber}
+                      </TableCell>
+                      <TableCell className="text-sm max-w-48 truncate">
+                        {row.narration}
+                        {row.isCancelled && (
+                          <Badge variant="destructive" className="text-[9px] ml-2 py-0">
+                            Cancelled
+                          </Badge>
+                        )}
+                      </TableCell>
+                      <TableCell className="text-right font-mono text-sm">
+                        {row.debit > 0 ? formatNPR(row.debit) : '—'}
+                      </TableCell>
+                      <TableCell className="text-right font-mono text-sm">
+                        {row.credit > 0 ? formatNPR(row.credit) : '—'}
+                      </TableCell>
+                      <TableCell
+                        className={cn(
+                          'text-right font-mono text-sm font-semibold',
+                          row.balance > 0
+                            ? 'text-green-600 dark:text-green-400'
+                            : row.balance < 0
+                              ? 'text-red-600 dark:text-red-400'
+                              : 'text-muted-foreground'
+                        )}
+                      >
+                        {formatNPR(row.balance)}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+
+                  {/* Closing Balance Row */}
+                  <TableRow className="bg-muted/30 font-semibold border-t-2">
+                    <TableCell colSpan={5} className="text-sm">
+                      {t('closing_balance')} / अन्तिम मौज्दात
+                    </TableCell>
+                    <TableCell
+                      className={cn(
+                        'text-right font-mono text-sm',
+                        closingBalance > 0
+                          ? 'text-green-600 dark:text-green-400'
+                          : closingBalance < 0
+                            ? 'text-red-600 dark:text-red-400'
+                            : 'text-muted-foreground'
+                      )}
+                    >
+                      {formatNPR(closingBalance)}
+                    </TableCell>
+                  </TableRow>
+                </TableBody>
+              </Table>
+            </div>
           </CardContent>
         </Card>
       )}
@@ -538,11 +550,11 @@ export function LedgerView() {
       {selectedAccountId && ledgerRows.length > 0 && (
         <div className="flex items-center gap-4 text-sm text-muted-foreground pt-2 border-t flex-wrap">
           <span>
-            Total Debit: <strong className="text-foreground">{formatNPR(ledgerRows.reduce((s, r) => s + r.debit, 0))}</strong>
+            Total {t('debit')}: <strong className="text-foreground">{formatNPR(ledgerRows.reduce((s, r) => s + r.debit, 0))}</strong>
           </span>
           <span className="text-border">|</span>
           <span>
-            Total Credit: <strong className="text-foreground">{formatNPR(ledgerRows.reduce((s, r) => s + r.credit, 0))}</strong>
+            Total {t('credit')}: <strong className="text-foreground">{formatNPR(ledgerRows.reduce((s, r) => s + r.credit, 0))}</strong>
           </span>
           <span className="text-border">|</span>
           <span>
