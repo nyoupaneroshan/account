@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import dynamic from 'next/dynamic'
 import { useAppStore } from '@/store/app-store'
@@ -37,12 +37,15 @@ export default function AppLayout({
   } = useAppStore()
 
   const [initializing, setInitializing] = useState(true)
+  const redirectAttempted = useRef(false)
 
   // Restore session on mount
   const restoreSession = useCallback(async () => {
+    if (redirectAttempted.current) return
+    
     try {
       const controller = new AbortController()
-      const timeoutId = setTimeout(() => controller.abort(), 8000)
+      const timeoutId = setTimeout(() => controller.abort(), 10000)
 
       const res = await fetch('/api/auth/session', { signal: controller.signal })
       clearTimeout(timeoutId)
@@ -74,28 +77,28 @@ export default function AppLayout({
             setCurrentOrg(orgs[0].id, orgs[0].name)
           }
         } else {
-          // No valid user/orgs in session data - redirect to login
+          // Valid session but no user/orgs - redirect to login
+          redirectAttempted.current = true
           setInitializing(false)
           router.replace('/login')
           return
         }
       } else {
         // Session API returned error (401 etc) - redirect to login
+        redirectAttempted.current = true
         setInitializing(false)
         router.replace('/login')
         return
       }
     } catch (err) {
       console.warn('Session restore failed:', err instanceof Error ? err.message : 'Unknown error')
-      setInitializing(false)
-      router.replace('/login')
-      return
+      // Don't redirect on network errors - might be temporary
+      // Just show the app in whatever state it's in
     }
     setInitializing(false)
   }, [setCurrentUser, setUserOrganizations, setCurrentOrg, setLanguage, router])
 
   useEffect(() => {
-    // Use a microtask to avoid calling setState synchronously within an effect
     const doRestore = async () => {
       await restoreSession()
       setRefreshSession(restoreSession)
@@ -139,7 +142,7 @@ export default function AppLayout({
     )
   }
 
-  // If still no user after loading, don't render app content (redirect is happening)
+  // If still no user after loading, show redirect message
   if (!currentUser || !currentOrgId) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">

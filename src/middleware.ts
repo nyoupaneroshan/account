@@ -1,27 +1,21 @@
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 
+// NOTE: In Next.js 16, middleware is deprecated in favor of "proxy".
+// Auth protection is handled client-side in the (app)/layout.tsx
+// This middleware only adds security headers.
+
 export function middleware(request: NextRequest) {
-  const { pathname } = request.nextUrl
-  const sessionCookie = request.cookies.get('hisab-session')
-
-  // Public routes that don't require auth
-  const publicRoutes = ['/', '/login', '/admin']
-  const isPublicRoute = publicRoutes.some(r => pathname === r) || pathname.startsWith('/api/') || pathname.startsWith('/_next')
-
-  if (isPublicRoute) {
-    return NextResponse.next()
-  }
-
-  // If no session cookie and trying to access protected route, redirect to login
-  if (!sessionCookie) {
-    const loginUrl = new URL('/login', request.url)
-    return NextResponse.redirect(loginUrl)
-  }
-
-  return NextResponse.next()
+  const response = NextResponse.next()
+  
+  // Add security headers
+  response.headers.set('X-Frame-Options', 'DENY')
+  response.headers.set('X-Content-Type-Options', 'nosniff')
+  response.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin')
+  
+  return response
 }
 
 export const config = {
-  matcher: ['/((?!_next/static|_next/image|favicon.ico|api|admin).*)'],
+  matcher: ['/((?!_next/static|_next/image|favicon.ico|api).*)'],
 }

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, Suspense, useEffect, useRef } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useAppStore } from '@/store/app-store'
 import { Card, CardContent, CardHeader, CardFooter } from '@/components/ui/card'
@@ -12,7 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { cn } from '@/lib/utils'
 import { Eye, EyeOff, Loader2, Calculator, Shield, Globe, ArrowLeft } from 'lucide-react'
 
-export default function LoginPage() {
+function LoginForm() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const initialTab = searchParams.get('tab') === 'register' ? 'register' : 'login'
@@ -20,9 +20,52 @@ export default function LoginPage() {
 
   const [tab, setTab] = useState<'login' | 'register'>(initialTab)
   const [loading, setLoading] = useState(false)
+  const [checkingSession, setCheckingSession] = useState(true)
   const [error, setError] = useState('')
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
+  const redirectAttempted = useRef(false)
+
+  // Check if already logged in
+  useEffect(() => {
+    const checkSession = async () => {
+      if (redirectAttempted.current) return
+      try {
+        const res = await fetch('/api/auth/session')
+        if (res.ok) {
+          const data = await res.json()
+          if (data.user && data.organizations && data.organizations.length > 0) {
+            // Already logged in, redirect to dashboard
+            redirectAttempted.current = true
+            setCurrentUser({
+              id: data.user.id,
+              email: data.user.email,
+              name: data.user.name,
+              role: data.user.role,
+              language: data.user.language,
+            })
+            const orgs = data.organizations.map((o: { id: string; name: string; role: string; plan: string }) => ({
+              id: o.id,
+              name: o.name,
+              role: o.role,
+              plan: o.plan,
+            }))
+            setUserOrganizations(orgs)
+            setLanguage(data.user.language || 'en')
+            if (orgs.length > 0) {
+              setCurrentOrg(orgs[0].id, orgs[0].name)
+            }
+            router.replace('/dashboard')
+            return
+          }
+        }
+      } catch {
+        // Not logged in, show the form
+      }
+      setCheckingSession(false)
+    }
+    checkSession()
+  }, [])
 
   // Login form
   const [loginEmail, setLoginEmail] = useState('')
@@ -58,7 +101,8 @@ export default function LoginPage() {
         if (data.organizations.length > 0) {
           setCurrentOrg(data.organizations[0].id, data.organizations[0].name)
         }
-        router.push('/dashboard')
+        // Use window.location for a full page navigation to ensure cookie is sent
+        window.location.href = '/dashboard'
       } else {
         setError(data.error || 'Login failed')
       }
@@ -107,7 +151,8 @@ export default function LoginPage() {
         if (data.organizations.length > 0) {
           setCurrentOrg(data.organizations[0].id, data.organizations[0].name)
         }
-        router.push('/dashboard')
+        // Use window.location for a full page navigation to ensure cookie is sent
+        window.location.href = '/dashboard'
       } else {
         setError(data.error || 'Registration failed')
       }
@@ -115,6 +160,20 @@ export default function LoginPage() {
       setError('Network error. Please try again.')
     }
     setLoading(false)
+  }
+
+  // Show loading while checking session
+  if (checkingSession) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 via-white to-slate-100 dark:from-slate-950 dark:via-slate-900 dark:to-slate-950">
+        <div className="text-center">
+          <div className="h-14 w-14 rounded-2xl bg-primary flex items-center justify-center text-primary-foreground font-bold text-xl mx-auto mb-4 shadow-lg shadow-primary/25">
+            HP
+          </div>
+          <Loader2 className="h-5 w-5 animate-spin mx-auto text-muted-foreground" />
+        </div>
+      </div>
+    )
   }
 
   return (
@@ -435,5 +494,24 @@ export default function LoginPage() {
         </div>
       </div>
     </div>
+  )
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 via-white to-slate-100 dark:from-slate-950 dark:via-slate-900 dark:to-slate-950">
+          <div className="text-center">
+            <div className="h-14 w-14 rounded-2xl bg-primary flex items-center justify-center text-primary-foreground font-bold text-xl mx-auto mb-4 shadow-lg shadow-primary/25">
+              HP
+            </div>
+            <Loader2 className="h-5 w-5 animate-spin mx-auto text-muted-foreground" />
+          </div>
+        </div>
+      }
+    >
+      <LoginForm />
+    </Suspense>
   )
 }

@@ -1,5 +1,6 @@
 'use client'
 
+import { useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import {
@@ -108,6 +109,27 @@ const PLANS = [
 
 export default function HomePage() {
   const router = useRouter()
+  const checkedSession = useRef(false)
+
+  // If already logged in, redirect to dashboard
+  useEffect(() => {
+    if (checkedSession.current) return
+    checkedSession.current = true
+    const check = async () => {
+      try {
+        const res = await fetch('/api/auth/session')
+        if (res.ok) {
+          const data = await res.json()
+          if (data.user && data.organizations && data.organizations.length > 0) {
+            window.location.href = '/dashboard'
+          }
+        }
+      } catch {
+        // Not logged in, stay on home page
+      }
+    }
+    check()
+  }, [])
 
   return (
     <div className="min-h-screen flex flex-col bg-background">
