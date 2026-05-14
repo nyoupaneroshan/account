@@ -6,8 +6,7 @@ import dynamic from 'next/dynamic'
 import { useAppStore } from '@/store/app-store'
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet'
 import { cn } from '@/lib/utils'
-import { Loader2, AlertCircle } from 'lucide-react'
-import { Button } from '@/components/ui/button'
+import { Loader2 } from 'lucide-react'
 
 const AppSidebar = dynamic(
   () => import('@/components/layout/app-sidebar').then((mod) => ({ default: mod.AppSidebar })),
@@ -38,7 +37,6 @@ export default function AppLayout({
   } = useAppStore()
 
   const [initializing, setInitializing] = useState(true)
-  const [sessionError, setSessionError] = useState(false)
 
   // Restore session on mount
   const restoreSession = useCallback(async () => {
@@ -75,26 +73,35 @@ export default function AppLayout({
           } else {
             setCurrentOrg(orgs[0].id, orgs[0].name)
           }
-          setSessionError(false)
         } else {
-          setSessionError(true)
+          // No valid user/orgs in session data - redirect to login
+          setInitializing(false)
+          router.replace('/login')
+          return
         }
       } else {
-        setSessionError(true)
+        // Session API returned error (401 etc) - redirect to login
+        setInitializing(false)
+        router.replace('/login')
+        return
       }
     } catch (err) {
       console.warn('Session restore failed:', err instanceof Error ? err.message : 'Unknown error')
-      setSessionError(true)
-    } finally {
       setInitializing(false)
+      router.replace('/login')
+      return
     }
-  }, [setCurrentUser, setUserOrganizations, setCurrentOrg, setLanguage])
+    setInitializing(false)
+  }, [setCurrentUser, setUserOrganizations, setCurrentOrg, setLanguage, router])
 
   useEffect(() => {
-    restoreSession()
-    // Register the refresh function so other components (like admin portal) can trigger session refresh
-    setRefreshSession(restoreSession)
-  }, [restoreSession, setRefreshSession])
+    // Use a microtask to avoid calling setState synchronously within an effect
+    const doRestore = async () => {
+      await restoreSession()
+      setRefreshSession(restoreSession)
+    }
+    doRestore()
+  }, [])
 
   // Save current org ID to localStorage
   useEffect(() => {
@@ -114,7 +121,7 @@ export default function AppLayout({
     if (typeof window !== 'undefined') {
       localStorage.removeItem('hisab-current-org')
     }
-    router.replace('/')
+    router.replace('/login')
   }
 
   // Loading screen
@@ -132,17 +139,13 @@ export default function AppLayout({
     )
   }
 
-  // Session error - show error page with manual login button (NOT auto-redirect)
-  if (sessionError || !currentUser || !currentOrgId) {
+  // If still no user after loading, don't render app content (redirect is happening)
+  if (!currentUser || !currentOrgId) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
-        <div className="text-center max-w-sm">
-          <AlertCircle className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
-          <h2 className="text-lg font-semibold mb-2">Session Expired</h2>
-          <p className="text-sm text-muted-foreground mb-4">Your session has expired or is invalid. Please log in again.</p>
-          <Button onClick={handleLogout} variant="default">
-            Go to Login
-          </Button>
+        <div className="text-center">
+          <Loader2 className="h-5 w-5 animate-spin mx-auto text-muted-foreground" />
+          <p className="text-sm text-muted-foreground mt-2">Redirecting to login...</p>
         </div>
       </div>
     )

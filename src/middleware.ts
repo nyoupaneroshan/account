@@ -6,14 +6,17 @@ export function middleware(request: NextRequest) {
   const sessionCookie = request.cookies.get('hisab-session')
 
   // Public routes that don't require auth
-  const publicRoutes = ['/', '/admin']
-  if (publicRoutes.some(r => pathname === r) || pathname.startsWith('/api/') || pathname.startsWith('/_next')) {
+  const publicRoutes = ['/', '/login', '/admin']
+  const isPublicRoute = publicRoutes.some(r => pathname === r) || pathname.startsWith('/api/') || pathname.startsWith('/_next')
+
+  if (isPublicRoute) {
     return NextResponse.next()
   }
 
-  // If no session cookie and trying to access protected route
+  // If no session cookie and trying to access protected route, redirect to login
   if (!sessionCookie) {
-    return NextResponse.redirect(new URL('/', request.url))
+    const loginUrl = new URL('/login', request.url)
+    return NextResponse.redirect(loginUrl)
   }
 
   return NextResponse.next()
