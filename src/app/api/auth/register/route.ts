@@ -190,6 +190,7 @@ export async function POST(request: Request) {
     // Create response and set session cookie
     const response = NextResponse.json({
       success: true,
+      token: user.id, // Client stores this in localStorage for header-based auth
       user: {
         id: user.id,
         email: user.email,

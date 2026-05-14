@@ -10,8 +10,36 @@ import { Label } from '@/components/ui/label'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { cn } from '@/lib/utils'
-import { Eye, EyeOff, Loader2, Calculator, Shield, Globe, ArrowLeft } from 'lucide-react'
+import {
+  Eye, EyeOff, Loader2, Calculator, Shield, Globe, ArrowLeft,
+  Receipt, TrendingUp, BarChart3, CheckCircle2, Users, Zap,
+} from 'lucide-react'
+import { CLIENT_SESSION_KEY } from '@/lib/session'
 
+/* ────────────────────────────────────────────
+   PASSWORD STRENGTH HELPER
+   ──────────────────────────────────────────── */
+function getPasswordStrength(password: string): {
+  score: number; label: string; color: string
+} {
+  if (!password) return { score: 0, label: '', color: '' }
+  let score = 0
+  if (password.length >= 6) score++
+  if (password.length >= 10) score++
+  if (/[A-Z]/.test(password)) score++
+  if (/[0-9]/.test(password)) score++
+  if (/[^A-Za-z0-9]/.test(password)) score++
+
+  if (score <= 1) return { score: 1, label: 'Weak', color: '#ef4444' }
+  if (score <= 2) return { score: 2, label: 'Fair', color: '#f97316' }
+  if (score <= 3) return { score: 3, label: 'Good', color: '#eab308' }
+  if (score <= 4) return { score: 4, label: 'Strong', color: '#22c55e' }
+  return { score: 5, label: 'Very Strong', color: '#10B981' }
+}
+
+/* ────────────────────────────────────────────
+   LOGIN FORM COMPONENT
+   ──────────────────────────────────────────── */
 function LoginForm() {
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -22,21 +50,66 @@ function LoginForm() {
   const [loading, setLoading] = useState(false)
   const [checkingSession, setCheckingSession] = useState(true)
   const [error, setError] = useState('')
+  const [errorKey, setErrorKey] = useState(0)
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
   const redirectAttempted = useRef(false)
+
+  // Helper to set error with animation re-trigger
+  const showError = (msg: string) => {
+    setError(msg)
+    setErrorKey((k) => k + 1)
+  }
 
   // Check if already logged in
   useEffect(() => {
     const checkSession = async () => {
       if (redirectAttempted.current) return
+
+      const storedToken = localStorage.getItem(CLIENT_SESSION_KEY)
+      if (storedToken) {
+        try {
+          const res = await fetch('/api/auth/session', {
+            headers: { 'x-session-token': storedToken }
+          })
+          if (res.ok) {
+            const data = await res.json()
+            if (data.user && data.organizations && data.organizations.length > 0) {
+              redirectAttempted.current = true
+              setCurrentUser({
+                id: data.user.id,
+                email: data.user.email,
+                name: data.user.name,
+                role: data.user.role,
+                language: data.user.language,
+              })
+              const orgs = data.organizations.map((o: { id: string; name: string; role: string; plan: string }) => ({
+                id: o.id,
+                name: o.name,
+                role: o.role,
+                plan: o.plan,
+              }))
+              setUserOrganizations(orgs)
+              setLanguage(data.user.language || 'en')
+              if (orgs.length > 0) {
+                setCurrentOrg(orgs[0].id, orgs[0].name)
+              }
+              router.replace('/dashboard')
+              return
+            }
+          }
+        } catch {
+          // Token might be stale, continue to show login form
+        }
+      }
+
       try {
         const res = await fetch('/api/auth/session')
         if (res.ok) {
           const data = await res.json()
           if (data.user && data.organizations && data.organizations.length > 0) {
-            // Already logged in, redirect to dashboard
             redirectAttempted.current = true
+            localStorage.setItem(CLIENT_SESSION_KEY, data.user.id)
             setCurrentUser({
               id: data.user.id,
               email: data.user.email,
@@ -80,10 +153,12 @@ function LoginForm() {
   const [regLanguage, setRegLanguage] = useState('en')
   const [regTerms, setRegTerms] = useState(false)
 
+  const passwordStrength = getPasswordStrength(regPassword)
+
   const handleLogin = async () => {
     setError('')
     if (!loginEmail || !loginPassword) {
-      setError('Please fill in all fields')
+      showError('Please fill in all fields')
       return
     }
     setLoading(true)
@@ -95,19 +170,21 @@ function LoginForm() {
       })
       const data = await res.json()
       if (data.success) {
+        if (data.token) {
+          localStorage.setItem(CLIENT_SESSION_KEY, data.token)
+        }
         setCurrentUser(data.user)
         setUserOrganizations(data.organizations)
         setLanguage(data.user.language || 'en')
         if (data.organizations.length > 0) {
           setCurrentOrg(data.organizations[0].id, data.organizations[0].name)
         }
-        // Use window.location for a full page navigation to ensure cookie is sent
         window.location.href = '/dashboard'
       } else {
-        setError(data.error || 'Login failed')
+        showError(data.error || 'Login failed')
       }
     } catch {
-      setError('Network error. Please try again.')
+      showError('Network error. Please try again.')
     }
     setLoading(false)
   }
@@ -115,19 +192,19 @@ function LoginForm() {
   const handleRegister = async () => {
     setError('')
     if (!regName || !regEmail || !regPassword || !regConfirmPassword || !regBusinessName) {
-      setError('Please fill in all fields')
+      showError('Please fill in all fields')
       return
     }
     if (regPassword !== regConfirmPassword) {
-      setError('Passwords do not match')
+      showError('Passwords do not match')
       return
     }
     if (regPassword.length < 6) {
-      setError('Password must be at least 6 characters')
+      showError('Password must be at least 6 characters')
       return
     }
     if (!regTerms) {
-      setError('Please accept the terms and conditions')
+      showError('Please accept the terms and conditions')
       return
     }
     setLoading(true)
@@ -145,19 +222,21 @@ function LoginForm() {
       })
       const data = await res.json()
       if (data.success) {
+        if (data.token) {
+          localStorage.setItem(CLIENT_SESSION_KEY, data.token)
+        }
         setCurrentUser(data.user)
         setUserOrganizations(data.organizations)
         setLanguage(regLanguage)
         if (data.organizations.length > 0) {
           setCurrentOrg(data.organizations[0].id, data.organizations[0].name)
         }
-        // Use window.location for a full page navigation to ensure cookie is sent
         window.location.href = '/dashboard'
       } else {
-        setError(data.error || 'Registration failed')
+        showError(data.error || 'Registration failed')
       }
     } catch {
-      setError('Network error. Please try again.')
+      showError('Network error. Please try again.')
     }
     setLoading(false)
   }
@@ -165,202 +244,418 @@ function LoginForm() {
   // Show loading while checking session
   if (checkingSession) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 via-white to-slate-100 dark:from-slate-950 dark:via-slate-900 dark:to-slate-950">
+      <div className="min-h-screen flex items-center justify-center bg-[#09090b]">
         <div className="text-center">
-          <div className="h-14 w-14 rounded-2xl bg-primary flex items-center justify-center text-primary-foreground font-bold text-xl mx-auto mb-4 shadow-lg shadow-primary/25">
-            HP
+          <div className="relative mb-6">
+            <div className="h-16 w-16 rounded-2xl bg-gradient-to-br from-emerald-500 to-emerald-600 flex items-center justify-center mx-auto shadow-xl shadow-emerald-500/25">
+              <img src="/logo-generated.png" alt="HP" className="h-10 w-10 rounded-lg" />
+            </div>
+            <div className="absolute inset-0 h-16 w-16 rounded-2xl bg-emerald-500/20 mx-auto animate-ping" />
           </div>
-          <Loader2 className="h-5 w-5 animate-spin mx-auto text-muted-foreground" />
+          <Loader2 className="h-5 w-5 animate-spin mx-auto text-emerald-400" />
         </div>
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen flex flex-col">
-      {/* Background */}
-      <div className="flex-1 flex items-center justify-center bg-gradient-to-br from-slate-50 via-white to-slate-100 dark:from-slate-950 dark:via-slate-900 dark:to-slate-950 p-4 relative overflow-hidden">
-        <div className="absolute top-0 right-0 -translate-y-1/2 translate-x-1/2 w-[600px] h-[600px] rounded-full bg-primary/5 blur-3xl" />
-        <div className="absolute bottom-0 left-0 translate-y-1/2 -translate-x-1/2 w-[400px] h-[400px] rounded-full bg-primary/3 blur-3xl" />
+    <div className="min-h-screen flex flex-col bg-[#09090b] text-white">
+      {/* ─── GLOBAL CSS ANIMATIONS ─── */}
+      <style>{`
+        @keyframes float {
+          0%, 100% { transform: translateY(0px); }
+          50% { transform: translateY(-14px); }
+        }
+        @keyframes float-slow {
+          0%, 100% { transform: translateY(0px) rotate(0deg); }
+          50% { transform: translateY(-10px) rotate(2deg); }
+        }
+        @keyframes float-delayed {
+          0%, 100% { transform: translateY(0px) rotate(0deg); }
+          50% { transform: translateY(-8px) rotate(-1deg); }
+        }
+        @keyframes gradient-shift {
+          0% { background-position: 0% 50%; }
+          50% { background-position: 100% 50%; }
+          100% { background-position: 0% 50%; }
+        }
+        @keyframes pulse-glow {
+          0%, 100% { opacity: 0.3; }
+          50% { opacity: 0.7; }
+        }
+        @keyframes fade-in-up {
+          from { opacity: 0; transform: translateY(20px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes fade-in {
+          from { opacity: 0; }
+          to { opacity: 1; }
+        }
+        @keyframes shake {
+          0%, 100% { transform: translateX(0); }
+          10%, 30%, 50%, 70%, 90% { transform: translateX(-4px); }
+          20%, 40%, 60%, 80% { transform: translateX(4px); }
+        }
+        @keyframes slide-down {
+          from { opacity: 0; transform: translateY(-10px); max-height: 0; }
+          to { opacity: 1; transform: translateY(0); max-height: 100px; }
+        }
+        @keyframes spin-slow {
+          from { transform: rotate(0deg); }
+          to { transform: rotate(360deg); }
+        }
+        .animate-float { animation: float 6s ease-in-out infinite; }
+        .animate-float-slow { animation: float-slow 8s ease-in-out infinite; }
+        .animate-float-delayed { animation: float-delayed 7s ease-in-out 1.5s infinite; }
+        .animate-gradient-shift {
+          background-size: 200% 200%;
+          animation: gradient-shift 6s ease infinite;
+        }
+        .animate-pulse-glow { animation: pulse-glow 4s ease-in-out infinite; }
+        .animate-fade-in-up { animation: fade-in-up 0.6s ease-out forwards; }
+        .animate-fade-in { animation: fade-in 0.5s ease-out forwards; }
+        .animate-shake { animation: shake 0.5s ease-in-out; }
+        .animate-slide-down { animation: slide-down 0.3s ease-out forwards; }
+        .animate-spin-slow { animation: spin-slow 20s linear infinite; }
 
-        <div className="w-full max-w-md relative z-10">
-          {/* Back to Home */}
-          <button
-            onClick={() => router.push('/')}
-            className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground mb-6 transition-colors"
-          >
-            <ArrowLeft className="h-4 w-4" />
-            Back to Home
-          </button>
+        /* Glassmorphism */
+        .glass {
+          background: rgba(255, 255, 255, 0.04);
+          backdrop-filter: blur(16px);
+          -webkit-backdrop-filter: blur(16px);
+          border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+        .glass-strong {
+          background: rgba(255, 255, 255, 0.06);
+          backdrop-filter: blur(24px);
+          -webkit-backdrop-filter: blur(24px);
+          border: 1px solid rgba(255, 255, 255, 0.1);
+        }
 
-          {/* Logo & Title */}
-          <div className="text-center mb-8">
-            <div className="h-16 w-16 rounded-2xl bg-primary flex items-center justify-center text-primary-foreground font-bold text-2xl mx-auto mb-4 shadow-lg shadow-primary/25">
-              HP
-            </div>
-            <h1 className="text-3xl font-bold tracking-tight">Hisab Pro</h1>
-            <p className="text-muted-foreground mt-1">Nepal&apos;s Accounting System</p>
-            <p className="text-sm text-muted-foreground/60 mt-0.5">
-              Easy like Excel, Powerful like ERP
-            </p>
-          </div>
+        /* Noise texture overlay */
+        .noise-overlay::before {
+          content: '';
+          position: absolute;
+          inset: 0;
+          background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.03'/%3E%3C/svg%3E");
+          pointer-events: none;
+          z-index: 1;
+        }
 
-          {/* Trust indicators */}
-          <div className="flex items-center justify-center gap-6 mb-6 text-xs text-muted-foreground">
-            <div className="flex items-center gap-1.5">
-              <Shield className="h-3.5 w-3.5 text-emerald-600" />
-              <span>IRD Compliant</span>
-            </div>
-            <div className="flex items-center gap-1.5">
-              <Calculator className="h-3.5 w-3.5 text-emerald-600" />
-              <span>VAT/TDS Ready</span>
-            </div>
-            <div className="flex items-center gap-1.5">
-              <Globe className="h-3.5 w-3.5 text-emerald-600" />
-              <span>Multi-lingual</span>
-            </div>
-          </div>
+        /* Custom scrollbar */
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: #09090b; }
+        ::-webkit-scrollbar-thumb { background: #10B981; border-radius: 3px; }
 
-          {/* Main Card */}
-          <Card className="shadow-xl border-border/50">
-            <CardHeader className="pb-0 pt-6 px-6">
-              {/* Tab Toggle */}
-              <div className="flex rounded-lg bg-muted p-1">
-                <button
-                  onClick={() => {
-                    setTab('login')
-                    setError('')
-                  }}
-                  className={cn(
-                    'flex-1 py-2 text-sm font-medium rounded-md transition-all',
-                    tab === 'login'
-                      ? 'bg-card text-foreground shadow-sm'
-                      : 'text-muted-foreground hover:text-foreground'
-                  )}
-                >
-                  Login
-                </button>
-                <button
-                  onClick={() => {
-                    setTab('register')
-                    setError('')
-                  }}
-                  className={cn(
-                    'flex-1 py-2 text-sm font-medium rounded-md transition-all',
-                    tab === 'register'
-                      ? 'bg-card text-foreground shadow-sm'
-                      : 'text-muted-foreground hover:text-foreground'
-                  )}
-                >
-                  Register
-                </button>
+        /* Premium input focus */
+        .premium-input:focus-within {
+          box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.2);
+          border-color: rgba(16, 185, 129, 0.5);
+        }
+
+        /* Tab slider */
+        .tab-slider {
+          transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+      `}</style>
+
+      {/* ─── MAIN LAYOUT ─── */}
+      <div className="flex-1 flex flex-col lg:flex-row">
+        {/* ─── LEFT SIDE: BRANDING (desktop only) ─── */}
+        <div className="hidden lg:flex lg:w-[55%] relative overflow-hidden noise-overlay">
+          {/* Background gradient orbs */}
+          <div className="absolute top-0 left-0 w-[500px] h-[500px] bg-emerald-500/[0.08] rounded-full blur-[120px] animate-pulse-glow" />
+          <div className="absolute bottom-0 right-0 w-[400px] h-[400px] bg-emerald-300/[0.05] rounded-full blur-[100px] animate-pulse-glow" style={{ animationDelay: '2s' }} />
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-emerald-500/[0.03] rounded-full blur-[80px]" />
+
+          {/* Subtle grid pattern */}
+          <div
+            className="absolute inset-0 opacity-[0.02]"
+            style={{
+              backgroundImage: `linear-gradient(rgba(16,185,129,0.3) 1px, transparent 1px), linear-gradient(90deg, rgba(16,185,129,0.3) 1px, transparent 1px)`,
+              backgroundSize: '50px 50px',
+            }}
+          />
+
+          {/* Content */}
+          <div className="relative z-10 flex flex-col justify-center px-12 xl:px-20 py-16 w-full">
+            {/* Back to Home */}
+            <button
+              onClick={() => router.push('/')}
+              className="flex items-center gap-2 text-sm text-zinc-500 hover:text-emerald-400 transition-colors duration-200 mb-12 group"
+            >
+              <ArrowLeft className="h-4 w-4 group-hover:-translate-x-1 transition-transform duration-200" />
+              Back to Home
+            </button>
+
+            {/* Logo */}
+            <div className="mb-10 animate-fade-in-up">
+              <div className="flex items-center gap-4 mb-6">
+                <div className="h-14 w-14 rounded-2xl bg-gradient-to-br from-emerald-500 to-emerald-600 flex items-center justify-center shadow-xl shadow-emerald-500/25">
+                  <img src="/logo-generated.png" alt="Hisab Pro" className="h-9 w-9 rounded-lg" />
+                </div>
+                <div>
+                  <h1 className="text-3xl font-bold tracking-tight">
+                    Hisab<span className="text-emerald-400"> Pro</span>
+                  </h1>
+                  <p className="text-sm text-zinc-500">नेपालको आफ्नै लेखांकन प्रणाली</p>
+                </div>
               </div>
-            </CardHeader>
+            </div>
 
-            <CardContent className="p-6">
-              {error && (
-                <div className="mb-4 p-3 rounded-md bg-destructive/10 border border-destructive/20 text-destructive text-sm">
-                  {error}
-                </div>
-              )}
+            {/* Headline */}
+            <div className="mb-10 animate-fade-in-up" style={{ animationDelay: '0.1s' }}>
+              <h2 className="text-4xl xl:text-5xl font-bold tracking-tight leading-tight mb-4">
+                Easy like Excel,
+                <br />
+                <span className="bg-gradient-to-r from-emerald-400 via-emerald-300 to-emerald-500 bg-clip-text text-transparent animate-gradient-shift">
+                  Powerful like ERP
+                </span>
+              </h2>
+              <p className="text-lg text-zinc-400 max-w-md leading-relaxed">
+                Nepal&apos;s first dual-mode accounting software with VAT/TDS compliance, NFRS standards, and bilingual support.
+              </p>
+            </div>
 
-              {tab === 'login' ? (
-                <div className="space-y-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="login-email">Email</Label>
-                    <Input
-                      id="login-email"
-                      type="email"
-                      placeholder="you@example.com"
-                      value={loginEmail}
-                      onChange={(e) => setLoginEmail(e.target.value)}
-                      onKeyDown={(e) => e.key === 'Enter' && handleLogin()}
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between">
-                      <Label htmlFor="login-password">Password</Label>
-                      <button
-                        type="button"
-                        className="text-xs text-primary hover:underline"
-                      >
-                        Forgot password?
-                      </button>
-                    </div>
-                    <div className="relative">
-                      <Input
-                        id="login-password"
-                        type={showPassword ? 'text' : 'password'}
-                        placeholder="Enter your password"
-                        value={loginPassword}
-                        onChange={(e) => setLoginPassword(e.target.value)}
-                        onKeyDown={(e) => e.key === 'Enter' && handleLogin()}
-                        className="pr-10"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => setShowPassword(!showPassword)}
-                        className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                      >
-                        {showPassword ? (
-                          <EyeOff className="h-4 w-4" />
-                        ) : (
-                          <Eye className="h-4 w-4" />
-                        )}
-                      </button>
-                    </div>
-                  </div>
-
-                  <Button
-                    className="w-full"
-                    onClick={handleLogin}
-                    disabled={loading}
+            {/* Trust badges */}
+            <div className="flex flex-wrap gap-3 mb-10 animate-fade-in-up" style={{ animationDelay: '0.2s' }}>
+              {[
+                { icon: Shield, text: 'IRD Compliant', sub: 'आईआरडी अनुपालन' },
+                { icon: Calculator, text: 'VAT/TDS Ready', sub: 'भ्याट/टीडीएस तयार' },
+                { icon: Globe, text: 'Multi-lingual', sub: 'बहुभाषी' },
+              ].map((badge) => {
+                const BadgeIcon = badge.icon
+                return (
+                  <div
+                    key={badge.text}
+                    className="glass rounded-xl px-4 py-3 flex items-center gap-3 hover:bg-white/[0.06] transition-colors duration-300"
                   >
-                    {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                    Sign In
-                  </Button>
+                    <div className="h-9 w-9 rounded-lg bg-emerald-500/15 flex items-center justify-center">
+                      <BadgeIcon className="h-4 w-4 text-emerald-400" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium text-zinc-200">{badge.text}</p>
+                      <p className="text-xs text-zinc-500">{badge.sub}</p>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+
+            {/* Social proof */}
+            <div className="animate-fade-in-up" style={{ animationDelay: '0.3s' }}>
+              <div className="glass rounded-xl px-5 py-4 inline-flex items-center gap-4">
+                <div className="flex -space-x-2">
+                  {['RS', 'SA', 'BT', 'KM'].map((initials, i) => (
+                    <div
+                      key={initials}
+                      className="h-8 w-8 rounded-full bg-gradient-to-br from-emerald-500/30 to-emerald-600/30 border-2 border-[#09090b] flex items-center justify-center text-[10px] font-bold text-emerald-300"
+                    >
+                      {initials}
+                    </div>
+                  ))}
                 </div>
-              ) : (
-                <div className="space-y-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="reg-name">Full Name</Label>
-                    <Input
-                      id="reg-name"
-                      type="text"
-                      placeholder="Ram Sharma"
-                      value={regName}
-                      onChange={(e) => setRegName(e.target.value)}
-                    />
+                <div>
+                  <div className="flex items-center gap-1">
+                    <Users className="h-3.5 w-3.5 text-emerald-400" />
+                    <p className="text-sm font-semibold text-white">Join 500+ Nepali businesses</p>
                   </div>
+                  <p className="text-xs text-zinc-500">500+ नेपाली व्यवसायले भरोसा गरेका</p>
+                </div>
+              </div>
+            </div>
 
-                  <div className="space-y-2">
-                    <Label htmlFor="reg-email">Email</Label>
-                    <Input
-                      id="reg-email"
-                      type="email"
-                      placeholder="you@example.com"
-                      value={regEmail}
-                      onChange={(e) => setRegEmail(e.target.value)}
-                    />
+            {/* Floating elements */}
+            <div className="absolute top-[15%] right-[10%] glass rounded-xl px-4 py-3 shadow-xl animate-float hidden xl:flex items-center gap-3">
+              <div className="h-9 w-9 rounded-lg bg-emerald-500/15 flex items-center justify-center">
+                <Receipt className="h-4 w-4 text-emerald-400" />
+              </div>
+              <div>
+                <p className="text-xs text-zinc-400">VAT Filed</p>
+                <p className="text-sm font-semibold text-emerald-400">Rs. 2,45,000</p>
+              </div>
+            </div>
+
+            <div className="absolute bottom-[20%] right-[8%] glass rounded-xl px-4 py-3 shadow-xl animate-float-slow hidden xl:flex items-center gap-3">
+              <div className="h-9 w-9 rounded-lg bg-emerald-500/15 flex items-center justify-center">
+                <TrendingUp className="h-4 w-4 text-emerald-400" />
+              </div>
+              <div>
+                <p className="text-xs text-zinc-400">Revenue</p>
+                <p className="text-sm font-semibold text-white">+23.5%</p>
+              </div>
+            </div>
+
+            <div className="absolute top-[55%] right-[25%] glass rounded-xl px-4 py-3 shadow-xl animate-float-delayed hidden xl:flex items-center gap-3">
+              <div className="h-9 w-9 rounded-lg bg-emerald-500/15 flex items-center justify-center">
+                <BarChart3 className="h-4 w-4 text-emerald-400" />
+              </div>
+              <div>
+                <p className="text-xs text-zinc-400">P&L Report</p>
+                <p className="text-sm font-semibold text-emerald-400">Auto-generated</p>
+              </div>
+            </div>
+
+            {/* Spinning ring decoration */}
+            <div className="absolute bottom-[8%] left-[8%] w-20 h-20 border border-emerald-500/10 rounded-full animate-spin-slow hidden xl:block" />
+          </div>
+        </div>
+
+        {/* ─── RIGHT SIDE: FORM ─── */}
+        <div className="flex-1 flex items-center justify-center p-4 sm:p-6 lg:p-8 relative">
+          {/* Subtle background for form side */}
+          <div className="absolute top-0 right-0 w-[300px] h-[300px] bg-emerald-500/[0.04] rounded-full blur-[80px]" />
+          <div className="absolute bottom-0 left-0 w-[200px] h-[200px] bg-emerald-300/[0.03] rounded-full blur-[60px]" />
+
+          <div className="w-full max-w-[440px] relative z-10">
+            {/* Mobile: Back to Home + Logo */}
+            <div className="lg:hidden mb-8">
+              <button
+                onClick={() => router.push('/')}
+                className="flex items-center gap-2 text-sm text-zinc-500 hover:text-emerald-400 transition-colors duration-200 mb-6 group"
+              >
+                <ArrowLeft className="h-4 w-4 group-hover:-translate-x-1 transition-transform duration-200" />
+                Back to Home
+              </button>
+              <div className="flex items-center gap-3 mb-4">
+                <div className="h-12 w-12 rounded-xl bg-gradient-to-br from-emerald-500 to-emerald-600 flex items-center justify-center shadow-lg shadow-emerald-500/25">
+                  <img src="/logo-generated.png" alt="Hisab Pro" className="h-7 w-7 rounded-md" />
+                </div>
+                <div>
+                  <h1 className="text-2xl font-bold tracking-tight">
+                    Hisab<span className="text-emerald-400"> Pro</span>
+                  </h1>
+                  <p className="text-xs text-zinc-500">Nepal&apos;s Accounting System</p>
+                </div>
+              </div>
+              {/* Mobile trust badges */}
+              <div className="flex items-center gap-4 text-xs text-zinc-500">
+                <div className="flex items-center gap-1.5">
+                  <Shield className="h-3.5 w-3.5 text-emerald-400" />
+                  <span>IRD Compliant</span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <Calculator className="h-3.5 w-3.5 text-emerald-400" />
+                  <span>VAT/TDS</span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <Globe className="h-3.5 w-3.5 text-emerald-400" />
+                  <span>Multi-lingual</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Desktop: Welcome text */}
+            <div className="hidden lg:block mb-8">
+              <h2 className="text-2xl font-bold tracking-tight mb-2">
+                {tab === 'login' ? 'Welcome back' : 'Create your account'}
+              </h2>
+              <p className="text-sm text-zinc-400">
+                {tab === 'login'
+                  ? 'Sign in to continue to your dashboard'
+                  : 'Start your free trial today. No credit card required.'}
+              </p>
+            </div>
+
+            {/* Main Card */}
+            <div className="glass-strong rounded-2xl overflow-hidden">
+              {/* Tab Toggle */}
+              <div className="px-6 pt-6">
+                <div className="relative flex rounded-xl bg-white/[0.04] p-1">
+                  {/* Sliding indicator */}
+                  <div
+                    className="absolute top-1 bottom-1 w-[calc(50%-4px)] rounded-lg bg-gradient-to-r from-emerald-500 to-emerald-600 shadow-lg shadow-emerald-500/20 tab-slider"
+                    style={{ transform: tab === 'register' ? 'translateX(100%)' : 'translateX(0)' }}
+                  />
+                  <button
+                    onClick={() => { setTab('login'); setError('') }}
+                    className={cn(
+                      'relative z-10 flex-1 py-2.5 text-sm font-medium rounded-lg transition-colors duration-300',
+                      tab === 'login' ? 'text-black' : 'text-zinc-400 hover:text-zinc-200'
+                    )}
+                  >
+                    Sign In
+                  </button>
+                  <button
+                    onClick={() => { setTab('register'); setError('') }}
+                    className={cn(
+                      'relative z-10 flex-1 py-2.5 text-sm font-medium rounded-lg transition-colors duration-300',
+                      tab === 'register' ? 'text-black' : 'text-zinc-400 hover:text-zinc-200'
+                    )}
+                  >
+                    Create Account
+                  </button>
+                </div>
+              </div>
+
+              {/* Form Content */}
+              <div className="p-6">
+                {/* Error Display with Animation */}
+                {error && (
+                  <div
+                    key={errorKey}
+                    className="mb-5 px-4 py-3 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-sm flex items-start gap-2 animate-slide-down"
+                  >
+                    <div className="h-4 w-4 rounded-full bg-red-500/20 flex items-center justify-center shrink-0 mt-0.5">
+                      <span className="text-[10px] font-bold">!</span>
+                    </div>
+                    <span>{error}</span>
                   </div>
+                )}
 
-                  <div className="grid grid-cols-2 gap-3">
+                {/* Login Form */}
+                <div
+                  className={cn(
+                    'transition-all duration-300',
+                    tab === 'login'
+                      ? 'opacity-100 translate-x-0'
+                      : 'absolute opacity-0 translate-x-8 pointer-events-none h-0 overflow-hidden'
+                  )}
+                >
+                  <div className="space-y-4">
                     <div className="space-y-2">
-                      <Label htmlFor="reg-password">Password</Label>
-                      <div className="relative">
+                      <Label htmlFor="login-email" className="text-zinc-300 text-sm font-medium">
+                        Email
+                      </Label>
+                      <div className="premium-input rounded-lg transition-all duration-200">
                         <Input
-                          id="reg-password"
+                          id="login-email"
+                          type="email"
+                          placeholder="you@example.com"
+                          value={loginEmail}
+                          onChange={(e) => setLoginEmail(e.target.value)}
+                          onKeyDown={(e) => e.key === 'Enter' && handleLogin()}
+                          className="bg-white/[0.04] border-white/[0.08] text-white placeholder:text-zinc-600 focus-visible:ring-emerald-500/30 focus-visible:border-emerald-500/50 transition-all duration-200"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <Label htmlFor="login-password" className="text-zinc-300 text-sm font-medium">
+                          Password
+                        </Label>
+                        <button
+                          type="button"
+                          className="text-xs text-emerald-400 hover:text-emerald-300 transition-colors duration-200"
+                        >
+                          Forgot password?
+                        </button>
+                      </div>
+                      <div className="premium-input rounded-lg transition-all duration-200 relative">
+                        <Input
+                          id="login-password"
                           type={showPassword ? 'text' : 'password'}
-                          placeholder="Min 6 chars"
-                          value={regPassword}
-                          onChange={(e) => setRegPassword(e.target.value)}
-                          className="pr-10"
+                          placeholder="Enter your password"
+                          value={loginPassword}
+                          onChange={(e) => setLoginPassword(e.target.value)}
+                          onKeyDown={(e) => e.key === 'Enter' && handleLogin()}
+                          className="bg-white/[0.04] border-white/[0.08] text-white placeholder:text-zinc-600 pr-10 focus-visible:ring-emerald-500/30 focus-visible:border-emerald-500/50 transition-all duration-200"
                         />
                         <button
                           type="button"
                           onClick={() => setShowPassword(!showPassword)}
-                          className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                          className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-500 hover:text-zinc-300 transition-colors duration-200"
                         >
                           {showPassword ? (
                             <EyeOff className="h-4 w-4" />
@@ -371,125 +666,255 @@ function LoginForm() {
                       </div>
                     </div>
 
+                    <Button
+                      className="w-full h-11 bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-400 hover:to-emerald-500 text-black font-semibold shadow-lg shadow-emerald-500/20 hover:shadow-emerald-400/30 transition-all duration-300 hover:scale-[1.01]"
+                      onClick={handleLogin}
+                      disabled={loading}
+                    >
+                      {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                      Sign In
+                    </Button>
+                  </div>
+                </div>
+
+                {/* Register Form */}
+                <div
+                  className={cn(
+                    'transition-all duration-300',
+                    tab === 'register'
+                      ? 'opacity-100 translate-x-0'
+                      : 'absolute opacity-0 -translate-x-8 pointer-events-none h-0 overflow-hidden'
+                  )}
+                >
+                  <div className="space-y-4">
                     <div className="space-y-2">
-                      <Label htmlFor="reg-confirm-password">Confirm</Label>
-                      <div className="relative">
+                      <Label htmlFor="reg-name" className="text-zinc-300 text-sm font-medium">
+                        Full Name
+                      </Label>
+                      <div className="premium-input rounded-lg transition-all duration-200">
                         <Input
-                          id="reg-confirm-password"
-                          type={showConfirmPassword ? 'text' : 'password'}
-                          placeholder="Re-enter"
-                          value={regConfirmPassword}
-                          onChange={(e) => setRegConfirmPassword(e.target.value)}
-                          className="pr-10"
+                          id="reg-name"
+                          type="text"
+                          placeholder="Ram Sharma"
+                          value={regName}
+                          onChange={(e) => setRegName(e.target.value)}
+                          className="bg-white/[0.04] border-white/[0.08] text-white placeholder:text-zinc-600 focus-visible:ring-emerald-500/30 focus-visible:border-emerald-500/50 transition-all duration-200"
                         />
-                        <button
-                          type="button"
-                          onClick={() =>
-                            setShowConfirmPassword(!showConfirmPassword)
-                          }
-                          className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                        >
-                          {showConfirmPassword ? (
-                            <EyeOff className="h-4 w-4" />
-                          ) : (
-                            <Eye className="h-4 w-4" />
-                          )}
-                        </button>
                       </div>
                     </div>
-                  </div>
 
-                  <div className="space-y-2">
-                    <Label htmlFor="reg-business">Business Name</Label>
-                    <Input
-                      id="reg-business"
-                      type="text"
-                      placeholder="e.g. Sharma Trading"
-                      value={regBusinessName}
-                      onChange={(e) => setRegBusinessName(e.target.value)}
-                    />
-                    <p className="text-xs text-muted-foreground">
-                      This creates your organization
-                    </p>
-                  </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="reg-email" className="text-zinc-300 text-sm font-medium">
+                        Email
+                      </Label>
+                      <div className="premium-input rounded-lg transition-all duration-200">
+                        <Input
+                          id="reg-email"
+                          type="email"
+                          placeholder="you@example.com"
+                          value={regEmail}
+                          onChange={(e) => setRegEmail(e.target.value)}
+                          className="bg-white/[0.04] border-white/[0.08] text-white placeholder:text-zinc-600 focus-visible:ring-emerald-500/30 focus-visible:border-emerald-500/50 transition-all duration-200"
+                        />
+                      </div>
+                    </div>
 
-                  <div className="space-y-2">
-                    <Label>Language / भाषा</Label>
-                    <Select value={regLanguage} onValueChange={setRegLanguage}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select language" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="en">English</SelectItem>
-                        <SelectItem value="ne">नेपाली (Nepali)</SelectItem>
-                        <SelectItem value="hi">हिंदी (Hindi)</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="space-y-2">
+                        <Label htmlFor="reg-password" className="text-zinc-300 text-sm font-medium">
+                          Password
+                        </Label>
+                        <div className="premium-input rounded-lg transition-all duration-200 relative">
+                          <Input
+                            id="reg-password"
+                            type={showPassword ? 'text' : 'password'}
+                            placeholder="Min 6 chars"
+                            value={regPassword}
+                            onChange={(e) => setRegPassword(e.target.value)}
+                            className="bg-white/[0.04] border-white/[0.08] text-white placeholder:text-zinc-600 pr-10 focus-visible:ring-emerald-500/30 focus-visible:border-emerald-500/50 transition-all duration-200"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setShowPassword(!showPassword)}
+                            className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-500 hover:text-zinc-300 transition-colors duration-200"
+                          >
+                            {showPassword ? (
+                              <EyeOff className="h-4 w-4" />
+                            ) : (
+                              <Eye className="h-4 w-4" />
+                            )}
+                          </button>
+                        </div>
+                      </div>
 
-                  <div className="flex items-start gap-2">
-                    <Checkbox
-                      id="reg-terms"
-                      checked={regTerms}
-                      onCheckedChange={(checked) =>
-                        setRegTerms(checked === true)
-                      }
-                      className="mt-0.5"
-                    />
-                    <label
-                      htmlFor="reg-terms"
-                      className="text-sm text-muted-foreground leading-tight cursor-pointer"
+                      <div className="space-y-2">
+                        <Label htmlFor="reg-confirm-password" className="text-zinc-300 text-sm font-medium">
+                          Confirm
+                        </Label>
+                        <div className="premium-input rounded-lg transition-all duration-200 relative">
+                          <Input
+                            id="reg-confirm-password"
+                            type={showConfirmPassword ? 'text' : 'password'}
+                            placeholder="Re-enter"
+                            value={regConfirmPassword}
+                            onChange={(e) => setRegConfirmPassword(e.target.value)}
+                            className="bg-white/[0.04] border-white/[0.08] text-white placeholder:text-zinc-600 pr-10 focus-visible:ring-emerald-500/30 focus-visible:border-emerald-500/50 transition-all duration-200"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                            className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-500 hover:text-zinc-300 transition-colors duration-200"
+                          >
+                            {showConfirmPassword ? (
+                              <EyeOff className="h-4 w-4" />
+                            ) : (
+                              <Eye className="h-4 w-4" />
+                            )}
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Password Strength Indicator */}
+                    {regPassword && (
+                      <div className="animate-slide-down">
+                        <div className="flex gap-1 mb-1.5">
+                          {[1, 2, 3, 4, 5].map((level) => (
+                            <div
+                              key={level}
+                              className="h-1 flex-1 rounded-full transition-all duration-300"
+                              style={{
+                                backgroundColor:
+                                  level <= passwordStrength.score
+                                    ? passwordStrength.color
+                                    : 'rgba(255,255,255,0.06)',
+                              }}
+                            />
+                          ))}
+                        </div>
+                        <p
+                          className="text-xs transition-colors duration-300"
+                          style={{ color: passwordStrength.color }}
+                        >
+                          {passwordStrength.label}
+                        </p>
+                      </div>
+                    )}
+
+                    <div className="space-y-2">
+                      <Label htmlFor="reg-business" className="text-zinc-300 text-sm font-medium">
+                        Business Name
+                      </Label>
+                      <div className="premium-input rounded-lg transition-all duration-200">
+                        <Input
+                          id="reg-business"
+                          type="text"
+                          placeholder="e.g. Sharma Trading"
+                          value={regBusinessName}
+                          onChange={(e) => setRegBusinessName(e.target.value)}
+                          className="bg-white/[0.04] border-white/[0.08] text-white placeholder:text-zinc-600 focus-visible:ring-emerald-500/30 focus-visible:border-emerald-500/50 transition-all duration-200"
+                        />
+                      </div>
+                      <p className="text-xs text-zinc-600">
+                        This creates your organization
+                      </p>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label className="text-zinc-300 text-sm font-medium">
+                        Language / भाषा
+                      </Label>
+                      <Select value={regLanguage} onValueChange={setRegLanguage}>
+                        <SelectTrigger className="bg-white/[0.04] border-white/[0.08] text-white focus:ring-emerald-500/30 focus:border-emerald-500/50 transition-all duration-200">
+                          <SelectValue placeholder="Select language" />
+                        </SelectTrigger>
+                        <SelectContent className="bg-[#1a1a2e] border-white/[0.1] text-white">
+                          <SelectItem value="en" className="focus:bg-emerald-500/20 focus:text-white">English</SelectItem>
+                          <SelectItem value="ne" className="focus:bg-emerald-500/20 focus:text-white">नेपाली (Nepali)</SelectItem>
+                          <SelectItem value="hi" className="focus:bg-emerald-500/20 focus:text-white">हिंदी (Hindi)</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div className="flex items-start gap-3 py-1">
+                      <Checkbox
+                        id="reg-terms"
+                        checked={regTerms}
+                        onCheckedChange={(checked) => setRegTerms(checked === true)}
+                        className="mt-0.5 border-white/20 data-[state=checked]:bg-emerald-500 data-[state=checked]:border-emerald-500"
+                      />
+                      <label
+                        htmlFor="reg-terms"
+                        className="text-sm text-zinc-400 leading-tight cursor-pointer hover:text-zinc-300 transition-colors duration-200"
+                      >
+                        I agree to the{' '}
+                        <span className="text-emerald-400 hover:text-emerald-300">Terms of Service</span>{' '}
+                        and{' '}
+                        <span className="text-emerald-400 hover:text-emerald-300">Privacy Policy</span>
+                      </label>
+                    </div>
+
+                    <Button
+                      className="w-full h-11 bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-400 hover:to-emerald-500 text-black font-semibold shadow-lg shadow-emerald-500/20 hover:shadow-emerald-400/30 transition-all duration-300 hover:scale-[1.01]"
+                      onClick={handleRegister}
+                      disabled={loading}
                     >
-                      I agree to the Terms of Service and Privacy Policy
-                    </label>
+                      {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                      Create Account
+                    </Button>
                   </div>
-
-                  <Button
-                    className="w-full"
-                    onClick={handleRegister}
-                    disabled={loading}
-                  >
-                    {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                    Create Account
-                  </Button>
                 </div>
-              )}
-            </CardContent>
+              </div>
 
-            <CardFooter className="flex flex-col gap-2 pb-6 px-6">
-              {tab === 'login' ? (
-                <button
-                  onClick={() => {
-                    setTab('register')
-                    setError('')
-                  }}
-                  className="text-sm text-primary hover:underline font-medium"
-                >
-                  Don&apos;t have an account? Register →
-                </button>
-              ) : (
-                <button
-                  onClick={() => {
-                    setTab('login')
-                    setError('')
-                  }}
-                  className="text-sm text-primary hover:underline font-medium"
-                >
-                  Already have an account? Sign In →
-                </button>
-              )}
-            </CardFooter>
-          </Card>
+              {/* Footer Switch */}
+              <div className="px-6 pb-6 pt-2 border-t border-white/[0.04]">
+                {tab === 'login' ? (
+                  <p className="text-center text-sm text-zinc-500">
+                    Don&apos;t have an account?{' '}
+                    <button
+                      onClick={() => { setTab('register'); setError('') }}
+                      className="text-emerald-400 hover:text-emerald-300 font-medium transition-colors duration-200"
+                    >
+                      Create one →
+                    </button>
+                  </p>
+                ) : (
+                  <p className="text-center text-sm text-zinc-500">
+                    Already have an account?{' '}
+                    <button
+                      onClick={() => { setTab('login'); setError('') }}
+                      className="text-emerald-400 hover:text-emerald-300 font-medium transition-colors duration-200"
+                    >
+                      Sign in →
+                    </button>
+                  </p>
+                )}
+              </div>
+            </div>
 
-          {/* Footer */}
-          <div className="mt-6 text-center">
-            <p className="text-xs text-muted-foreground">
-              © {new Date().getFullYear()} Hisab Pro. Nepal&apos;s Accounting
-              System.
-            </p>
-            <p className="text-xs text-muted-foreground/50 mt-1">
-              Dual-mode: Simple + Advanced • VAT/TDS Compliant • IRD Ready
-            </p>
+            {/* Social proof (mobile) */}
+            <div className="lg:hidden mt-6 text-center">
+              <div className="inline-flex items-center gap-2 glass rounded-full px-4 py-2">
+                <Users className="h-3.5 w-3.5 text-emerald-400" />
+                <span className="text-xs text-zinc-400">Join 500+ Nepali businesses</span>
+              </div>
+            </div>
+
+            {/* Footer */}
+            <div className="mt-8 text-center">
+              <div className="flex items-center justify-center gap-2 mb-2">
+                <img src="/logo-generated.png" alt="Hisab Pro" className="h-4 w-4 rounded" />
+                <span className="text-xs text-zinc-500 font-medium">
+                  Hisab<span className="text-emerald-400/60"> Pro</span>
+                </span>
+              </div>
+              <p className="text-xs text-zinc-600">
+                &copy; {new Date().getFullYear()} Hisab Pro. All rights reserved.
+              </p>
+              <p className="text-xs text-zinc-700 mt-1">
+                Dual-mode: Simple + Advanced &bull; VAT/TDS Compliant &bull; IRD Ready
+              </p>
+            </div>
           </div>
         </div>
       </div>
@@ -497,16 +922,22 @@ function LoginForm() {
   )
 }
 
+/* ────────────────────────────────────────────
+   PAGE EXPORT WITH SUSPENSE
+   ──────────────────────────────────────────── */
 export default function LoginPage() {
   return (
     <Suspense
       fallback={
-        <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 via-white to-slate-100 dark:from-slate-950 dark:via-slate-900 dark:to-slate-950">
+        <div className="min-h-screen flex items-center justify-center bg-[#09090b]">
           <div className="text-center">
-            <div className="h-14 w-14 rounded-2xl bg-primary flex items-center justify-center text-primary-foreground font-bold text-xl mx-auto mb-4 shadow-lg shadow-primary/25">
-              HP
+            <div className="relative mb-6">
+              <div className="h-16 w-16 rounded-2xl bg-gradient-to-br from-emerald-500 to-emerald-600 flex items-center justify-center mx-auto shadow-xl shadow-emerald-500/25">
+                <img src="/logo-generated.png" alt="HP" className="h-10 w-10 rounded-lg" />
+              </div>
+              <div className="absolute inset-0 h-16 w-16 rounded-2xl bg-emerald-500/20 mx-auto animate-ping" />
             </div>
-            <Loader2 className="h-5 w-5 animate-spin mx-auto text-muted-foreground" />
+            <Loader2 className="h-5 w-5 animate-spin mx-auto text-emerald-400" />
           </div>
         </div>
       }

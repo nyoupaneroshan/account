@@ -11,7 +11,7 @@ const VALID_ROLES = ['admin', 'accountant', 'staff', 'viewer']
  */
 export async function GET(request: Request) {
   try {
-    const userId = await getSessionUserId()
+    const userId = await getSessionUserId(request)
     if (!userId) {
       return NextResponse.json(
         { error: 'Not authenticated' },
@@ -130,7 +130,7 @@ export async function GET(request: Request) {
  */
 export async function POST(request: Request) {
   try {
-    const userId = await getSessionUserId()
+    const userId = await getSessionUserId(request)
     if (!userId) {
       return NextResponse.json(
         { error: 'Not authenticated' },
@@ -272,7 +272,7 @@ export async function POST(request: Request) {
  */
 export async function PATCH(request: Request) {
   try {
-    const currentUserId = await getSessionUserId()
+    const currentUserId = await getSessionUserId(request)
     if (!currentUserId) {
       return NextResponse.json(
         { error: 'Not authenticated' },
@@ -398,7 +398,7 @@ export async function PATCH(request: Request) {
  */
 export async function PUT(request: Request) {
   try {
-    const currentUserId = await getSessionUserId()
+    const currentUserId = await getSessionUserId(request)
     if (!currentUserId) {
       return NextResponse.json(
         { error: 'Not authenticated' },
@@ -524,7 +524,7 @@ export async function PUT(request: Request) {
  */
 export async function DELETE(request: Request) {
   try {
-    const currentUserId = await getSessionUserId()
+    const currentUserId = await getSessionUserId(request)
     if (!currentUserId) {
       return NextResponse.json(
         { error: 'Not authenticated' },

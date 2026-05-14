@@ -12,7 +12,7 @@ const PLAN_ORG_LIMITS: Record<string, number> = {
 
 export async function GET(request: Request) {
   try {
-    const userId = await getSessionUserId()
+    const userId = await getSessionUserId(request)
     if (!userId) {
       return NextResponse.json(
         { error: 'Not authenticated' },
@@ -80,7 +80,7 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   try {
-    const userId = await getSessionUserId()
+    const userId = await getSessionUserId(request)
     if (!userId) {
       return NextResponse.json(
         { error: 'Not authenticated' },

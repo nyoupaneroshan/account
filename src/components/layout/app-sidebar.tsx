@@ -28,11 +28,18 @@ import {
   ClipboardList,
   ArrowRightLeft,
   Shield,
+  LogOut,
+  Folder,
 } from 'lucide-react'
 import { Switch } from '@/components/ui/switch'
 import { ScrollArea } from '@/components/ui/scroll-area'
+import { Badge } from '@/components/ui/badge'
+import { Avatar, AvatarFallback } from '@/components/ui/avatar'
+import { Separator } from '@/components/ui/separator'
+import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip'
 import { useState, useMemo } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
+import Image from 'next/image'
 
 interface NavItem {
   id: AppModule
@@ -81,10 +88,13 @@ const MODULE_PATH_MAP: Record<string, string> = {
 
 const SIMPLE_NAV: NavGroup[] = [
   {
-    label: 'Overview',
-    labelNepali: 'अवलोकन',
+    label: 'Main',
+    labelNepali: 'मुख्य',
     items: [
       { id: 'dashboard', label: 'Dashboard', labelNepali: 'ड्यासबोर्ड', icon: LayoutDashboard, path: '/dashboard' },
+      { id: 'parties', label: 'Parties', labelNepali: 'पक्षहरू', icon: Users, path: '/parties' },
+      { id: 'invoices', label: 'Invoices', labelNepali: 'इनभ्वाइस', icon: Receipt, path: '/invoices' },
+      { id: 'purchases', label: 'Purchases', labelNepali: 'खरिद', icon: ShoppingCart, path: '/purchases' },
     ],
     defaultOpen: true,
   },
@@ -94,23 +104,6 @@ const SIMPLE_NAV: NavGroup[] = [
     items: [
       { id: 'simple-income', label: 'Add Income', labelNepali: 'आम्दानी थप्नुहोस्', icon: PlusCircle, path: '/income' },
       { id: 'simple-expense', label: 'Add Expense', labelNepali: 'खर्च थप्नुहोस्', icon: MinusCircle, path: '/expense' },
-    ],
-    defaultOpen: true,
-  },
-  {
-    label: 'People',
-    labelNepali: 'मानिसहरू',
-    items: [
-      { id: 'parties', label: 'Customers & Suppliers', labelNepali: 'ग्राहक र आपूर्तिकर्ता', icon: Users, path: '/parties' },
-    ],
-    defaultOpen: true,
-  },
-  {
-    label: 'Billing',
-    labelNepali: 'बिलिङ',
-    items: [
-      { id: 'invoices', label: 'Invoices', labelNepali: 'इनभ्वाइस', icon: Receipt, path: '/invoices' },
-      { id: 'purchases', label: 'Purchases', labelNepali: 'खरिद', icon: ShoppingCart, path: '/purchases' },
     ],
     defaultOpen: true,
   },
@@ -126,10 +119,13 @@ const SIMPLE_NAV: NavGroup[] = [
 
 const ADVANCED_NAV: NavGroup[] = [
   {
-    label: 'Overview',
-    labelNepali: 'अवलोकन',
+    label: 'Main',
+    labelNepali: 'मुख्य',
     items: [
       { id: 'dashboard', label: 'Dashboard', labelNepali: 'ड्यासबोर्ड', icon: LayoutDashboard, path: '/dashboard' },
+      { id: 'parties', label: 'Parties', labelNepali: 'पक्षहरू', icon: Users, path: '/parties' },
+      { id: 'invoices', label: 'Invoices', labelNepali: 'इनभ्वाइस', icon: Receipt, path: '/invoices' },
+      { id: 'purchases', label: 'Purchases', labelNepali: 'खरिद', icon: Truck, path: '/purchases' },
     ],
     defaultOpen: true,
   },
@@ -137,18 +133,9 @@ const ADVANCED_NAV: NavGroup[] = [
     label: 'Accounting',
     labelNepali: 'लेखांकन',
     items: [
-      { id: 'chart-of-accounts', label: 'Chart of Accounts', labelNepali: 'खाता योजना', icon: BookOpen, path: '/accounts' },
-      { id: 'journal-entries', label: 'Journal Entries', labelNepali: 'जर्नल प्रविष्टि', icon: FileText, path: '/journal' },
+      { id: 'journal-entries', label: 'Journal', labelNepali: 'जर्नल प्रविष्टि', icon: FileText, path: '/journal' },
+      { id: 'chart-of-accounts', label: 'Accounts', labelNepali: 'खाता योजना', icon: BookOpen, path: '/accounts' },
       { id: 'ledgers', label: 'Ledgers', labelNepali: 'खाता खाता', icon: FileSpreadsheet, path: '/ledgers' },
-    ],
-    defaultOpen: true,
-  },
-  {
-    label: 'Sales & Purchase',
-    labelNepali: 'बिक्री र खरिद',
-    items: [
-      { id: 'invoices', label: 'Sales Invoices', labelNepali: 'बिक्री इनभ्वाइस', icon: Receipt, path: '/invoices' },
-      { id: 'purchases', label: 'Purchase Bills', labelNepali: 'खरिद बिल', icon: Truck, path: '/purchases' },
     ],
     defaultOpen: true,
   },
@@ -156,15 +143,7 @@ const ADVANCED_NAV: NavGroup[] = [
     label: 'Inventory',
     labelNepali: 'इन्भेन्ट्री',
     items: [
-      { id: 'inventory', label: 'Stock Management', labelNepali: 'स्टक व्यवस्थापन', icon: Package, path: '/inventory' },
-    ],
-    defaultOpen: false,
-  },
-  {
-    label: 'Parties',
-    labelNepali: 'पक्षहरू',
-    items: [
-      { id: 'parties', label: 'Customers & Suppliers', labelNepali: 'ग्राहक र आपूर्तिकर्ता', icon: Users, path: '/parties' },
+      { id: 'inventory', label: 'Stock', labelNepali: 'स्टक व्यवस्थापन', icon: Package, path: '/inventory' },
     ],
     defaultOpen: false,
   },
@@ -196,7 +175,7 @@ const ADVANCED_NAV: NavGroup[] = [
 export function AppSidebar({ onLogout }: { onLogout?: () => void }) {
   const router = useRouter()
   const pathname = usePathname()
-  const { mode, setMode, currentOrgName, currentFiscalYear, currentUser, setIsAdminPortal, setSidebarOpen } = useAppStore()
+  const { mode, setMode, currentOrgName, currentFiscalYear, currentUser, userOrganizations, currentOrgId, setIsAdminPortal, setSidebarOpen } = useAppStore()
   const isSuperAdmin = currentUser?.role === 'super_admin'
   const navGroups = mode === 'simple' ? SIMPLE_NAV : ADVANCED_NAV
 
@@ -230,87 +209,130 @@ export function AppSidebar({ onLogout }: { onLogout?: () => void }) {
     if (pathname === item.path) return true
     // For parent paths like /parties, highlight if on /parties/new
     if (item.path !== '/' && pathname.startsWith(item.path + '/')) return true
-    // Special: /reports path should match all report sub-routes
-    // But we only highlight the exact one if multiple share the same path
     return false
   }
 
+  // Org switcher
+  const currentOrg = userOrganizations.find(o => o.id === currentOrgId)
+
   return (
-    <div className="flex h-full flex-col bg-card border-r border-border w-64">
+    <div className="flex h-full flex-col bg-[#0c0f14] w-72">
       {/* Organization Header */}
-      <div className="p-4 border-b border-border">
+      <div className="p-4 border-b border-white/5">
         <div className="flex items-center gap-3">
-          <div className="h-9 w-9 rounded-lg bg-primary flex items-center justify-center text-primary-foreground font-bold text-sm shadow-sm">
-            HP
+          <div className="h-10 w-10 rounded-xl overflow-hidden bg-gradient-to-br from-emerald-500/20 to-emerald-700/20 flex items-center justify-center shrink-0 ring-1 ring-emerald-500/20">
+            <Image
+              src="/logo-generated.png"
+              alt="Hisab Pro"
+              width={36}
+              height={36}
+              className="object-contain"
+              priority
+            />
           </div>
           <div className="flex-1 min-w-0">
-            <h3 className="text-sm font-semibold truncate">{currentOrgName}</h3>
-            <p className="text-xs text-muted-foreground">FY: {currentFiscalYear}</p>
+            <h3 className="text-sm font-semibold text-zinc-100 truncate">{currentOrgName}</h3>
+            <div className="flex items-center gap-2 mt-0.5">
+              <span className="text-[11px] text-zinc-500">FY: {currentFiscalYear}</span>
+              {currentOrg && (
+                <Badge
+                  className={cn(
+                    "text-[9px] px-1.5 py-0 h-4 leading-none font-medium border-0",
+                    currentOrg.plan === 'pro'
+                      ? 'bg-emerald-500/20 text-emerald-400'
+                      : currentOrg.plan === 'enterprise'
+                        ? 'bg-amber-500/20 text-amber-400'
+                        : 'bg-zinc-700/50 text-zinc-400'
+                  )}
+                >
+                  {currentOrg.plan.charAt(0).toUpperCase() + currentOrg.plan.slice(1)}
+                </Badge>
+              )}
+            </div>
           </div>
         </div>
       </div>
 
       {/* Mode Toggle */}
-      <div className="px-4 py-3 border-b border-border">
+      <div className="px-4 py-3 border-b border-white/5">
         <div className="flex items-center justify-between">
-          <span className={cn("text-xs font-medium", mode === 'simple' ? 'text-primary' : 'text-muted-foreground')}>
+          <span className={cn(
+            "text-xs font-medium transition-colors",
+            mode === 'simple' ? 'text-emerald-400' : 'text-zinc-500'
+          )}>
             Simple
           </span>
           <Switch
             checked={mode === 'advanced'}
             onCheckedChange={(checked) => setMode(checked ? 'advanced' : 'simple')}
-            className="data-[state=checked]:bg-primary"
+            className="data-[state=checked]:bg-emerald-600 data-[state=unchecked]:bg-zinc-700"
           />
-          <span className={cn("text-xs font-medium", mode === 'advanced' ? 'text-primary' : 'text-muted-foreground')}>
+          <span className={cn(
+            "text-xs font-medium transition-colors",
+            mode === 'advanced' ? 'text-emerald-400' : 'text-zinc-500'
+          )}>
             Advanced
           </span>
         </div>
-        <p className="text-[10px] text-muted-foreground mt-1">
+        <p className="text-[10px] text-zinc-600 mt-1.5">
           {mode === 'simple' ? 'Easy entry, auto-accounting' : 'Full double-entry system'}
         </p>
       </div>
 
       {/* Navigation */}
       <ScrollArea className="flex-1">
-        <nav className="p-2 space-y-1">
+        <nav className="p-3 space-y-1">
           {navGroups.map((group) => (
             <div key={group.label}>
               <button
                 onClick={() => toggleGroup(group.label)}
-                className="flex items-center gap-1.5 w-full px-2 py-1.5 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors"
+                className="flex items-center gap-1.5 w-full px-2 py-2 text-[11px] font-semibold uppercase tracking-wider text-zinc-500 hover:text-zinc-300 transition-colors rounded-md hover:bg-white/[0.03]"
               >
                 {openGroups[group.label] ? (
-                  <ChevronDown className="h-3 w-3" />
+                  <ChevronDown className="h-3 w-3 text-emerald-500/60" />
                 ) : (
-                  <ChevronRight className="h-3 w-3" />
+                  <ChevronRight className="h-3 w-3 text-zinc-600" />
                 )}
                 <span>{group.label}</span>
-                <span className="text-[10px] text-muted-foreground/60 ml-1">({group.labelNepali})</span>
+                <span className="text-[9px] text-zinc-600 ml-auto">{group.labelNepali}</span>
               </button>
               {openGroups[group.label] && (
-                <div className="ml-1 space-y-0.5">
+                <div className="space-y-0.5 mt-0.5">
                   {group.items.map((item) => {
                     const Icon = item.icon
                     const isActive = isActiveItem(item)
                     return (
-                      <button
-                        key={item.id}
-                        onClick={() => handleNavigate(item)}
-                        className={cn(
-                          'flex items-center gap-2.5 w-full px-3 py-2 rounded-md text-sm transition-all',
-                          isActive
-                            ? 'bg-primary text-primary-foreground font-medium shadow-sm'
-                            : 'text-foreground/70 hover:bg-accent hover:text-foreground'
-                        )}
-                      >
-                        <Icon className="h-4 w-4 shrink-0" />
-                        <div className="flex flex-col items-start min-w-0">
-                          <span className="truncate w-full text-left">{item.label}</span>
-                          {isActive && (
-                            <span className="text-[10px] opacity-80 truncate w-full text-left">{item.labelNepali}</span>
-                          )}
-                        </div>
-                      </button>
+                      <Tooltip key={item.id}>
+                        <TooltipTrigger asChild>
+                          <button
+                            onClick={() => handleNavigate(item)}
+                            className={cn(
+                              'flex items-center gap-3 w-full px-3 py-2 rounded-lg text-[13px] transition-all duration-200 group relative',
+                              isActive
+                                ? 'bg-emerald-500/10 text-emerald-400 font-medium'
+                                : 'text-zinc-400 hover:bg-white/[0.04] hover:text-zinc-200'
+                            )}
+                          >
+                            {/* Active indicator bar */}
+                            {isActive && (
+                              <div className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-5 rounded-r-full bg-emerald-500" />
+                            )}
+                            <Icon className={cn(
+                              'h-4 w-4 shrink-0 transition-colors',
+                              isActive ? 'text-emerald-400' : 'text-zinc-500 group-hover:text-zinc-300'
+                            )} />
+                            <div className="flex flex-col items-start min-w-0">
+                              <span className="truncate w-full text-left">{item.label}</span>
+                              {isActive && (
+                                <span className="text-[10px] text-emerald-500/70 truncate w-full text-left">{item.labelNepali}</span>
+                              )}
+                            </div>
+                          </button>
+                        </TooltipTrigger>
+                        <TooltipContent side="right" className="bg-zinc-800 text-zinc-200 border-zinc-700">
+                          <p>{item.label} <span className="text-zinc-500">({item.labelNepali})</span></p>
+                        </TooltipContent>
+                      </Tooltip>
                     )
                   })}
                 </div>
@@ -320,29 +342,66 @@ export function AppSidebar({ onLogout }: { onLogout?: () => void }) {
         </nav>
       </ScrollArea>
 
-      {/* Footer */}
-      <div className="p-3 border-t border-border">
+      {/* Footer - User profile + Logout */}
+      <div className="border-t border-white/5">
         {isSuperAdmin && (
-          <button
-            onClick={() => {
-              setIsAdminPortal(true)
-              setSidebarOpen(false)
-              router.push('/admin')
-            }}
-            className={cn(
-              "flex items-center gap-2 w-full px-2 py-1.5 rounded-md text-xs hover:bg-accent transition-colors mb-2",
-              pathname === '/admin' ? 'text-primary font-medium' : 'text-primary'
-            )}
-          >
-            <Shield className="h-3.5 w-3.5" />
-            Admin Portal
-          </button>
+          <div className="px-3 pt-3">
+            <button
+              onClick={() => {
+                setIsAdminPortal(true)
+                setSidebarOpen(false)
+                router.push('/admin')
+              }}
+              className={cn(
+                "flex items-center gap-2 w-full px-3 py-2 rounded-lg text-xs transition-all",
+                pathname === '/admin'
+                  ? 'bg-amber-500/10 text-amber-400 font-medium'
+                  : 'text-amber-500/70 hover:bg-amber-500/5 hover:text-amber-400'
+              )}
+            >
+              <Shield className="h-3.5 w-3.5" />
+              Admin Portal
+            </button>
+          </div>
         )}
-        <div className="flex items-center gap-2 text-xs text-muted-foreground">
-          <ArrowRightLeft className="h-3 w-3" />
-          <span>Hisab Pro v1.0</span>
+
+        {/* User Profile Section */}
+        {currentUser && (
+          <div className="p-3">
+            <div className="flex items-center gap-3 px-2 py-2 rounded-lg bg-white/[0.02]">
+              <Avatar className="h-8 w-8 ring-1 ring-white/10">
+                <AvatarFallback className="bg-gradient-to-br from-emerald-600 to-emerald-800 text-white text-[11px] font-semibold">
+                  {currentUser.name?.charAt(0)?.toUpperCase() || 'U'}
+                </AvatarFallback>
+              </Avatar>
+              <div className="flex-1 min-w-0">
+                <p className="text-xs font-medium text-zinc-200 truncate">{currentUser.name}</p>
+                <div className="flex items-center gap-1.5">
+                  <Badge className="text-[9px] px-1 py-0 h-3.5 leading-none bg-emerald-500/15 text-emerald-400 border-0 font-medium">
+                    {currentUser.role === 'super_admin' ? 'Super Admin' : currentUser.role === 'admin' ? 'Admin' : 'User'}
+                  </Badge>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Logout */}
+        <div className="px-3 pb-3">
+          <button
+            onClick={onLogout}
+            className="flex items-center gap-2.5 w-full px-3 py-2 rounded-lg text-xs text-zinc-500 hover:text-red-400 hover:bg-red-500/5 transition-all"
+          >
+            <LogOut className="h-3.5 w-3.5" />
+            Logout
+          </button>
         </div>
-        <p className="text-[10px] text-muted-foreground/60 mt-0.5">Nepal Accounting System</p>
+
+        {/* Version */}
+        <div className="px-4 pb-3 flex items-center gap-1.5">
+          <div className="h-1.5 w-1.5 rounded-full bg-emerald-500/40" />
+          <span className="text-[10px] text-zinc-600">Hisab Pro v1.0</span>
+        </div>
       </div>
     </div>
   )

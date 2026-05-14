@@ -7,14 +7,15 @@ import { useAppStore } from '@/store/app-store'
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet'
 import { cn } from '@/lib/utils'
 import { Loader2 } from 'lucide-react'
+import { CLIENT_SESSION_KEY, getSessionHeaders } from '@/lib/session'
 
 const AppSidebar = dynamic(
   () => import('@/components/layout/app-sidebar').then((mod) => ({ default: mod.AppSidebar })),
-  { ssr: false, loading: () => <div className="w-64 h-full bg-card animate-pulse" /> }
+  { ssr: false, loading: () => <div className="w-72 h-full bg-[#0c0f14] animate-pulse" /> }
 )
 const AppHeader = dynamic(
   () => import('@/components/layout/app-header').then((mod) => ({ default: mod.AppHeader })),
-  { ssr: false, loading: () => <div className="h-14 border-b bg-card animate-pulse" /> }
+  { ssr: false, loading: () => <div className="h-14 border-b border-white/5 bg-[#0c0f14]/80 animate-pulse" /> }
 )
 
 export default function AppLayout({
@@ -42,17 +43,24 @@ export default function AppLayout({
   // Restore session on mount
   const restoreSession = useCallback(async () => {
     if (redirectAttempted.current) return
-    
+
     try {
+      const headers = getSessionHeaders()
       const controller = new AbortController()
       const timeoutId = setTimeout(() => controller.abort(), 10000)
 
-      const res = await fetch('/api/auth/session', { signal: controller.signal })
+      const res = await fetch('/api/auth/session', {
+        signal: controller.signal,
+        headers,
+      })
       clearTimeout(timeoutId)
 
       if (res.ok) {
         const data = await res.json()
         if (data.user && data.organizations && data.organizations.length > 0) {
+          // Ensure token is in localStorage
+          localStorage.setItem(CLIENT_SESSION_KEY, data.user.id)
+
           setCurrentUser({
             id: data.user.id,
             email: data.user.email,
@@ -80,6 +88,7 @@ export default function AppLayout({
           // Valid session but no user/orgs - redirect to login
           redirectAttempted.current = true
           setInitializing(false)
+          localStorage.removeItem(CLIENT_SESSION_KEY)
           router.replace('/login')
           return
         }
@@ -87,13 +96,13 @@ export default function AppLayout({
         // Session API returned error (401 etc) - redirect to login
         redirectAttempted.current = true
         setInitializing(false)
+        localStorage.removeItem(CLIENT_SESSION_KEY)
         router.replace('/login')
         return
       }
     } catch (err) {
       console.warn('Session restore failed:', err instanceof Error ? err.message : 'Unknown error')
       // Don't redirect on network errors - might be temporary
-      // Just show the app in whatever state it's in
     }
     setInitializing(false)
   }, [setCurrentUser, setUserOrganizations, setCurrentOrg, setLanguage, router])
@@ -116,27 +125,74 @@ export default function AppLayout({
   // Handle logout
   const handleLogout = async () => {
     try {
-      await fetch('/api/auth/logout', { method: 'POST' })
+      const headers = getSessionHeaders()
+      await fetch('/api/auth/logout', { method: 'POST', headers })
     } catch {
       // ignore
     }
     logout()
     if (typeof window !== 'undefined') {
+      localStorage.removeItem(CLIENT_SESSION_KEY)
       localStorage.removeItem('hisab-current-org')
     }
     router.replace('/login')
   }
 
-  // Loading screen
+  // Premium loading screen with animated logo
   if (initializing) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
+      <div className="min-h-screen flex items-center justify-center bg-[#09090b]">
+        <style>{`
+          @keyframes logo-pulse {
+            0%, 100% { transform: scale(1); opacity: 1; }
+            50% { transform: scale(1.08); opacity: 0.85; }
+          }
+          @keyframes ring-rotate {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+          }
+          @keyframes ring-pulse {
+            0%, 100% { opacity: 0.3; }
+            50% { opacity: 0.6; }
+          }
+          @keyframes fade-in-up {
+            from { opacity: 0; transform: translateY(8px); }
+            to { opacity: 1; transform: translateY(0); }
+          }
+          @keyframes shimmer {
+            0% { background-position: -200% center; }
+            100% { background-position: 200% center; }
+          }
+          .logo-pulse { animation: logo-pulse 2s ease-in-out infinite; }
+          .ring-rotate { animation: ring-rotate 8s linear infinite; }
+          .ring-pulse { animation: ring-pulse 3s ease-in-out infinite; }
+          .fade-in-up { animation: fade-in-up 0.6s ease-out forwards; }
+          .shimmer-text {
+            background: linear-gradient(90deg, #6b7280 0%, #10b981 50%, #6b7280 100%);
+            background-size: 200% auto;
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            animation: shimmer 3s linear infinite;
+          }
+        `}</style>
         <div className="text-center">
-          <div className="h-14 w-14 rounded-2xl bg-primary flex items-center justify-center text-primary-foreground font-bold text-xl mx-auto mb-4 shadow-lg shadow-primary/25">
-            HP
+          {/* Animated ring decoration */}
+          <div className="relative mx-auto mb-6 h-20 w-20">
+            <div className="absolute inset-0 rounded-2xl ring-rotate border-2 border-transparent border-t-emerald-500/40 border-r-emerald-500/20" />
+            <div className="absolute inset-2 rounded-xl ring-pulse border border-emerald-500/10" />
+            <div className="absolute inset-0 flex items-center justify-center">
+              <div className="h-14 w-14 rounded-xl bg-gradient-to-br from-emerald-500 to-emerald-700 flex items-center justify-center text-white font-bold text-lg shadow-lg shadow-emerald-500/30 logo-pulse">
+                HP
+              </div>
+            </div>
           </div>
-          <Loader2 className="h-5 w-5 animate-spin mx-auto text-muted-foreground" />
-          <p className="text-sm text-muted-foreground mt-2">Loading Hisab Pro...</p>
+          <div className="fade-in-up" style={{ animationDelay: '0.3s', opacity: 0 }}>
+            <Loader2 className="h-4 w-4 animate-spin mx-auto text-emerald-500/60" />
+          </div>
+          <p className="text-sm shimmer-text mt-3 font-medium fade-in-up" style={{ animationDelay: '0.5s', opacity: 0 }}>
+            Loading Hisab Pro
+          </p>
         </div>
       </div>
     )
@@ -145,28 +201,28 @@ export default function AppLayout({
   // If still no user after loading, show redirect message
   if (!currentUser || !currentOrgId) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
+      <div className="min-h-screen flex items-center justify-center bg-[#09090b]">
         <div className="text-center">
-          <Loader2 className="h-5 w-5 animate-spin mx-auto text-muted-foreground" />
-          <p className="text-sm text-muted-foreground mt-2">Redirecting to login...</p>
+          <Loader2 className="h-5 w-5 animate-spin mx-auto text-emerald-500/60" />
+          <p className="text-sm text-zinc-500 mt-2">Redirecting to login...</p>
         </div>
       </div>
     )
   }
 
   return (
-    <div className="h-screen flex overflow-hidden bg-background">
+    <div className="h-screen flex overflow-hidden bg-[#09090b]">
       {/* Desktop Sidebar */}
       <aside className={cn(
-        "shrink-0 border-r border-border transition-all duration-300 hidden md:block",
-        sidebarOpen ? "w-64" : "w-0 overflow-hidden"
+        "shrink-0 transition-all duration-300 hidden md:block",
+        sidebarOpen ? "w-72" : "w-0 overflow-hidden"
       )}>
         <AppSidebar onLogout={handleLogout} />
       </aside>
 
       {/* Mobile Sidebar (Sheet) */}
       <Sheet open={sidebarOpen} onOpenChange={setSidebarOpen}>
-        <SheetContent side="left" className="p-0 w-64">
+        <SheetContent side="left" className="p-0 w-72 bg-[#0c0f14] border-r border-white/5">
           <SheetHeader className="sr-only">
             <SheetTitle>Navigation Sidebar</SheetTitle>
           </SheetHeader>

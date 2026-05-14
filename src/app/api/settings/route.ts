@@ -4,7 +4,7 @@ import { getSessionUserId } from '@/lib/auth'
 
 export async function GET(request: Request) {
   try {
-    const userId = await getSessionUserId()
+    const userId = await getSessionUserId(request)
     if (!userId) {
       return NextResponse.json(
         { error: 'Not authenticated' },
@@ -97,7 +97,7 @@ export async function GET(request: Request) {
 
 export async function PUT(request: Request) {
   try {
-    const userId = await getSessionUserId()
+    const userId = await getSessionUserId(request)
     if (!userId) {
       return NextResponse.json(
         { error: 'Not authenticated' },

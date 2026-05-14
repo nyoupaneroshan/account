@@ -5,7 +5,7 @@ import { getSessionUserId } from '@/lib/auth'
 // PATCH /api/user/language - Update the current user's language preference
 export async function PATCH(request: Request) {
   try {
-    const userId = await getSessionUserId()
+    const userId = await getSessionUserId(request)
     if (!userId) {
       return NextResponse.json(
         { error: 'Not authenticated' },
@@ -61,7 +61,7 @@ export async function PATCH(request: Request) {
 // PUT /api/user/language - Update the current user's language preference (alternative endpoint)
 export async function PUT(request: Request) {
   try {
-    const userId = await getSessionUserId()
+    const userId = await getSessionUserId(request)
     if (!userId) {
       return NextResponse.json(
         { error: 'Not authenticated' },

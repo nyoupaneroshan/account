@@ -4,8 +4,8 @@ import { getSessionUserId } from '@/lib/auth'
 
 export async function GET(request: Request) {
   try {
-    // Read userId from session cookie - secure way
-    const userId = await getSessionUserId()
+    // Read userId from session cookie OR custom header
+    const userId = await getSessionUserId(request)
 
     if (!userId) {
       return NextResponse.json(
