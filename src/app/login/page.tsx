@@ -245,7 +245,7 @@ function LoginForm() {
   if (checkingSession) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-[#09090b]">
-        <div className="text-center">
+        <div className="text-center animate-fade-in-up">
           <div className="relative mb-6">
             <div className="h-16 w-16 rounded-2xl bg-gradient-to-br from-emerald-500 to-emerald-600 flex items-center justify-center mx-auto shadow-xl shadow-emerald-500/25">
               <img src="/logo-generated.png" alt="HP" className="h-10 w-10 rounded-lg" />
@@ -260,105 +260,6 @@ function LoginForm() {
 
   return (
     <div className="min-h-screen flex flex-col bg-[#09090b] text-white">
-      {/* ─── GLOBAL CSS ANIMATIONS ─── */}
-      <style>{`
-        @keyframes float {
-          0%, 100% { transform: translateY(0px); }
-          50% { transform: translateY(-14px); }
-        }
-        @keyframes float-slow {
-          0%, 100% { transform: translateY(0px) rotate(0deg); }
-          50% { transform: translateY(-10px) rotate(2deg); }
-        }
-        @keyframes float-delayed {
-          0%, 100% { transform: translateY(0px) rotate(0deg); }
-          50% { transform: translateY(-8px) rotate(-1deg); }
-        }
-        @keyframes gradient-shift {
-          0% { background-position: 0% 50%; }
-          50% { background-position: 100% 50%; }
-          100% { background-position: 0% 50%; }
-        }
-        @keyframes pulse-glow {
-          0%, 100% { opacity: 0.3; }
-          50% { opacity: 0.7; }
-        }
-        @keyframes fade-in-up {
-          from { opacity: 0; transform: translateY(20px); }
-          to { opacity: 1; transform: translateY(0); }
-        }
-        @keyframes fade-in {
-          from { opacity: 0; }
-          to { opacity: 1; }
-        }
-        @keyframes shake {
-          0%, 100% { transform: translateX(0); }
-          10%, 30%, 50%, 70%, 90% { transform: translateX(-4px); }
-          20%, 40%, 60%, 80% { transform: translateX(4px); }
-        }
-        @keyframes slide-down {
-          from { opacity: 0; transform: translateY(-10px); max-height: 0; }
-          to { opacity: 1; transform: translateY(0); max-height: 100px; }
-        }
-        @keyframes spin-slow {
-          from { transform: rotate(0deg); }
-          to { transform: rotate(360deg); }
-        }
-        .animate-float { animation: float 6s ease-in-out infinite; }
-        .animate-float-slow { animation: float-slow 8s ease-in-out infinite; }
-        .animate-float-delayed { animation: float-delayed 7s ease-in-out 1.5s infinite; }
-        .animate-gradient-shift {
-          background-size: 200% 200%;
-          animation: gradient-shift 6s ease infinite;
-        }
-        .animate-pulse-glow { animation: pulse-glow 4s ease-in-out infinite; }
-        .animate-fade-in-up { animation: fade-in-up 0.6s ease-out forwards; }
-        .animate-fade-in { animation: fade-in 0.5s ease-out forwards; }
-        .animate-shake { animation: shake 0.5s ease-in-out; }
-        .animate-slide-down { animation: slide-down 0.3s ease-out forwards; }
-        .animate-spin-slow { animation: spin-slow 20s linear infinite; }
-
-        /* Glassmorphism */
-        .glass {
-          background: rgba(255, 255, 255, 0.04);
-          backdrop-filter: blur(16px);
-          -webkit-backdrop-filter: blur(16px);
-          border: 1px solid rgba(255, 255, 255, 0.08);
-        }
-        .glass-strong {
-          background: rgba(255, 255, 255, 0.06);
-          backdrop-filter: blur(24px);
-          -webkit-backdrop-filter: blur(24px);
-          border: 1px solid rgba(255, 255, 255, 0.1);
-        }
-
-        /* Noise texture overlay */
-        .noise-overlay::before {
-          content: '';
-          position: absolute;
-          inset: 0;
-          background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.03'/%3E%3C/svg%3E");
-          pointer-events: none;
-          z-index: 1;
-        }
-
-        /* Custom scrollbar */
-        ::-webkit-scrollbar { width: 6px; }
-        ::-webkit-scrollbar-track { background: #09090b; }
-        ::-webkit-scrollbar-thumb { background: #10B981; border-radius: 3px; }
-
-        /* Premium input focus */
-        .premium-input:focus-within {
-          box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.2);
-          border-color: rgba(16, 185, 129, 0.5);
-        }
-
-        /* Tab slider */
-        .tab-slider {
-          transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-        }
-      `}</style>
-
       {/* ─── MAIN LAYOUT ─── */}
       <div className="flex-1 flex flex-col lg:flex-row">
         {/* ─── LEFT SIDE: BRANDING (desktop only) ─── */}
@@ -404,7 +305,7 @@ function LoginForm() {
             </div>
 
             {/* Headline */}
-            <div className="mb-10 animate-fade-in-up" style={{ animationDelay: '0.1s' }}>
+            <div className="mb-10 animate-fade-in-up stagger-2">
               <h2 className="text-4xl xl:text-5xl font-bold tracking-tight leading-tight mb-4">
                 Easy like Excel,
                 <br />
@@ -418,7 +319,7 @@ function LoginForm() {
             </div>
 
             {/* Trust badges */}
-            <div className="flex flex-wrap gap-3 mb-10 animate-fade-in-up" style={{ animationDelay: '0.2s' }}>
+            <div className="flex flex-wrap gap-3 mb-10 animate-fade-in-up stagger-4">
               {[
                 { icon: Shield, text: 'IRD Compliant', sub: 'आईआरडी अनुपालन' },
                 { icon: Calculator, text: 'VAT/TDS Ready', sub: 'भ्याट/टीडीएस तयार' },
@@ -443,7 +344,7 @@ function LoginForm() {
             </div>
 
             {/* Social proof */}
-            <div className="animate-fade-in-up" style={{ animationDelay: '0.3s' }}>
+            <div className="animate-fade-in-up stagger-6">
               <div className="glass rounded-xl px-5 py-4 inline-flex items-center gap-4">
                 <div className="flex -space-x-2">
                   {['RS', 'SA', 'BT', 'KM'].map((initials, i) => (
@@ -466,7 +367,7 @@ function LoginForm() {
             </div>
 
             {/* Floating elements */}
-            <div className="absolute top-[15%] right-[10%] glass rounded-xl px-4 py-3 shadow-xl animate-float hidden xl:flex items-center gap-3">
+            <div className="absolute top-[15%] right-[10%] glass rounded-xl px-4 py-3 shadow-xl animate-float hover-lift hidden xl:flex items-center gap-3">
               <div className="h-9 w-9 rounded-lg bg-emerald-500/15 flex items-center justify-center">
                 <Receipt className="h-4 w-4 text-emerald-400" />
               </div>
@@ -476,7 +377,7 @@ function LoginForm() {
               </div>
             </div>
 
-            <div className="absolute bottom-[20%] right-[8%] glass rounded-xl px-4 py-3 shadow-xl animate-float-slow hidden xl:flex items-center gap-3">
+            <div className="absolute bottom-[20%] right-[8%] glass rounded-xl px-4 py-3 shadow-xl animate-float-slow hover-lift hidden xl:flex items-center gap-3">
               <div className="h-9 w-9 rounded-lg bg-emerald-500/15 flex items-center justify-center">
                 <TrendingUp className="h-4 w-4 text-emerald-400" />
               </div>
@@ -486,7 +387,7 @@ function LoginForm() {
               </div>
             </div>
 
-            <div className="absolute top-[55%] right-[25%] glass rounded-xl px-4 py-3 shadow-xl animate-float-delayed hidden xl:flex items-center gap-3">
+            <div className="absolute top-[55%] right-[25%] glass rounded-xl px-4 py-3 shadow-xl animate-float-delayed hover-lift hidden xl:flex items-center gap-3">
               <div className="h-9 w-9 rounded-lg bg-emerald-500/15 flex items-center justify-center">
                 <BarChart3 className="h-4 w-4 text-emerald-400" />
               </div>
@@ -509,7 +410,7 @@ function LoginForm() {
 
           <div className="w-full max-w-[440px] relative z-10">
             {/* Mobile: Back to Home + Logo */}
-            <div className="lg:hidden mb-8">
+            <div className="lg:hidden mb-8 animate-fade-in-up">
               <button
                 onClick={() => router.push('/')}
                 className="flex items-center gap-2 text-sm text-zinc-500 hover:text-emerald-400 transition-colors duration-200 mb-6 group"
@@ -546,7 +447,7 @@ function LoginForm() {
             </div>
 
             {/* Desktop: Welcome text */}
-            <div className="hidden lg:block mb-8">
+            <div className="hidden lg:block mb-8 animate-fade-in-up">
               <h2 className="text-2xl font-bold tracking-tight mb-2">
                 {tab === 'login' ? 'Welcome back' : 'Create your account'}
               </h2>
@@ -558,7 +459,7 @@ function LoginForm() {
             </div>
 
             {/* Main Card */}
-            <div className="glass-strong rounded-2xl overflow-hidden">
+            <div className="glass-strong rounded-2xl overflow-hidden premium-glow animate-fade-in-up stagger-2">
               {/* Tab Toggle */}
               <div className="px-6 pt-6">
                 <div className="relative flex rounded-xl bg-white/[0.04] p-1">
@@ -893,7 +794,7 @@ function LoginForm() {
             </div>
 
             {/* Social proof (mobile) */}
-            <div className="lg:hidden mt-6 text-center">
+            <div className="lg:hidden mt-6 text-center animate-fade-in-up stagger-4">
               <div className="inline-flex items-center gap-2 glass rounded-full px-4 py-2">
                 <Users className="h-3.5 w-3.5 text-emerald-400" />
                 <span className="text-xs text-zinc-400">Join 500+ Nepali businesses</span>
@@ -901,7 +802,7 @@ function LoginForm() {
             </div>
 
             {/* Footer */}
-            <div className="mt-8 text-center">
+            <div className="mt-8 text-center animate-fade-in-up stagger-6">
               <div className="flex items-center justify-center gap-2 mb-2">
                 <img src="/logo-generated.png" alt="Hisab Pro" className="h-4 w-4 rounded" />
                 <span className="text-xs text-zinc-500 font-medium">

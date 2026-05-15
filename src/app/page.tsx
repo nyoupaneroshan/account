@@ -24,11 +24,13 @@ import {
   Quote,
   Menu,
   X,
+  Sparkles,
+  Play,
 } from 'lucide-react'
 import { CLIENT_SESSION_KEY } from '@/lib/session'
 
 /* ────────────────────────────────────────────
-   DATA
+   DATA (UNCHANGED)
    ──────────────────────────────────────────── */
 
 const FEATURES = [
@@ -159,7 +161,7 @@ const NAV_LINKS = [
 ]
 
 /* ────────────────────────────────────────────
-   ANIMATED COUNTER HOOK
+   ANIMATED COUNTER HOOK (UNCHANGED)
    ──────────────────────────────────────────── */
 
 function useAnimatedCounter(target: number, duration = 2000, startOnView = true) {
@@ -258,112 +260,6 @@ export default function HomePage() {
 
   return (
     <div className="min-h-screen flex flex-col bg-[#09090b] text-white">
-      {/* ─── GLOBAL CSS ANIMATIONS ─── */}
-      <style>{`
-        @keyframes float {
-          0%, 100% { transform: translateY(0px); }
-          50% { transform: translateY(-12px); }
-        }
-        @keyframes float-slow {
-          0%, 100% { transform: translateY(0px); }
-          50% { transform: translateY(-8px); }
-        }
-        @keyframes gradient-shift {
-          0% { background-position: 0% 50%; }
-          50% { background-position: 100% 50%; }
-          100% { background-position: 0% 50%; }
-        }
-        @keyframes pulse-glow {
-          0%, 100% { opacity: 0.4; }
-          50% { opacity: 0.8; }
-        }
-        @keyframes fade-in-up {
-          from { opacity: 0; transform: translateY(24px); }
-          to { opacity: 1; transform: translateY(0); }
-        }
-        @keyframes slide-in-left {
-          from { opacity: 0; transform: translateX(-32px); }
-          to { opacity: 1; transform: translateX(0); }
-        }
-        @keyframes shimmer {
-          0% { background-position: -200% 0; }
-          100% { background-position: 200% 0; }
-        }
-        @keyframes spin-slow {
-          from { transform: rotate(0deg); }
-          to { transform: rotate(360deg); }
-        }
-        .animate-float { animation: float 6s ease-in-out infinite; }
-        .animate-float-slow { animation: float-slow 8s ease-in-out infinite; }
-        .animate-gradient-shift {
-          background-size: 200% 200%;
-          animation: gradient-shift 8s ease infinite;
-        }
-        .animate-pulse-glow { animation: pulse-glow 4s ease-in-out infinite; }
-        .animate-fade-in-up { animation: fade-in-up 0.7s ease-out forwards; }
-        .animate-slide-in-left { animation: slide-in-left 0.7s ease-out forwards; }
-        .animate-shimmer {
-          background-size: 200% 100%;
-          animation: shimmer 3s linear infinite;
-        }
-        .animate-spin-slow { animation: spin-slow 20s linear infinite; }
-
-        /* Noise texture overlay */
-        .noise-overlay::before {
-          content: '';
-          position: absolute;
-          inset: 0;
-          background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.03'/%3E%3C/svg%3E");
-          pointer-events: none;
-          z-index: 1;
-        }
-
-        /* Glassmorphism base */
-        .glass {
-          background: rgba(255, 255, 255, 0.04);
-          backdrop-filter: blur(16px);
-          -webkit-backdrop-filter: blur(16px);
-          border: 1px solid rgba(255, 255, 255, 0.08);
-        }
-        .glass-strong {
-          background: rgba(255, 255, 255, 0.07);
-          backdrop-filter: blur(24px);
-          -webkit-backdrop-filter: blur(24px);
-          border: 1px solid rgba(255, 255, 255, 0.12);
-        }
-
-        /* Gradient border trick */
-        .gradient-border {
-          position: relative;
-          background: #0a0a0f;
-          z-index: 0;
-        }
-        .gradient-border::before {
-          content: '';
-          position: absolute;
-          inset: -1px;
-          border-radius: inherit;
-          padding: 1px;
-          background: linear-gradient(135deg, #10B981, #059669, #34D399, #10B981);
-          -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
-          mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
-          -webkit-mask-composite: xor;
-          mask-composite: exclude;
-          z-index: -1;
-        }
-
-        /* Smooth scroll */
-        html { scroll-behavior: smooth; }
-
-        /* Custom scrollbar */
-        ::-webkit-scrollbar { width: 6px; }
-        ::-webkit-scrollbar-track { background: #09090b; }
-        ::-webkit-scrollbar-thumb { background: #10B981; border-radius: 3px; }
-
-        /* Stat number monospace feel */
-        .stat-number { font-variant-numeric: tabular-nums; }
-      `}</style>
-
       {/* ─── FLOATING NAVBAR ─── */}
       <header
         className={`fixed top-0 left-0 right-0 z-50 transition-all duration-500 ${
@@ -372,13 +268,15 @@ export default function HomePage() {
             : 'bg-transparent'
         }`}
       >
-        <div className="container mx-auto flex h-16 items-center justify-between px-4 md:px-6">
-          <div className="flex items-center gap-3">
-            <img
-              src="/logo-generated.png"
-              alt="Hisab Pro"
-              className="h-8 w-8 rounded-lg"
-            />
+        <div className="max-w-7xl mx-auto flex h-16 items-center justify-between px-4 sm:px-6 lg:px-8">
+          <div className="flex items-center gap-2.5">
+            <div className="relative">
+              <img
+                src="/logo-generated.png"
+                alt="Hisab Pro"
+                className="h-8 w-8 rounded-lg"
+              />
+            </div>
             <span className="text-lg font-bold tracking-tight text-white">
               Hisab<span className="text-emerald-400"> Pro</span>
             </span>
@@ -390,7 +288,7 @@ export default function HomePage() {
               <a
                 key={link.href}
                 href={link.href}
-                className="text-sm text-zinc-400 hover:text-emerald-400 transition-colors duration-200"
+                className="text-sm font-medium text-zinc-400 hover:text-emerald-400 transition-colors duration-200 relative after:absolute after:bottom-[-4px] after:left-0 after:w-0 after:h-[2px] after:bg-emerald-400 after:transition-all after:duration-300 hover:after:w-full"
               >
                 {link.label}
               </a>
@@ -400,47 +298,48 @@ export default function HomePage() {
           <div className="hidden md:flex items-center gap-3">
             <Button
               variant="ghost"
-              className="text-zinc-300 hover:text-white hover:bg-white/5"
+              className="text-zinc-300 hover:text-white hover:bg-white/5 font-medium"
               onClick={() => router.push('/login')}
             >
               Sign In
             </Button>
             <Button
-              className="bg-emerald-500 hover:bg-emerald-400 text-black font-semibold shadow-lg shadow-emerald-500/20 hover:shadow-emerald-400/30 transition-all duration-300"
+              className="bg-emerald-500 hover:bg-emerald-400 text-black font-semibold shadow-lg shadow-emerald-500/20 hover:shadow-emerald-400/30 transition-all duration-300 hover:scale-[1.02]"
               onClick={() => router.push('/login?tab=register')}
             >
               Get Started
-              <ArrowRight className="h-4 w-4 ml-1" />
+              <ArrowRight className="h-4 w-4 ml-1.5" />
             </Button>
           </div>
 
           {/* Mobile menu button */}
           <button
-            className="md:hidden text-zinc-300 hover:text-white"
+            className="md:hidden text-zinc-300 hover:text-white p-2 -mr-2"
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+            aria-label="Toggle menu"
           >
-            {mobileMenuOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
+            {mobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
           </button>
         </div>
 
         {/* Mobile Menu */}
         {mobileMenuOpen && (
-          <div className="md:hidden glass-strong border-t border-white/[0.06]">
-            <div className="container mx-auto px-4 py-4 flex flex-col gap-3">
+          <div className="md:hidden glass-strong border-t border-white/[0.06] animate-scale-in">
+            <div className="max-w-7xl mx-auto px-4 py-4 flex flex-col gap-1">
               {NAV_LINKS.map((link) => (
                 <a
                   key={link.href}
                   href={link.href}
-                  className="text-sm text-zinc-400 hover:text-emerald-400 py-2"
+                  className="text-sm text-zinc-400 hover:text-emerald-400 py-2.5 px-3 rounded-lg hover:bg-white/[0.04] transition-colors duration-200"
                   onClick={() => setMobileMenuOpen(false)}
                 >
                   {link.label}
                 </a>
               ))}
-              <div className="flex flex-col gap-2 pt-2 border-t border-white/[0.06]">
+              <div className="flex flex-col gap-2 pt-3 mt-2 border-t border-white/[0.06]">
                 <Button
                   variant="ghost"
-                  className="text-zinc-300 hover:text-white hover:bg-white/5 justify-start"
+                  className="text-zinc-300 hover:text-white hover:bg-white/5 justify-start font-medium"
                   onClick={() => router.push('/login')}
                 >
                   Sign In
@@ -450,7 +349,7 @@ export default function HomePage() {
                   onClick={() => router.push('/login?tab=register')}
                 >
                   Get Started
-                  <ArrowRight className="h-4 w-4 ml-1" />
+                  <ArrowRight className="h-4 w-4 ml-1.5" />
                 </Button>
               </div>
             </div>
@@ -459,7 +358,7 @@ export default function HomePage() {
       </header>
 
       {/* ─── HERO SECTION ─── */}
-      <section className="relative overflow-hidden pt-28 pb-16 md:pt-36 md:pb-24 noise-overlay">
+      <section className="relative overflow-hidden pt-24 pb-16 md:pt-32 md:pb-20 lg:pt-36 lg:pb-24 noise-overlay">
         {/* Background gradient orbs */}
         <div className="absolute top-0 left-1/4 w-[600px] h-[600px] bg-emerald-500/[0.07] rounded-full blur-[120px] animate-pulse-glow" />
         <div className="absolute bottom-0 right-1/4 w-[500px] h-[500px] bg-emerald-300/[0.05] rounded-full blur-[100px] animate-pulse-glow" style={{ animationDelay: '2s' }} />
@@ -474,50 +373,38 @@ export default function HomePage() {
           }}
         />
 
-        <div className="container mx-auto px-4 md:px-6 relative z-10">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
           <div className="max-w-4xl mx-auto text-center">
             {/* Badge */}
-            <div className="animate-fade-in-up inline-flex items-center gap-2 rounded-full glass px-4 py-1.5 text-sm mb-8">
-              <Zap className="h-3.5 w-3.5 text-emerald-400" />
-              <span className="text-zinc-300">Nepal&apos;s #1 Accounting Software</span>
+            <div className="animate-fade-in-up inline-flex items-center gap-2 rounded-full glass px-5 py-2 text-sm mb-8 hover:bg-white/[0.06] transition-colors duration-300 cursor-default">
+              <Sparkles className="h-3.5 w-3.5 text-emerald-400" />
+              <span className="text-zinc-300 font-medium">Nepal&apos;s #1 Accounting Software</span>
               <ChevronRight className="h-3.5 w-3.5 text-emerald-400" />
             </div>
 
             {/* Headline */}
-            <h1
-              className="text-4xl sm:text-5xl md:text-7xl font-bold tracking-tight mb-6 animate-fade-in-up"
-              style={{ animationDelay: '0.1s' }}
-            >
-              Easy like Excel,
+            <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-extrabold tracking-tight mb-6 animate-fade-in-up stagger-2">
+              <span className="text-white">Easy like Excel,</span>
               <br />
-              <span className="bg-gradient-to-r from-emerald-400 via-emerald-300 to-emerald-500 bg-clip-text text-transparent animate-gradient-shift">
+              <span className="bg-gradient-to-r from-emerald-400 via-emerald-300 to-teal-400 bg-clip-text text-transparent animate-gradient-shift text-glow-emerald">
                 Powerful like ERP
               </span>
             </h1>
 
             {/* Subheadline */}
-            <p
-              className="text-lg md:text-xl text-zinc-400 mb-2 animate-fade-in-up"
-              style={{ animationDelay: '0.2s' }}
-            >
+            <p className="text-lg md:text-xl text-zinc-400 mb-2 animate-fade-in-up stagger-3 font-light tracking-wide">
               Hisab Pro — नेपालको आफ्नै लेखांकन प्रणाली
             </p>
-            <p
-              className="text-sm md:text-base text-zinc-500 mb-10 max-w-xl mx-auto animate-fade-in-up"
-              style={{ animationDelay: '0.3s' }}
-            >
+            <p className="text-sm md:text-base text-zinc-500 mb-10 max-w-xl mx-auto animate-fade-in-up stagger-4 leading-relaxed">
               Nepal&apos;s first dual-mode accounting software with VAT/TDS compliance,
               NFRS standards, and bilingual support. Built for Nepali businesses.
             </p>
 
             {/* CTA Buttons */}
-            <div
-              className="flex flex-col sm:flex-row items-center justify-center gap-4 animate-fade-in-up"
-              style={{ animationDelay: '0.4s' }}
-            >
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-4 animate-fade-in-up stagger-5">
               <Button
                 size="lg"
-                className="gap-2 text-base px-8 h-12 bg-emerald-500 hover:bg-emerald-400 text-black font-semibold shadow-xl shadow-emerald-500/20 hover:shadow-emerald-400/30 transition-all duration-300 hover:scale-[1.02]"
+                className="gap-2 text-base px-8 h-13 bg-emerald-500 hover:bg-emerald-400 text-black font-semibold shadow-xl shadow-emerald-500/25 hover:shadow-emerald-400/35 transition-all duration-300 hover:scale-[1.03] py-3.5"
                 onClick={() => router.push('/login?tab=register')}
               >
                 Start Free Trial
@@ -526,31 +413,27 @@ export default function HomePage() {
               <Button
                 size="lg"
                 variant="outline"
-                className="gap-2 text-base px-8 h-12 border-zinc-700 text-zinc-300 hover:text-white hover:border-zinc-500 hover:bg-white/5 transition-all duration-300"
+                className="gap-2 text-base px-8 h-13 border-zinc-700 text-zinc-300 hover:text-white hover:border-zinc-500 hover:bg-white/5 transition-all duration-300 py-3.5"
                 onClick={() => router.push('/login')}
               >
-                Sign In to Account
+                <Play className="h-4 w-4" />
+                See How It Works
               </Button>
             </div>
-            <p
-              className="text-xs text-zinc-600 mt-4 animate-fade-in-up"
-              style={{ animationDelay: '0.5s' }}
-            >
-              No credit card required. 30-day free trial on Pro plan.
+            <p className="text-xs text-zinc-600 mt-5 animate-fade-in-up stagger-6">
+              No credit card required • 30-day free trial on Pro plan
             </p>
           </div>
 
           {/* Hero Dashboard Mockup */}
-          <div
-            className="mt-16 md:mt-20 max-w-5xl mx-auto animate-fade-in-up"
-            style={{ animationDelay: '0.6s' }}
-          >
+          <div className="mt-14 md:mt-18 lg:mt-20 max-w-5xl mx-auto animate-fade-in-up stagger-7">
             <div className="relative">
               {/* Glow behind image */}
               <div className="absolute inset-0 bg-emerald-500/20 blur-[60px] rounded-3xl" />
+              <div className="absolute -inset-4 bg-emerald-500/[0.06] blur-[100px] rounded-3xl" />
 
               {/* Browser chrome */}
-              <div className="relative glass-strong rounded-2xl overflow-hidden shadow-2xl shadow-black/40">
+              <div className="relative glass-strong rounded-2xl overflow-hidden shadow-2xl shadow-black/40 premium-glow">
                 {/* Top bar */}
                 <div className="flex items-center gap-2 px-4 py-3 border-b border-white/[0.06]">
                   <div className="flex gap-1.5">
@@ -559,7 +442,7 @@ export default function HomePage() {
                     <div className="w-3 h-3 rounded-full bg-emerald-500/70" />
                   </div>
                   <div className="flex-1 mx-4">
-                    <div className="bg-white/[0.05] rounded-md px-3 py-1 text-xs text-zinc-500 text-center max-w-xs mx-auto">
+                    <div className="bg-white/[0.05] rounded-md px-3 py-1 text-xs text-zinc-500 text-center max-w-xs mx-auto font-mono">
                       app.hisabpro.com/dashboard
                     </div>
                   </div>
@@ -573,22 +456,22 @@ export default function HomePage() {
               </div>
 
               {/* Floating card decorations */}
-              <div className="absolute -right-4 top-1/4 glass rounded-xl px-4 py-3 shadow-xl animate-float hidden lg:flex items-center gap-3">
-                <div className="h-8 w-8 rounded-lg bg-emerald-500/20 flex items-center justify-center">
+              <div className="absolute -right-3 md:-right-6 top-1/4 glass rounded-xl px-4 py-3 shadow-xl animate-float hidden lg:flex items-center gap-3 hover-lift cursor-default">
+                <div className="h-9 w-9 rounded-lg bg-emerald-500/20 flex items-center justify-center">
                   <Receipt className="h-4 w-4 text-emerald-400" />
                 </div>
                 <div>
-                  <p className="text-xs text-zinc-400">VAT Filed</p>
+                  <p className="text-[11px] text-zinc-500 font-medium">VAT Filed</p>
                   <p className="text-sm font-semibold text-emerald-400">Rs. 2,45,000</p>
                 </div>
               </div>
 
-              <div className="absolute -left-4 bottom-1/4 glass rounded-xl px-4 py-3 shadow-xl animate-float-slow hidden lg:flex items-center gap-3" style={{ animationDelay: '1s' }}>
-                <div className="h-8 w-8 rounded-lg bg-emerald-500/20 flex items-center justify-center">
+              <div className="absolute -left-3 md:-left-6 bottom-1/4 glass rounded-xl px-4 py-3 shadow-xl animate-float-slow hidden lg:flex items-center gap-3 hover-lift cursor-default" style={{ animationDelay: '1s' }}>
+                <div className="h-9 w-9 rounded-lg bg-emerald-500/20 flex items-center justify-center">
                   <TrendingUp className="h-4 w-4 text-emerald-400" />
                 </div>
                 <div>
-                  <p className="text-xs text-zinc-400">Revenue</p>
+                  <p className="text-[11px] text-zinc-500 font-medium">Revenue</p>
                   <p className="text-sm font-semibold text-white">+23.5%</p>
                 </div>
               </div>
@@ -598,16 +481,16 @@ export default function HomePage() {
       </section>
 
       {/* ─── TRUSTED BY SECTION ─── */}
-      <section className="relative py-12 border-y border-white/[0.04]">
-        <div className="container mx-auto px-4 md:px-6">
-          <p className="text-center text-xs uppercase tracking-[0.2em] text-zinc-600 mb-8">
+      <section className="relative py-10 border-y border-white/[0.04]">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <p className="text-center text-[11px] uppercase tracking-[0.25em] text-zinc-600 mb-7 font-medium">
             Trusted by businesses across Nepal
           </p>
-          <div className="flex flex-wrap items-center justify-center gap-x-12 gap-y-4">
+          <div className="flex flex-wrap items-center justify-center gap-x-10 gap-y-4 md:gap-x-14">
             {['Sharma Trading', 'Kathmandu Hotels', 'BT Construction', 'Himalayan Exports', 'Everest Retail', 'Pokhara Resorts'].map((name) => (
-              <div key={name} className="flex items-center gap-2 text-zinc-600 hover:text-zinc-400 transition-colors">
-                <Building2 className="h-4 w-4" />
-                <span className="text-sm font-medium">{name}</span>
+              <div key={name} className="flex items-center gap-2 text-zinc-600 hover:text-zinc-400 transition-colors duration-300 group cursor-default">
+                <Building2 className="h-4 w-4 group-hover:text-emerald-400/60 transition-colors duration-300" />
+                <span className="text-sm font-medium tracking-wide">{name}</span>
               </div>
             ))}
           </div>
@@ -617,18 +500,18 @@ export default function HomePage() {
       {/* ─── STATS SECTION ─── */}
       <section className="relative py-20 overflow-hidden">
         <div className="absolute inset-0 bg-gradient-to-b from-emerald-500/[0.03] via-transparent to-transparent" />
-        <div className="container mx-auto px-4 md:px-6 relative z-10">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-6 max-w-4xl mx-auto">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-5 md:gap-6 max-w-4xl mx-auto">
             {STATS.map((stat, i) => (
               <div
                 key={stat.label}
                 ref={statRefs[i].ref}
-                className="text-center glass rounded-2xl py-8 px-4 hover:bg-white/[0.06] transition-colors duration-300"
+                className={`text-center glass rounded-2xl py-8 px-4 hover-lift cursor-default animate-fade-in-up stagger-${i + 1}`}
               >
-                <p className="text-3xl md:text-4xl font-bold text-emerald-400 stat-number mb-2">
+                <p className="text-3xl md:text-4xl font-bold text-emerald-400 stat-number mb-2 tracking-tight">
                   {statRefs[i].count}{stat.suffix}
                 </p>
-                <p className="text-sm text-zinc-400">{stat.label}</p>
+                <p className="text-sm text-zinc-400 font-medium">{stat.label}</p>
                 <p className="text-xs text-zinc-600 mt-1">{stat.labelNe}</p>
               </div>
             ))}
@@ -639,35 +522,35 @@ export default function HomePage() {
       {/* ─── FEATURES GRID ─── */}
       <section id="features" className="relative py-20 noise-overlay">
         <div className="absolute top-1/2 left-0 w-[400px] h-[400px] bg-emerald-500/[0.04] rounded-full blur-[100px]" />
-        <div className="container mx-auto px-4 md:px-6 relative z-10">
-          <div className="text-center mb-16">
-            <Badge variant="outline" className="border-emerald-500/30 text-emerald-400 mb-4">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
+          <div className="text-center mb-16 animate-fade-in-up">
+            <Badge variant="outline" className="border-emerald-500/30 text-emerald-400 mb-4 px-4 py-1">
+              <Sparkles className="h-3 w-3 mr-1.5" />
               Features
             </Badge>
             <h2 className="text-3xl md:text-4xl font-bold tracking-tight mb-3 text-white">
               Everything Nepali Businesses Need
             </h2>
-            <p className="text-zinc-400 text-lg">
+            <p className="text-zinc-400 text-lg font-light">
               नेपाली व्यवसायको लागि सम्पूर्ण लेखांकन समाधान
             </p>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-5xl mx-auto">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 md:gap-6 max-w-5xl mx-auto">
             {FEATURES.map((feature, idx) => {
               const Icon = feature.icon
               return (
                 <div
                   key={feature.title}
-                  className="glass rounded-2xl p-6 hover:bg-white/[0.06] transition-all duration-300 group hover:border-emerald-500/20"
-                  style={{ animationDelay: `${idx * 0.1}s` }}
+                  className={`glass rounded-2xl p-6 hover-lift group cursor-default animate-fade-in-up stagger-${idx + 1}`}
                 >
-                  <div className="h-12 w-12 rounded-xl bg-emerald-500/10 flex items-center justify-center mb-5 group-hover:bg-emerald-500/20 transition-colors duration-300">
+                  <div className="h-12 w-12 rounded-xl bg-emerald-500/10 flex items-center justify-center mb-5 group-hover:bg-emerald-500/20 group-hover:scale-110 transition-all duration-300">
                     <Icon className="h-5 w-5 text-emerald-400" />
                   </div>
-                  <h3 className="font-semibold text-lg mb-1 text-white">{feature.title}</h3>
+                  <h3 className="font-semibold text-lg mb-1 text-white tracking-tight">{feature.title}</h3>
                   <p className="text-sm text-emerald-400/70 font-medium mb-2">
                     {feature.titleNe}
                   </p>
-                  <p className="text-sm text-zinc-500">{feature.desc}</p>
+                  <p className="text-sm text-zinc-500 leading-relaxed">{feature.desc}</p>
                 </div>
               )
             })}
@@ -676,8 +559,8 @@ export default function HomePage() {
       </section>
 
       {/* ─── COMPLIANCE HIGHLIGHT ─── */}
-      <section className="relative py-16 border-y border-white/[0.04]">
-        <div className="container mx-auto px-4 md:px-6">
+      <section className="relative py-14 border-y border-white/[0.04]">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex flex-wrap items-center justify-center gap-6 md:gap-10 max-w-4xl mx-auto">
             {[
               { icon: Shield, text: 'IRD Compliant', subtext: 'आईआरडी अनुपालन' },
@@ -688,8 +571,8 @@ export default function HomePage() {
             ].map((item) => {
               const ItemIcon = item.icon
               return (
-                <div key={item.text} className="flex items-center gap-3 group">
-                  <div className="h-10 w-10 rounded-lg bg-emerald-500/10 flex items-center justify-center group-hover:bg-emerald-500/20 transition-colors duration-200">
+                <div key={item.text} className="flex items-center gap-3 group cursor-default">
+                  <div className="h-10 w-10 rounded-lg bg-emerald-500/10 flex items-center justify-center group-hover:bg-emerald-500/20 group-hover:scale-110 transition-all duration-300">
                     <ItemIcon className="h-4 w-4 text-emerald-400" />
                   </div>
                   <div>
@@ -706,34 +589,35 @@ export default function HomePage() {
       {/* ─── TESTIMONIALS ─── */}
       <section id="testimonials" className="relative py-20 noise-overlay">
         <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-emerald-500/[0.04] rounded-full blur-[120px]" />
-        <div className="container mx-auto px-4 md:px-6 relative z-10">
-          <div className="text-center mb-16">
-            <Badge variant="outline" className="border-emerald-500/30 text-emerald-400 mb-4">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
+          <div className="text-center mb-16 animate-fade-in-up">
+            <Badge variant="outline" className="border-emerald-500/30 text-emerald-400 mb-4 px-4 py-1">
+              <Star className="h-3 w-3 mr-1.5 fill-emerald-400" />
               Testimonials
             </Badge>
             <h2 className="text-3xl md:text-4xl font-bold tracking-tight mb-3 text-white">
               Loved by Nepali Businesses
             </h2>
-            <p className="text-zinc-400 text-lg">
+            <p className="text-zinc-400 text-lg font-light">
               नेपाली व्यवसायहरूले मन पराएको
             </p>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-5xl mx-auto">
-            {TESTIMONIALS.map((t) => (
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-5 md:gap-6 max-w-5xl mx-auto">
+            {TESTIMONIALS.map((t, idx) => (
               <Card
                 key={t.name}
-                className="bg-white/[0.03] border-white/[0.06] backdrop-blur-md hover:bg-white/[0.05] transition-all duration-300 hover:border-emerald-500/20 py-0"
+                className={`bg-white/[0.03] border-white/[0.06] backdrop-blur-md hover-lift py-0 animate-fade-in-up stagger-${idx + 1}`}
               >
                 <CardContent className="pt-6 pb-6 px-6">
                   <div className="flex gap-0.5 mb-4">
                     {Array.from({ length: t.rating }).map((_, i) => (
-                      <Star key={i} className="h-4 w-4 fill-amber-400 text-amber-400" />
+                      <Star key={i} className="h-3.5 w-3.5 fill-amber-400 text-amber-400" />
                     ))}
                   </div>
-                  <Quote className="h-5 w-5 text-emerald-500/30 mb-3 rotate-180" />
+                  <Quote className="h-5 w-5 text-emerald-500/25 mb-3 rotate-180" />
                   <p className="text-sm text-zinc-300 leading-relaxed mb-6">{t.text}</p>
                   <div className="flex items-center gap-3 pt-4 border-t border-white/[0.06]">
-                    <div className="h-10 w-10 rounded-full bg-emerald-500/20 flex items-center justify-center text-emerald-400 text-sm font-bold">
+                    <div className="h-10 w-10 rounded-full bg-gradient-to-br from-emerald-500/20 to-emerald-600/20 flex items-center justify-center text-emerald-400 text-sm font-bold ring-1 ring-emerald-500/20">
                       {t.avatar}
                     </div>
                     <div>
@@ -751,44 +635,44 @@ export default function HomePage() {
       {/* ─── PRICING SECTION ─── */}
       <section id="pricing" className="relative py-20">
         <div className="absolute inset-0 bg-gradient-to-b from-transparent via-emerald-500/[0.02] to-transparent" />
-        <div className="container mx-auto px-4 md:px-6 relative z-10">
-          <div className="text-center mb-16">
-            <Badge variant="outline" className="border-emerald-500/30 text-emerald-400 mb-4">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
+          <div className="text-center mb-16 animate-fade-in-up">
+            <Badge variant="outline" className="border-emerald-500/30 text-emerald-400 mb-4 px-4 py-1">
               Pricing
             </Badge>
             <h2 className="text-3xl md:text-4xl font-bold tracking-tight mb-3 text-white">
               Simple, Transparent Pricing
             </h2>
-            <p className="text-zinc-400 text-lg">
+            <p className="text-zinc-400 text-lg font-light">
               सरल र पारदर्शी मूल्य निर्धारण
             </p>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-4xl mx-auto">
-            {PLANS.map((plan) => (
+            {PLANS.map((plan, idx) => (
               <div
                 key={plan.name}
-                className={`rounded-2xl p-6 relative transition-all duration-300 hover:scale-[1.02] ${
+                className={`rounded-2xl p-7 relative transition-all duration-300 hover-lift animate-fade-in-up stagger-${idx + 1} ${
                   plan.highlighted
-                    ? 'gradient-border'
+                    ? 'gradient-border animate-premium-glow'
                     : 'glass hover:bg-white/[0.06]'
                 }`}
               >
                 {plan.highlighted && (
-                  <div className="absolute -top-3 left-1/2 -translate-x-1/2 z-10">
-                    <span className="bg-gradient-to-r from-emerald-500 to-emerald-400 text-black text-xs font-bold px-4 py-1 rounded-full shadow-lg shadow-emerald-500/30">
+                  <div className="absolute -top-3.5 left-1/2 -translate-x-1/2 z-10">
+                    <span className="bg-gradient-to-r from-emerald-500 to-emerald-400 text-black text-xs font-bold px-5 py-1.5 rounded-full shadow-lg shadow-emerald-500/30 tracking-wide uppercase">
                       Most Popular
                     </span>
                   </div>
                 )}
                 <div className="mb-6">
-                  <h3 className="font-semibold text-lg text-white">{plan.name}</h3>
+                  <h3 className="font-semibold text-lg text-white tracking-tight">{plan.name}</h3>
                   <p className="text-sm text-emerald-400/70">{plan.nameNe}</p>
                 </div>
-                <div className="mb-6">
-                  <span className="text-3xl font-bold text-white">{plan.price}</span>
-                  <span className="text-zinc-500 text-sm">{plan.period}</span>
+                <div className="mb-7">
+                  <span className="text-4xl font-bold text-white tracking-tight">{plan.price}</span>
+                  <span className="text-zinc-500 text-sm ml-1">{plan.period}</span>
                 </div>
-                <ul className="space-y-3 mb-8">
+                <ul className="space-y-3.5 mb-8">
                   {plan.features.map((feature) => (
                     <li key={feature} className="flex items-start gap-3 text-sm">
                       <CheckCircle2 className="h-4 w-4 text-emerald-400 shrink-0 mt-0.5" />
@@ -799,12 +683,13 @@ export default function HomePage() {
                 <Button
                   className={`w-full h-11 font-semibold transition-all duration-300 ${
                     plan.highlighted
-                      ? 'bg-emerald-500 hover:bg-emerald-400 text-black shadow-lg shadow-emerald-500/20 hover:shadow-emerald-400/30'
+                      ? 'bg-emerald-500 hover:bg-emerald-400 text-black shadow-lg shadow-emerald-500/20 hover:shadow-emerald-400/30 hover:scale-[1.02]'
                       : 'bg-white/[0.06] hover:bg-white/[0.1] text-white border border-white/[0.08] hover:border-white/[0.15]'
                   }`}
                   onClick={() => router.push('/login?tab=register')}
                 >
                   {plan.cta}
+                  <ArrowRight className="h-4 w-4 ml-1.5" />
                 </Button>
               </div>
             ))}
@@ -820,31 +705,38 @@ export default function HomePage() {
         {/* Background effects */}
         <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/[0.08] via-transparent to-emerald-300/[0.05]" />
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-emerald-500/10 rounded-full blur-[100px]" />
+        <div className="absolute top-0 right-0 w-[300px] h-[300px] bg-emerald-300/[0.05] rounded-full blur-[80px] animate-pulse-glow" />
 
-        <div className="container mx-auto px-4 md:px-6 relative z-10">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
           <div className="max-w-2xl mx-auto text-center">
-            <div className="glass-strong rounded-3xl p-10 md:p-14">
-              <div className="inline-flex items-center gap-2 rounded-full bg-emerald-500/10 px-4 py-1.5 text-sm mb-6">
-                <Clock className="h-3.5 w-3.5 text-emerald-400" />
-                <span className="text-emerald-400">Start in under 2 minutes</span>
+            <div className="glass-strong rounded-3xl p-10 md:p-14 relative overflow-hidden animate-fade-in-up">
+              {/* Inner glow accent */}
+              <div className="absolute top-0 left-1/2 -translate-x-1/2 w-1/2 h-px bg-gradient-to-r from-transparent via-emerald-400/50 to-transparent" />
+              <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-1/3 h-px bg-gradient-to-r from-transparent via-emerald-500/30 to-transparent" />
+
+              <div className="relative z-10">
+                <div className="inline-flex items-center gap-2 rounded-full bg-emerald-500/10 px-4 py-1.5 text-sm mb-6 ring-1 ring-emerald-500/20">
+                  <Clock className="h-3.5 w-3.5 text-emerald-400" />
+                  <span className="text-emerald-400 font-medium">Start in under 2 minutes</span>
+                </div>
+                <h2 className="text-3xl md:text-4xl font-bold tracking-tight mb-4 text-white">
+                  Ready to Simplify Your Accounting?
+                </h2>
+                <p className="text-zinc-400 text-lg mb-8 font-light">
+                  आफ्नो लेखांकन सरल बनाउनुहोस् — आजै सुरु गर्नुहोस्!
+                </p>
+                <Button
+                  size="lg"
+                  className="gap-2 text-base px-10 h-13 bg-emerald-500 hover:bg-emerald-400 text-black font-semibold shadow-xl shadow-emerald-500/25 hover:shadow-emerald-400/35 transition-all duration-300 hover:scale-[1.03] py-3.5"
+                  onClick={() => router.push('/login?tab=register')}
+                >
+                  Create Free Account
+                  <ArrowRight className="h-5 w-5" />
+                </Button>
+                <p className="text-xs text-zinc-600 mt-5">
+                  No credit card required • VAT & TDS compliant from day one
+                </p>
               </div>
-              <h2 className="text-3xl md:text-4xl font-bold tracking-tight mb-4 text-white">
-                Ready to Simplify Your Accounting?
-              </h2>
-              <p className="text-zinc-400 text-lg mb-8">
-                आफ्नो लेखांकन सरल बनाउनुहोस् — आजै सुरु गर्नुहोस्!
-              </p>
-              <Button
-                size="lg"
-                className="gap-2 text-base px-10 h-13 bg-emerald-500 hover:bg-emerald-400 text-black font-semibold shadow-xl shadow-emerald-500/20 hover:shadow-emerald-400/30 transition-all duration-300 hover:scale-[1.02] py-3"
-                onClick={() => router.push('/login?tab=register')}
-              >
-                Create Free Account
-                <ArrowRight className="h-5 w-5" />
-              </Button>
-              <p className="text-xs text-zinc-600 mt-5">
-                No credit card required • VAT & TDS compliant from day one
-              </p>
             </div>
           </div>
         </div>
@@ -852,31 +744,31 @@ export default function HomePage() {
 
       {/* ─── FOOTER ─── */}
       <footer className="border-t border-white/[0.06] bg-[#060608] mt-auto">
-        <div className="container mx-auto px-4 md:px-6 py-14">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-14">
           <div className="grid grid-cols-2 md:grid-cols-5 gap-8 mb-12">
             {/* Brand */}
             <div className="col-span-2 md:col-span-1">
-              <div className="flex items-center gap-2 mb-4">
+              <div className="flex items-center gap-2.5 mb-4">
                 <img src="/logo-generated.png" alt="Hisab Pro" className="h-7 w-7 rounded-md" />
-                <span className="font-bold text-white">
+                <span className="font-bold text-white tracking-tight">
                   Hisab<span className="text-emerald-400"> Pro</span>
                 </span>
               </div>
-              <p className="text-sm text-zinc-500 leading-relaxed">
+              <p className="text-sm text-zinc-500 leading-relaxed mb-2">
                 Nepal&apos;s first dual-mode accounting software. VAT, TDS & NFRS compliant.
               </p>
-              <p className="text-sm text-zinc-600 mt-2">
+              <p className="text-sm text-zinc-600">
                 नेपालको पहिलो दोहोरो-मोड लेखांकन सफ्टवेयर
               </p>
             </div>
 
             {/* Product */}
             <div>
-              <h4 className="text-sm font-semibold text-zinc-300 mb-4">Product</h4>
+              <h4 className="text-xs font-semibold text-zinc-300 mb-4 uppercase tracking-wider">Product</h4>
               <ul className="space-y-2.5">
                 {['Features', 'Pricing', 'Integrations', 'Changelog', 'Roadmap'].map((item) => (
                   <li key={item}>
-                    <a href="#" className="text-sm text-zinc-500 hover:text-emerald-400 transition-colors">
+                    <a href="#" className="text-sm text-zinc-500 hover:text-emerald-400 transition-colors duration-200">
                       {item}
                     </a>
                   </li>
@@ -886,11 +778,11 @@ export default function HomePage() {
 
             {/* Compliance */}
             <div>
-              <h4 className="text-sm font-semibold text-zinc-300 mb-4">Compliance</h4>
+              <h4 className="text-xs font-semibold text-zinc-300 mb-4 uppercase tracking-wider">Compliance</h4>
               <ul className="space-y-2.5">
                 {['VAT 13% Filing', 'TDS Management', 'NFRS Standards', 'IRD Audit Ready', 'SSF & PAN'].map((item) => (
                   <li key={item}>
-                    <a href="#" className="text-sm text-zinc-500 hover:text-emerald-400 transition-colors">
+                    <a href="#" className="text-sm text-zinc-500 hover:text-emerald-400 transition-colors duration-200">
                       {item}
                     </a>
                   </li>
@@ -900,11 +792,11 @@ export default function HomePage() {
 
             {/* Resources */}
             <div>
-              <h4 className="text-sm font-semibold text-zinc-300 mb-4">Resources</h4>
+              <h4 className="text-xs font-semibold text-zinc-300 mb-4 uppercase tracking-wider">Resources</h4>
               <ul className="space-y-2.5">
                 {['Documentation', 'Help Center', 'Blog', 'Community', 'API Reference'].map((item) => (
                   <li key={item}>
-                    <a href="#" className="text-sm text-zinc-500 hover:text-emerald-400 transition-colors">
+                    <a href="#" className="text-sm text-zinc-500 hover:text-emerald-400 transition-colors duration-200">
                       {item}
                     </a>
                   </li>
@@ -914,11 +806,11 @@ export default function HomePage() {
 
             {/* Company */}
             <div>
-              <h4 className="text-sm font-semibold text-zinc-300 mb-4">Company</h4>
+              <h4 className="text-xs font-semibold text-zinc-300 mb-4 uppercase tracking-wider">Company</h4>
               <ul className="space-y-2.5">
                 {['About Us', 'Contact', 'Privacy Policy', 'Terms of Service', 'Careers'].map((item) => (
                   <li key={item}>
-                    <a href="#" className="text-sm text-zinc-500 hover:text-emerald-400 transition-colors">
+                    <a href="#" className="text-sm text-zinc-500 hover:text-emerald-400 transition-colors duration-200">
                       {item}
                     </a>
                   </li>
@@ -932,7 +824,7 @@ export default function HomePage() {
             <p className="text-xs text-zinc-600">
               &copy; {new Date().getFullYear()} Hisab Pro. All rights reserved. Nepal&apos;s Accounting System.
             </p>
-            <div className="flex items-center gap-6">
+            <div className="flex items-center gap-5 flex-wrap justify-center">
               <span className="flex items-center gap-1.5 text-xs text-zinc-600">
                 <Shield className="h-3.5 w-3.5 text-emerald-500/50" />
                 IRD Compliant

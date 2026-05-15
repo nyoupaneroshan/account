@@ -30,6 +30,7 @@ import {
   Shield,
   LogOut,
   Folder,
+  Sparkles,
 } from 'lucide-react'
 import { Switch } from '@/components/ui/switch'
 import { ScrollArea } from '@/components/ui/scroll-area'
@@ -216,191 +217,215 @@ export function AppSidebar({ onLogout }: { onLogout?: () => void }) {
   const currentOrg = userOrganizations.find(o => o.id === currentOrgId)
 
   return (
-    <div className="flex h-full flex-col bg-[#0c0f14] w-72">
-      {/* Organization Header */}
-      <div className="p-4 border-b border-white/5">
-        <div className="flex items-center gap-3">
-          <div className="h-10 w-10 rounded-xl overflow-hidden bg-gradient-to-br from-emerald-500/20 to-emerald-700/20 flex items-center justify-center shrink-0 ring-1 ring-emerald-500/20">
-            <Image
-              src="/logo-generated.png"
-              alt="Hisab Pro"
-              width={36}
-              height={36}
-              className="object-contain"
-              priority
-            />
-          </div>
-          <div className="flex-1 min-w-0">
-            <h3 className="text-sm font-semibold text-zinc-100 truncate">{currentOrgName}</h3>
-            <div className="flex items-center gap-2 mt-0.5">
-              <span className="text-[11px] text-zinc-500">FY: {currentFiscalYear}</span>
-              {currentOrg && (
-                <Badge
-                  className={cn(
-                    "text-[9px] px-1.5 py-0 h-4 leading-none font-medium border-0",
-                    currentOrg.plan === 'pro'
-                      ? 'bg-emerald-500/20 text-emerald-400'
-                      : currentOrg.plan === 'enterprise'
-                        ? 'bg-amber-500/20 text-amber-400'
-                        : 'bg-zinc-700/50 text-zinc-400'
-                  )}
-                >
-                  {currentOrg.plan.charAt(0).toUpperCase() + currentOrg.plan.slice(1)}
-                </Badge>
-              )}
-            </div>
-          </div>
-        </div>
+    <div className="flex h-full flex-col bg-[#0c0f14] w-72 noise-overlay relative overflow-hidden">
+      {/* Subtle gradient mesh background */}
+      <div className="absolute inset-0 pointer-events-none opacity-50">
+        <div className="absolute top-0 left-0 w-40 h-40 bg-emerald-500/[0.03] rounded-full blur-3xl" />
+        <div className="absolute bottom-20 right-0 w-32 h-32 bg-emerald-500/[0.02] rounded-full blur-3xl" />
       </div>
 
-      {/* Mode Toggle */}
-      <div className="px-4 py-3 border-b border-white/5">
-        <div className="flex items-center justify-between">
-          <span className={cn(
-            "text-xs font-medium transition-colors",
-            mode === 'simple' ? 'text-emerald-400' : 'text-zinc-500'
-          )}>
-            Simple
-          </span>
-          <Switch
-            checked={mode === 'advanced'}
-            onCheckedChange={(checked) => setMode(checked ? 'advanced' : 'simple')}
-            className="data-[state=checked]:bg-emerald-600 data-[state=unchecked]:bg-zinc-700"
-          />
-          <span className={cn(
-            "text-xs font-medium transition-colors",
-            mode === 'advanced' ? 'text-emerald-400' : 'text-zinc-500'
-          )}>
-            Advanced
-          </span>
-        </div>
-        <p className="text-[10px] text-zinc-600 mt-1.5">
-          {mode === 'simple' ? 'Easy entry, auto-accounting' : 'Full double-entry system'}
-        </p>
-      </div>
+      {/* Content wrapper above the gradient */}
+      <div className="relative z-10 flex h-full flex-col">
 
-      {/* Navigation */}
-      <ScrollArea className="flex-1">
-        <nav className="p-3 space-y-1">
-          {navGroups.map((group) => (
-            <div key={group.label}>
-              <button
-                onClick={() => toggleGroup(group.label)}
-                className="flex items-center gap-1.5 w-full px-2 py-2 text-[11px] font-semibold uppercase tracking-wider text-zinc-500 hover:text-zinc-300 transition-colors rounded-md hover:bg-white/[0.03]"
-              >
-                {openGroups[group.label] ? (
-                  <ChevronDown className="h-3 w-3 text-emerald-500/60" />
-                ) : (
-                  <ChevronRight className="h-3 w-3 text-zinc-600" />
-                )}
-                <span>{group.label}</span>
-                <span className="text-[9px] text-zinc-600 ml-auto">{group.labelNepali}</span>
-              </button>
-              {openGroups[group.label] && (
-                <div className="space-y-0.5 mt-0.5">
-                  {group.items.map((item) => {
-                    const Icon = item.icon
-                    const isActive = isActiveItem(item)
-                    return (
-                      <Tooltip key={item.id}>
-                        <TooltipTrigger asChild>
-                          <button
-                            onClick={() => handleNavigate(item)}
-                            className={cn(
-                              'flex items-center gap-3 w-full px-3 py-2 rounded-lg text-[13px] transition-all duration-200 group relative',
-                              isActive
-                                ? 'bg-emerald-500/10 text-emerald-400 font-medium'
-                                : 'text-zinc-400 hover:bg-white/[0.04] hover:text-zinc-200'
-                            )}
-                          >
-                            {/* Active indicator bar */}
-                            {isActive && (
-                              <div className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-5 rounded-r-full bg-emerald-500" />
-                            )}
-                            <Icon className={cn(
-                              'h-4 w-4 shrink-0 transition-colors',
-                              isActive ? 'text-emerald-400' : 'text-zinc-500 group-hover:text-zinc-300'
-                            )} />
-                            <div className="flex flex-col items-start min-w-0">
-                              <span className="truncate w-full text-left">{item.label}</span>
-                              {isActive && (
-                                <span className="text-[10px] text-emerald-500/70 truncate w-full text-left">{item.labelNepali}</span>
-                              )}
-                            </div>
-                          </button>
-                        </TooltipTrigger>
-                        <TooltipContent side="right" className="bg-zinc-800 text-zinc-200 border-zinc-700">
-                          <p>{item.label} <span className="text-zinc-500">({item.labelNepali})</span></p>
-                        </TooltipContent>
-                      </Tooltip>
-                    )
-                  })}
-                </div>
-              )}
+        {/* Organization Header — Polished with subtle gradient background */}
+        <div className="p-4 border-b border-white/[0.06] bg-gradient-to-b from-white/[0.03] to-transparent">
+          <div className="flex items-center gap-3">
+            <div className="h-10 w-10 rounded-xl overflow-hidden bg-gradient-to-br from-emerald-500/20 to-emerald-700/30 flex items-center justify-center shrink-0 ring-2 ring-emerald-500/20 ring-offset-1 ring-offset-[#0c0f14] transition-premium group-hover:ring-emerald-500/40">
+              <Image
+                src="/logo-generated.png"
+                alt="Hisab Pro"
+                width={36}
+                height={36}
+                className="object-contain"
+                priority
+              />
             </div>
-          ))}
-        </nav>
-      </ScrollArea>
-
-      {/* Footer - User profile + Logout */}
-      <div className="border-t border-white/5">
-        {isSuperAdmin && (
-          <div className="px-3 pt-3">
-            <button
-              onClick={() => {
-                setIsAdminPortal(true)
-                setSidebarOpen(false)
-                router.push('/admin')
-              }}
-              className={cn(
-                "flex items-center gap-2 w-full px-3 py-2 rounded-lg text-xs transition-all",
-                pathname === '/admin'
-                  ? 'bg-amber-500/10 text-amber-400 font-medium'
-                  : 'text-amber-500/70 hover:bg-amber-500/5 hover:text-amber-400'
-              )}
-            >
-              <Shield className="h-3.5 w-3.5" />
-              Admin Portal
-            </button>
-          </div>
-        )}
-
-        {/* User Profile Section */}
-        {currentUser && (
-          <div className="p-3">
-            <div className="flex items-center gap-3 px-2 py-2 rounded-lg bg-white/[0.02]">
-              <Avatar className="h-8 w-8 ring-1 ring-white/10">
-                <AvatarFallback className="bg-gradient-to-br from-emerald-600 to-emerald-800 text-white text-[11px] font-semibold">
-                  {currentUser.name?.charAt(0)?.toUpperCase() || 'U'}
-                </AvatarFallback>
-              </Avatar>
-              <div className="flex-1 min-w-0">
-                <p className="text-xs font-medium text-zinc-200 truncate">{currentUser.name}</p>
-                <div className="flex items-center gap-1.5">
-                  <Badge className="text-[9px] px-1 py-0 h-3.5 leading-none bg-emerald-500/15 text-emerald-400 border-0 font-medium">
-                    {currentUser.role === 'super_admin' ? 'Super Admin' : currentUser.role === 'admin' ? 'Admin' : 'User'}
+            <div className="flex-1 min-w-0">
+              <h3 className="text-sm font-semibold text-zinc-100 truncate tracking-tight">{currentOrgName}</h3>
+              <div className="flex items-center gap-2 mt-0.5">
+                <span className="text-[11px] text-zinc-500 font-medium">FY: {currentFiscalYear}</span>
+                {currentOrg && (
+                  <Badge
+                    className={cn(
+                      "text-[9px] px-1.5 py-0 h-4 leading-none font-semibold border-0 transition-premium",
+                      currentOrg.plan === 'pro'
+                        ? 'bg-emerald-500/20 text-emerald-400 shadow-[0_0_8px_rgba(16,185,129,0.15)]'
+                        : currentOrg.plan === 'enterprise'
+                          ? 'bg-amber-500/20 text-amber-400 shadow-[0_0_8px_rgba(245,158,11,0.15)]'
+                          : 'bg-zinc-700/50 text-zinc-400'
+                    )}
+                  >
+                    {currentOrg.plan === 'pro' && <Sparkles className="h-2.5 w-2.5 mr-0.5 inline" />}
+                    {currentOrg.plan.charAt(0).toUpperCase() + currentOrg.plan.slice(1)}
                   </Badge>
-                </div>
+                )}
               </div>
             </div>
           </div>
-        )}
-
-        {/* Logout */}
-        <div className="px-3 pb-3">
-          <button
-            onClick={onLogout}
-            className="flex items-center gap-2.5 w-full px-3 py-2 rounded-lg text-xs text-zinc-500 hover:text-red-400 hover:bg-red-500/5 transition-all"
-          >
-            <LogOut className="h-3.5 w-3.5" />
-            Logout
-          </button>
         </div>
 
-        {/* Version */}
-        <div className="px-4 pb-3 flex items-center gap-1.5">
-          <div className="h-1.5 w-1.5 rounded-full bg-emerald-500/40" />
-          <span className="text-[10px] text-zinc-600">Hisab Pro v1.0</span>
+        {/* Mode Toggle — Refined with better visual feedback */}
+        <div className="px-4 py-3 border-b border-white/[0.06]">
+          <div className="flex items-center justify-between gap-2">
+            <span className={cn(
+              "text-[11px] font-semibold uppercase tracking-wider transition-premium",
+              mode === 'simple' ? 'text-emerald-400' : 'text-zinc-600'
+            )}>
+              Simple
+            </span>
+            <Switch
+              checked={mode === 'advanced'}
+              onCheckedChange={(checked) => setMode(checked ? 'advanced' : 'simple')}
+              className="data-[state=checked]:bg-emerald-600 data-[state=unchecked]:bg-zinc-700 shadow-[0_0_0_1px_rgba(16,185,129,0.1)]"
+            />
+            <span className={cn(
+              "text-[11px] font-semibold uppercase tracking-wider transition-premium",
+              mode === 'advanced' ? 'text-emerald-400' : 'text-zinc-600'
+            )}>
+              Advanced
+            </span>
+          </div>
+          <p className="text-[10px] text-zinc-600 mt-1.5 tracking-wide">
+            {mode === 'simple' ? 'Easy entry, auto-accounting' : 'Full double-entry system'}
+          </p>
+        </div>
+
+        {/* Navigation — Premium with emerald hover highlights */}
+        <ScrollArea className="flex-1 custom-scrollbar">
+          <nav className="p-3 space-y-1">
+            {navGroups.map((group) => (
+              <div key={group.label}>
+                <button
+                  onClick={() => toggleGroup(group.label)}
+                  className="flex items-center gap-1.5 w-full px-2 py-2 text-[11px] font-semibold uppercase tracking-wider text-zinc-500 hover:text-zinc-300 transition-premium rounded-md hover:bg-white/[0.03]"
+                >
+                  {openGroups[group.label] ? (
+                    <ChevronDown className="h-3 w-3 text-emerald-500/70 transition-premium" />
+                  ) : (
+                    <ChevronRight className="h-3 w-3 text-zinc-600 transition-premium" />
+                  )}
+                  <span>{group.label}</span>
+                  <span className="text-[9px] text-zinc-600 ml-auto font-normal">{group.labelNepali}</span>
+                </button>
+                {openGroups[group.label] && (
+                  <div className="space-y-0.5 mt-0.5">
+                    {group.items.map((item) => {
+                      const Icon = item.icon
+                      const isActive = isActiveItem(item)
+                      return (
+                        <Tooltip key={item.id}>
+                          <TooltipTrigger asChild>
+                            <button
+                              onClick={() => handleNavigate(item)}
+                              className={cn(
+                                'flex items-center gap-3 w-full px-3 py-2 rounded-lg text-[13px] transition-premium group relative overflow-hidden',
+                                isActive
+                                  ? 'bg-emerald-500/10 text-emerald-400 font-medium shadow-[inset_0_0_0_1px_rgba(16,185,129,0.08)]'
+                                  : 'text-zinc-400 hover:bg-emerald-500/[0.06] hover:text-emerald-300'
+                              )}
+                            >
+                              {/* Active indicator bar — Emerald bar on left with glow */}
+                              {isActive && (
+                                <div className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-5 rounded-r-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.4)]" />
+                              )}
+                              {/* Hover highlight background ripple */}
+                              {!isActive && (
+                                <div className="absolute inset-0 rounded-lg bg-emerald-500/0 group-hover:bg-emerald-500/[0.04] transition-premium" />
+                              )}
+                              <Icon className={cn(
+                                'h-4 w-4 shrink-0 transition-premium relative z-10',
+                                isActive ? 'text-emerald-400 drop-shadow-[0_0_4px_rgba(16,185,129,0.3)]' : 'text-zinc-500 group-hover:text-emerald-400 group-hover:scale-110'
+                              )} />
+                              <div className="flex flex-col items-start min-w-0 relative z-10">
+                                <span className={cn(
+                                  "truncate w-full text-left transition-premium",
+                                  !isActive && "group-hover:translate-x-0.5"
+                                )}>{item.label}</span>
+                                {isActive && (
+                                  <span className="text-[10px] text-emerald-500/70 truncate w-full text-left">{item.labelNepali}</span>
+                                )}
+                              </div>
+                            </button>
+                          </TooltipTrigger>
+                          <TooltipContent side="right" className="bg-zinc-800/95 backdrop-blur-sm text-zinc-200 border-zinc-700/80 shadow-lg">
+                            <p>{item.label} <span className="text-zinc-500">({item.labelNepali})</span></p>
+                          </TooltipContent>
+                        </Tooltip>
+                      )
+                    })}
+                  </div>
+                )}
+              </div>
+            ))}
+          </nav>
+        </ScrollArea>
+
+        {/* Footer — Refined user profile + Logout */}
+        <div className="border-t border-white/[0.06] bg-gradient-to-t from-black/20 to-transparent">
+          {isSuperAdmin && (
+            <div className="px-3 pt-3">
+              <button
+                onClick={() => {
+                  setIsAdminPortal(true)
+                  setSidebarOpen(false)
+                  router.push('/admin')
+                }}
+                className={cn(
+                  "flex items-center gap-2 w-full px-3 py-2 rounded-lg text-xs transition-premium group",
+                  pathname === '/admin'
+                    ? 'bg-amber-500/10 text-amber-400 font-medium shadow-[inset_0_0_0_1px_rgba(245,158,11,0.08)]'
+                    : 'text-amber-500/70 hover:bg-amber-500/[0.06] hover:text-amber-400'
+                )}
+              >
+                <Shield className="h-3.5 w-3.5 transition-premium group-hover:scale-110" />
+                Admin Portal
+                {pathname === '/admin' && (
+                  <div className="ml-auto h-1.5 w-1.5 rounded-full bg-amber-400 shadow-[0_0_6px_rgba(245,158,11,0.4)]" />
+                )}
+              </button>
+            </div>
+          )}
+
+          {/* User Profile Section — Premium with gradient ring */}
+          {currentUser && (
+            <div className="p-3">
+              <div className="flex items-center gap-3 px-2.5 py-2.5 rounded-xl bg-gradient-to-r from-white/[0.03] to-white/[0.01] border border-white/[0.04] transition-premium hover:border-white/[0.08] hover:from-white/[0.05] hover:to-white/[0.02]">
+                <Avatar className="h-8 w-8 ring-2 ring-emerald-500/20 ring-offset-1 ring-offset-[#0c0f14]">
+                  <AvatarFallback className="bg-gradient-to-br from-emerald-500 to-emerald-700 text-white text-[11px] font-bold shadow-[0_0_12px_rgba(16,185,129,0.2)]">
+                    {currentUser.name?.charAt(0)?.toUpperCase() || 'U'}
+                  </AvatarFallback>
+                </Avatar>
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs font-medium text-zinc-200 truncate">{currentUser.name}</p>
+                  <div className="flex items-center gap-1.5 mt-0.5">
+                    <Badge className="text-[9px] px-1.5 py-0 h-3.5 leading-none bg-emerald-500/15 text-emerald-400 border-0 font-semibold">
+                      {currentUser.role === 'super_admin' ? 'Super Admin' : currentUser.role === 'admin' ? 'Admin' : 'User'}
+                    </Badge>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Logout — Premium with hover effect */}
+          <div className="px-3 pb-2">
+            <button
+              onClick={onLogout}
+              className="flex items-center gap-2.5 w-full px-3 py-2 rounded-lg text-xs text-zinc-500 hover:text-red-400 hover:bg-red-500/[0.06] transition-premium group border border-transparent hover:border-red-500/10"
+            >
+              <LogOut className="h-3.5 w-3.5 transition-premium group-hover:scale-110 group-hover:text-red-400" />
+              <span className="transition-premium">Logout</span>
+            </button>
+          </div>
+
+          {/* Version Badge — Refined with emerald glow */}
+          <div className="px-4 pb-3 pt-1 flex items-center gap-1.5">
+            <div className="h-1.5 w-1.5 rounded-full bg-emerald-500/50 shadow-[0_0_6px_rgba(16,185,129,0.3)]" />
+            <span className="text-[10px] text-zinc-600 font-medium">Hisab Pro v1.0</span>
+            <Badge className="text-[8px] px-1 py-0 h-3 leading-none bg-emerald-500/10 text-emerald-500/70 border-0 font-semibold ml-1">
+              Premium
+            </Badge>
+          </div>
         </div>
       </div>
     </div>

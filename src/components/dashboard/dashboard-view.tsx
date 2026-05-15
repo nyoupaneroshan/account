@@ -42,6 +42,10 @@ import {
   FileText,
   ShoppingCart,
   Package,
+  BarChart3,
+  Activity,
+  Sparkles,
+  ArrowRight,
 } from 'lucide-react'
 
 // ── Types ──────────────────────────────────────────────────────
@@ -144,19 +148,22 @@ function getTransactionAmount(tx: RecentTransaction): number {
   return tx.totalDebit
 }
 
-// ── Skeletons ──────────────────────────────────────────────────
+// ── Premium Skeletons ──────────────────────────────────────────
 function StatCardSkeleton() {
   return (
-    <Card className="bg-white/[0.02] border-white/5">
+    <Card className="glass-card hover-lift">
       <CardHeader className="pb-2">
         <div className="flex items-center justify-between">
-          <Skeleton className="h-4 w-24 bg-white/5" />
-          <Skeleton className="h-8 w-8 rounded-lg bg-white/5" />
+          <div className="space-y-1.5">
+            <div className="skeleton skeleton-text w-20" />
+            <div className="skeleton skeleton-text w-14 h-2" />
+          </div>
+          <div className="skeleton skeleton-avatar !h-9 !w-9 !rounded-lg" />
         </div>
       </CardHeader>
       <CardContent>
-        <Skeleton className="h-7 w-32 mb-1 bg-white/5" />
-        <Skeleton className="h-3 w-20 bg-white/5" />
+        <div className="skeleton skeleton-heading w-28" />
+        <div className="skeleton skeleton-text w-16 mt-2 h-2.5" />
       </CardContent>
     </Card>
   )
@@ -164,21 +171,26 @@ function StatCardSkeleton() {
 
 function ChartSkeleton() {
   return (
-    <Card className="bg-white/[0.02] border-white/5">
+    <Card className="glass-card">
       <CardHeader>
-        <Skeleton className="h-5 w-40 bg-white/5" />
-        <Skeleton className="h-3 w-56 bg-white/5" />
+        <div className="skeleton skeleton-heading w-36" />
+        <div className="skeleton skeleton-text w-48 mt-1.5" />
       </CardHeader>
       <CardContent>
-        <div className="h-[280px] flex items-center justify-center">
-          <Skeleton className="h-full w-full rounded-md bg-white/5" />
+        <div className="h-[280px] flex items-center justify-center gap-3 px-4">
+          {Array.from({ length: 6 }).map((_, i) => (
+            <div key={i} className="flex-1 flex flex-col items-center gap-2">
+              <div className="skeleton w-full rounded-t-sm" style={{ height: `${Math.random() * 80 + 40}px` }} />
+              <div className="skeleton skeleton-text w-6" />
+            </div>
+          ))}
         </div>
       </CardContent>
     </Card>
   )
 }
 
-// ── Stat Card ──────────────────────────────────────────────────
+// ── Premium Stat Card ──────────────────────────────────────────
 function StatCard({
   title,
   titleNepali,
@@ -189,6 +201,7 @@ function StatCard({
   colorClass,
   iconBgClass,
   accentColor,
+  accentGradient,
 }: {
   title: string
   titleNepali: string
@@ -199,36 +212,68 @@ function StatCard({
   colorClass: string
   iconBgClass: string
   accentColor?: string
+  accentGradient?: string
 }) {
   return (
     <Card className={cn(
-      "relative overflow-hidden transition-all duration-300 hover:border-white/10 bg-white/[0.02] border-white/5 backdrop-blur-sm group",
+      "relative overflow-hidden glass-card hover-lift group cursor-default",
     )}>
-      {/* Gradient accent line at top */}
-      <div className={cn("absolute top-0 left-0 right-0 h-[2px] opacity-60", accentColor || 'bg-emerald-500')} />
-      <CardHeader className="pb-2">
+      {/* Refined gradient accent line at top */}
+      <div
+        className={cn(
+          "absolute top-0 left-0 right-0 h-[2px] opacity-70",
+          accentGradient || accentColor || 'bg-gradient-to-r from-emerald-500 to-emerald-400'
+        )}
+      />
+      {/* Subtle glow on hover */}
+      <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none">
+        <div className={cn(
+          "absolute top-0 left-0 right-0 h-20 blur-xl opacity-20",
+          accentGradient || accentColor || 'bg-gradient-to-r from-emerald-500 to-emerald-400'
+        )} />
+      </div>
+      <CardHeader className="pb-2 relative">
         <div className="flex items-center justify-between">
-          <div className="flex flex-col">
-            <CardTitle className="text-xs font-medium text-zinc-500 uppercase tracking-wider">
+          <div className="flex flex-col gap-0.5">
+            <CardTitle className="text-[11px] font-semibold text-zinc-500 uppercase tracking-wider">
               {title}
             </CardTitle>
-            <CardDescription className="text-[10px] text-zinc-600">{titleNepali}</CardDescription>
+            <CardDescription className="text-[10px] text-zinc-600 font-normal">
+              {titleNepali}
+            </CardDescription>
           </div>
-          <div className={cn('h-9 w-9 rounded-lg flex items-center justify-center transition-colors', iconBgClass)}>
-            <Icon className={cn('h-4 w-4', colorClass)} />
+          <div className={cn(
+            'h-9 w-9 rounded-lg flex items-center justify-center transition-all duration-300',
+            'group-hover:shadow-[0_0_12px_rgba(16,185,129,0.2)]',
+            iconBgClass
+          )}>
+            <Icon className={cn('h-4 w-4 transition-colors duration-300', colorClass)} />
           </div>
         </div>
       </CardHeader>
-      <CardContent>
+      <CardContent className="relative">
         <div className="flex items-baseline gap-2">
-          <p className={cn('text-xl font-bold tracking-tight', colorClass)}>
+          <p className={cn('text-xl font-bold tracking-tight stat-number', colorClass)}>
             {formatNPR(value)}
           </p>
         </div>
         {trend && trendLabel && (
-          <div className="flex items-center gap-1 mt-1.5">
-            {trend === 'up' && <ArrowUpRight className="h-3 w-3 text-emerald-400" />}
-            {trend === 'down' && <ArrowDownRight className="h-3 w-3 text-red-400" />}
+          <div className="flex items-center gap-1.5 mt-2">
+            {trend === 'up' && (
+              <span className="flex items-center justify-center h-4 w-4 rounded-full bg-emerald-500/10">
+                <ArrowUpRight className="h-2.5 w-2.5 text-emerald-400" />
+              </span>
+            )}
+            {trend === 'down' && (
+              <span className="flex items-center justify-center h-4 w-4 rounded-full bg-red-500/10">
+                <ArrowDownRight className="h-2.5 w-2.5 text-red-400" />
+              </span>
+            )}
+            {trend === 'neutral' && (
+              <span className="flex items-center justify-center h-4 w-4 rounded-full bg-white/5">
+                <Activity className="h-2.5 w-2.5 text-zinc-500" />
+              </span>
+            )}
             <span
               className={cn(
                 'text-[11px] font-medium',
@@ -244,21 +289,21 @@ function StatCard({
   )
 }
 
-// ── Transaction Row ────────────────────────────────────────────
+// ── Premium Transaction Row ────────────────────────────────────
 function TransactionRow({ tx }: { tx: RecentTransaction }) {
   const txType = getTransactionType(tx)
   const amount = getTransactionAmount(tx)
   return (
-    <div className="flex items-center justify-between py-2.5 px-3 rounded-lg hover:bg-white/[0.03] transition-colors">
+    <div className="flex items-center justify-between py-2.5 px-3 rounded-lg hover:bg-white/[0.04] transition-premium group/tx">
       <div className="flex items-center gap-3 min-w-0 flex-1">
         <div
           className={cn(
-            'h-8 w-8 rounded-lg flex items-center justify-center shrink-0',
+            'h-9 w-9 rounded-lg flex items-center justify-center shrink-0 transition-all duration-300',
             txType === 'income'
-              ? 'bg-emerald-500/10'
+              ? 'bg-emerald-500/10 group-hover/tx:bg-emerald-500/15 group-hover/tx:shadow-[0_0_8px_rgba(16,185,129,0.15)]'
               : txType === 'expense'
-                ? 'bg-red-500/10'
-                : 'bg-white/5'
+                ? 'bg-red-500/10 group-hover/tx:bg-red-500/15 group-hover/tx:shadow-[0_0_8px_rgba(239,68,68,0.15)]'
+                : 'bg-white/[0.03] group-hover/tx:bg-white/[0.06]'
           )}
         >
           {txType === 'income' ? (
@@ -270,8 +315,10 @@ function TransactionRow({ tx }: { tx: RecentTransaction }) {
           )}
         </div>
         <div className="min-w-0 flex-1">
-          <p className="text-sm font-medium text-zinc-200 truncate">{tx.narration}</p>
-          <div className="flex items-center gap-2 text-[11px] text-zinc-500">
+          <p className="text-sm font-medium text-zinc-200 truncate group-hover/tx:text-zinc-100 transition-colors">
+            {tx.narration}
+          </p>
+          <div className="flex items-center gap-2 text-[11px] text-zinc-500 mt-0.5">
             <span>
               {new Date(tx.date).toLocaleDateString('en-US', {
                 month: 'short',
@@ -280,8 +327,18 @@ function TransactionRow({ tx }: { tx: RecentTransaction }) {
               })}
             </span>
             <span className="text-zinc-700">&middot;</span>
-            <span>{tx.entryNumber}</span>
-            <Badge variant="outline" className="text-[10px] px-1.5 py-0 border-zinc-700 text-zinc-400">
+            <span className="text-zinc-600">{tx.entryNumber}</span>
+            <Badge
+              variant="outline"
+              className={cn(
+                "text-[10px] px-1.5 py-0 border-white/[0.06] transition-colors",
+                txType === 'income'
+                  ? 'text-emerald-500/70 group-hover/tx:text-emerald-400 group-hover/tx:border-emerald-500/20'
+                  : txType === 'expense'
+                    ? 'text-red-500/70 group-hover/tx:text-red-400 group-hover/tx:border-red-500/20'
+                    : 'text-zinc-500'
+              )}
+            >
               {tx.voucherType}
             </Badge>
           </div>
@@ -290,7 +347,7 @@ function TransactionRow({ tx }: { tx: RecentTransaction }) {
       <div className="text-right ml-3">
         <p
           className={cn(
-            'text-sm font-semibold tabular-nums',
+            'text-sm font-semibold stat-number',
             txType === 'income'
               ? 'text-emerald-400'
               : txType === 'expense'
@@ -301,6 +358,29 @@ function TransactionRow({ tx }: { tx: RecentTransaction }) {
           {txType === 'income' ? '+' : txType === 'expense' ? '-' : ''}
           {formatNPR(amount)}
         </p>
+      </div>
+    </div>
+  )
+}
+
+// ── Empty State Component ──────────────────────────────────────
+function EmptyState({
+  icon: Icon,
+  title,
+  subtitle,
+}: {
+  icon: React.ElementType
+  title: string
+  subtitle: string
+}) {
+  return (
+    <div className="h-[220px] flex items-center justify-center">
+      <div className="text-center">
+        <div className="mx-auto mb-3 h-14 w-14 rounded-2xl bg-white/[0.02] border border-white/[0.04] flex items-center justify-center">
+          <Icon className="h-7 w-7 text-zinc-700" />
+        </div>
+        <p className="text-sm font-medium text-zinc-500">{title}</p>
+        <p className="text-xs text-zinc-600 mt-0.5">{subtitle}</p>
       </div>
     </div>
   )
@@ -359,7 +439,7 @@ export function DashboardView() {
   // ── LOADING STATE ──
   if (loading) {
     return (
-      <div className="p-4 md:p-6 space-y-6">
+      <div className="p-4 md:p-6 space-y-6 fade-in-up">
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           {Array.from({ length: mode === 'advanced' ? 8 : 4 }).map((_, i) => (
             <StatCardSkeleton key={i} />
@@ -367,15 +447,22 @@ export function DashboardView() {
         </div>
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           <ChartSkeleton />
-          <Card className="bg-white/[0.02] border-white/5">
+          <Card className="glass-card">
             <CardHeader>
-              <Skeleton className="h-5 w-36 bg-white/5" />
+              <div className="skeleton skeleton-heading w-32" />
+              <div className="skeleton skeleton-text w-44 mt-1.5" />
             </CardHeader>
             <CardContent className="space-y-3">
               {Array.from({ length: 5 }).map((_, i) => (
                 <div key={i} className="flex items-center justify-between">
-                  <Skeleton className="h-4 w-32 bg-white/5" />
-                  <Skeleton className="h-4 w-24 bg-white/5" />
+                  <div className="flex items-center gap-3">
+                    <div className="skeleton skeleton-avatar !h-9 !w-9 !rounded-lg" />
+                    <div className="space-y-1.5">
+                      <div className="skeleton skeleton-text w-28" />
+                      <div className="skeleton skeleton-text w-20 h-2" />
+                    </div>
+                  </div>
+                  <div className="skeleton skeleton-text w-20" />
                 </div>
               ))}
             </CardContent>
@@ -389,17 +476,22 @@ export function DashboardView() {
   if (error) {
     return (
       <div className="p-4 md:p-6 flex items-center justify-center min-h-[400px]">
-        <Card className="max-w-md w-full bg-white/[0.02] border-white/5">
+        <Card className="max-w-md w-full glass-card">
           <CardHeader className="text-center">
-            <div className="mx-auto h-12 w-12 rounded-xl bg-red-500/10 flex items-center justify-center mb-2">
-              <Receipt className="h-6 w-6 text-red-400" />
+            <div className="mx-auto h-14 w-14 rounded-2xl bg-red-500/10 border border-red-500/10 flex items-center justify-center mb-3">
+              <Receipt className="h-7 w-7 text-red-400" />
             </div>
             <CardTitle className="text-lg text-zinc-200">ड्यासबोर्ड लोड गर्न सकिएन</CardTitle>
             <CardDescription className="text-zinc-500">Could not load dashboard data</CardDescription>
           </CardHeader>
           <CardContent className="text-center">
             <p className="text-sm text-zinc-500 mb-4">{error}</p>
-            <Button onClick={fetchDashboard} variant="outline" size="sm" className="gap-2 border-zinc-700 text-zinc-300 hover:text-zinc-100 hover:bg-white/5">
+            <Button
+              onClick={fetchDashboard}
+              variant="outline"
+              size="sm"
+              className="gap-2 border-white/[0.08] text-zinc-300 hover:text-zinc-100 hover:bg-white/[0.04] hover:border-emerald-500/20 transition-premium"
+            >
               <RefreshCw className="h-3.5 w-3.5" />
               पुनः प्रयास गर्नुहोस् / Retry
             </Button>
@@ -413,22 +505,29 @@ export function DashboardView() {
 
   // ── RENDER ──
   return (
-    <div className="p-4 md:p-6 space-y-6 max-w-[1600px] mx-auto">
+    <div className="p-4 md:p-6 space-y-6 max-w-[1600px] mx-auto fade-in-up">
       {/* ── Fiscal Year Progress Bar ── */}
-      <Card className="overflow-hidden bg-white/[0.02] border-white/5 backdrop-blur-sm">
+      <Card className="overflow-hidden glass-card">
         <CardContent className="p-4">
-          <div className="flex items-center justify-between mb-2">
-            <div className="flex items-center gap-2">
-              <Calendar className="h-4 w-4 text-emerald-500/60" />
+          <div className="flex items-center justify-between mb-2.5">
+            <div className="flex items-center gap-2.5">
+              <div className="h-7 w-7 rounded-lg bg-emerald-500/10 flex items-center justify-center">
+                <Calendar className="h-3.5 w-3.5 text-emerald-500/70" />
+              </div>
               <span className="text-sm font-medium text-zinc-300">
                 आर्थिक वर्ष / {t('fiscal_year')}: {currentFiscalYear}
               </span>
             </div>
-            <span className="text-xs text-zinc-500">
+            <span className="text-xs text-zinc-500 stat-number">
               {fiscalYearProgress}% elapsed
             </span>
           </div>
-          <Progress value={fiscalYearProgress} className="h-1.5 bg-white/5 [&>div]:bg-gradient-to-r [&>div]:from-emerald-500 [&>div]:to-emerald-400" />
+          <div className="relative">
+            <Progress
+              value={fiscalYearProgress}
+              className="h-2 bg-white/[0.04] rounded-full overflow-hidden [&>div]:bg-gradient-to-r [&>div]:from-emerald-600 [&>div]:via-emerald-500 [&>div]:to-emerald-400 [&>div]:rounded-full [&>div]:shadow-[0_0_8px_rgba(16,185,129,0.3)]"
+            />
+          </div>
         </CardContent>
       </Card>
 
@@ -438,7 +537,7 @@ export function DashboardView() {
           <>
             <Button
               onClick={() => router.push('/income')}
-              className="gap-2 bg-emerald-600 hover:bg-emerald-700 text-white shadow-lg shadow-emerald-500/20"
+              className="gap-2 bg-gradient-to-r from-emerald-600 to-emerald-500 hover:from-emerald-500 hover:to-emerald-400 text-white shadow-lg shadow-emerald-500/20 hover:shadow-emerald-500/30 transition-premium hover:-translate-y-px"
               size="sm"
             >
               <PlusCircle className="h-4 w-4" />
@@ -446,7 +545,7 @@ export function DashboardView() {
             </Button>
             <Button
               onClick={() => router.push('/expense')}
-              className="gap-2 bg-red-600/80 hover:bg-red-700 text-white shadow-lg shadow-red-500/10"
+              className="gap-2 bg-red-600/80 hover:bg-red-600 text-white shadow-lg shadow-red-500/10 hover:shadow-red-500/20 transition-premium hover:-translate-y-px"
               size="sm"
             >
               <MinusCircle className="h-4 w-4" />
@@ -457,7 +556,7 @@ export function DashboardView() {
           <>
             <Button
               onClick={() => router.push('/journal/new')}
-              className="gap-2 bg-emerald-600 hover:bg-emerald-700 text-white shadow-lg shadow-emerald-500/20"
+              className="gap-2 bg-gradient-to-r from-emerald-600 to-emerald-500 hover:from-emerald-500 hover:to-emerald-400 text-white shadow-lg shadow-emerald-500/20 hover:shadow-emerald-500/30 transition-premium hover:-translate-y-px"
               size="sm"
             >
               <BookOpen className="h-4 w-4" />
@@ -465,15 +564,30 @@ export function DashboardView() {
             </Button>
           </>
         )}
-        <Button variant="ghost" size="sm" onClick={() => router.push('/invoices')} className="gap-2 text-zinc-400 hover:text-zinc-200 hover:bg-white/5">
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => router.push('/invoices')}
+          className="gap-2 text-zinc-500 hover:text-zinc-200 hover:bg-white/[0.04] border border-transparent hover:border-white/[0.06] transition-premium"
+        >
           <FileText className="h-4 w-4" />
           <span className="hidden sm:inline">New Invoice</span>
         </Button>
-        <Button variant="ghost" size="sm" onClick={() => router.push('/purchases')} className="gap-2 text-zinc-400 hover:text-zinc-200 hover:bg-white/5">
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => router.push('/purchases')}
+          className="gap-2 text-zinc-500 hover:text-zinc-200 hover:bg-white/[0.04] border border-transparent hover:border-white/[0.06] transition-premium"
+        >
           <ShoppingCart className="h-4 w-4" />
           <span className="hidden sm:inline">New Purchase</span>
         </Button>
-        <Button variant="ghost" size="sm" onClick={() => router.push('/parties')} className="gap-2 text-zinc-400 hover:text-zinc-200 hover:bg-white/5">
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => router.push('/parties')}
+          className="gap-2 text-zinc-500 hover:text-zinc-200 hover:bg-white/[0.04] border border-transparent hover:border-white/[0.06] transition-premium"
+        >
           <Users className="h-4 w-4" />
           <span className="hidden sm:inline">Add Party</span>
         </Button>
@@ -490,7 +604,7 @@ export function DashboardView() {
           trendLabel={data.totalIncome > 0 ? 'Active' : 'No income yet'}
           colorClass="text-emerald-400"
           iconBgClass="bg-emerald-500/10"
-          accentColor="bg-emerald-500"
+          accentGradient="bg-gradient-to-r from-emerald-500 to-teal-400"
         />
         <StatCard
           title="Total Expense"
@@ -501,7 +615,7 @@ export function DashboardView() {
           trendLabel={data.totalExpense > 0 ? 'Active' : 'No expenses yet'}
           colorClass="text-red-400"
           iconBgClass="bg-red-500/10"
-          accentColor="bg-red-500"
+          accentGradient="bg-gradient-to-r from-red-500 to-rose-400"
         />
         <StatCard
           title="Net Profit"
@@ -520,7 +634,7 @@ export function DashboardView() {
               ? 'bg-emerald-500/10'
               : 'bg-red-500/10'
           }
-          accentColor={data.netProfit >= 0 ? 'bg-emerald-500' : 'bg-red-500'}
+          accentGradient={data.netProfit >= 0 ? 'bg-gradient-to-r from-emerald-500 to-teal-400' : 'bg-gradient-to-r from-red-500 to-rose-400'}
         />
         <StatCard
           title="Cash Balance"
@@ -531,7 +645,7 @@ export function DashboardView() {
           trendLabel="Cash in hand"
           colorClass="text-emerald-300"
           iconBgClass="bg-emerald-500/10"
-          accentColor="bg-gradient-to-r from-emerald-500 to-teal-400"
+          accentGradient="bg-gradient-to-r from-emerald-500 to-cyan-400"
         />
       </div>
 
@@ -547,7 +661,7 @@ export function DashboardView() {
             trendLabel={data.totalReceivable > 0 ? 'To collect' : 'None'}
             colorClass="text-emerald-400"
             iconBgClass="bg-emerald-500/10"
-            accentColor="bg-emerald-500"
+            accentGradient="bg-gradient-to-r from-emerald-500 to-teal-400"
           />
           <StatCard
             title="Payable"
@@ -558,7 +672,7 @@ export function DashboardView() {
             trendLabel={data.totalPayable > 0 ? 'To pay' : 'None'}
             colorClass="text-red-400"
             iconBgClass="bg-red-500/10"
-            accentColor="bg-red-500"
+            accentGradient="bg-gradient-to-r from-red-500 to-rose-400"
           />
           <StatCard
             title="VAT Payable"
@@ -583,7 +697,7 @@ export function DashboardView() {
                 ? 'bg-red-500/10'
                 : 'bg-emerald-500/10'
             }
-            accentColor={data.vatSummary.netVATPayable > 0 ? 'bg-red-500' : 'bg-emerald-500'}
+            accentGradient={data.vatSummary.netVATPayable > 0 ? 'bg-gradient-to-r from-red-500 to-rose-400' : 'bg-gradient-to-r from-emerald-500 to-teal-400'}
           />
           <StatCard
             title="Net Worth"
@@ -602,7 +716,7 @@ export function DashboardView() {
                 ? 'bg-emerald-500/10'
                 : 'bg-red-500/10'
             }
-            accentColor={netWorth >= 0 ? 'bg-emerald-500' : 'bg-red-500'}
+            accentGradient={netWorth >= 0 ? 'bg-gradient-to-r from-emerald-500 to-teal-400' : 'bg-gradient-to-r from-red-500 to-rose-400'}
           />
         </div>
       )}
@@ -610,27 +724,32 @@ export function DashboardView() {
       {/* ── Charts Row ── */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Monthly Income vs Expense Bar Chart */}
-        <Card className="bg-white/[0.02] border-white/5 backdrop-blur-sm">
+        <Card className="glass-card">
           <CardHeader>
-            <CardTitle className="text-base text-zinc-200">
-              मासिक सारांश / Monthly Summary
-            </CardTitle>
-            <CardDescription className="text-zinc-500">
-              Last 6 months income vs expense overview
-            </CardDescription>
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle className="text-base text-zinc-200 flex items-center gap-2">
+                  <BarChart3 className="h-4 w-4 text-emerald-500/60" />
+                  मासिक सारांश / Monthly Summary
+                </CardTitle>
+                <CardDescription className="text-zinc-500 mt-1">
+                  Last 6 months income vs expense overview
+                </CardDescription>
+              </div>
+            </div>
           </CardHeader>
           <CardContent>
             {data.monthlyData.length > 0 &&
             data.monthlyData.some((m) => m.income > 0 || m.expense > 0) ? (
               <div className="space-y-4">
-                {/* Legend */}
-                <div className="flex items-center gap-4 text-xs mb-2">
-                  <div className="flex items-center gap-1.5">
-                    <div className="h-3 w-3 rounded-sm bg-emerald-500" />
+                {/* Refined Legend */}
+                <div className="flex items-center gap-5 text-xs mb-1">
+                  <div className="flex items-center gap-2">
+                    <div className="h-2.5 w-2.5 rounded-sm bg-gradient-to-r from-emerald-500 to-emerald-400" />
                     <span className="text-zinc-400">आम्दानी / Income</span>
                   </div>
-                  <div className="flex items-center gap-1.5">
-                    <div className="h-3 w-3 rounded-sm bg-red-500" />
+                  <div className="flex items-center gap-2">
+                    <div className="h-2.5 w-2.5 rounded-sm bg-gradient-to-r from-red-500 to-red-400" />
                     <span className="text-zinc-400">खर्च / Expense</span>
                   </div>
                 </div>
@@ -641,98 +760,110 @@ export function DashboardView() {
                     1
                   )
                   return (
-                    <div className="flex items-end gap-3 h-48">
-                      {data.monthlyData.map((m) => {
-                        const incomeH = Math.max((m.income / maxVal) * 100, 1)
-                        const expenseH = Math.max((m.expense / maxVal) * 100, 1)
-                        return (
-                          <div key={m.key} className="flex-1 flex flex-col items-center gap-1">
-                            {/* Amounts on hover */}
-                            <div className="text-[10px] text-zinc-500 font-mono mb-0.5">
-                              {m.income > 0 ? `${(m.income / 1000).toFixed(0)}k` : '-'}
-                            </div>
-                            <div className="w-full flex items-end gap-0.5 h-32">
-                              {/* Income bar */}
-                              <div
-                                className="flex-1 bg-gradient-to-t from-emerald-600 to-emerald-400 rounded-t-sm min-h-[2px] transition-all duration-500 hover:from-emerald-500 hover:to-emerald-300 relative group"
-                                style={{ height: `${incomeH}%` }}
-                              >
-                                <div className="absolute -top-6 left-1/2 -translate-x-1/2 bg-zinc-800 text-emerald-400 text-[9px] px-1.5 py-0.5 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-10">
-                                  {formatNPR(m.income)}
+                    <div className="relative">
+                      {/* Subtle grid lines */}
+                      <div className="absolute inset-0 flex flex-col justify-between pointer-events-none py-0">
+                        {[25, 50, 75, 100].map((pct) => (
+                          <div
+                            key={pct}
+                            className="border-t border-white/[0.03] w-full"
+                            style={{ height: `${100 / 4}%` }}
+                          />
+                        ))}
+                      </div>
+                      <div className="flex items-end gap-3 h-48 relative">
+                        {data.monthlyData.map((m) => {
+                          const incomeH = Math.max((m.income / maxVal) * 100, 1)
+                          const expenseH = Math.max((m.expense / maxVal) * 100, 1)
+                          return (
+                            <div key={m.key} className="flex-1 flex flex-col items-center gap-1">
+                              {/* Amounts on hover */}
+                              <div className="text-[10px] text-zinc-600 font-mono mb-0.5 stat-number">
+                                {m.income > 0 ? `${(m.income / 1000).toFixed(0)}k` : '-'}
+                              </div>
+                              <div className="w-full flex items-end gap-0.5 h-32">
+                                {/* Income bar */}
+                                <div
+                                  className="flex-1 rounded-t-sm min-h-[2px] transition-all duration-500 relative group/bar"
+                                  style={{ height: `${incomeH}%` }}
+                                >
+                                  <div className="absolute inset-0 bg-gradient-to-t from-emerald-600/80 to-emerald-400/80 rounded-t-sm group-hover/bar:from-emerald-500 group-hover/bar:to-emerald-300 transition-colors" />
+                                  <div className="absolute inset-0 bg-gradient-to-t from-emerald-600/40 to-emerald-400/40 rounded-t-sm opacity-0 group-hover/bar:opacity-100 blur-sm transition-opacity" />
+                                  <div className="absolute -top-7 left-1/2 -translate-x-1/2 bg-zinc-800/95 border border-white/[0.06] text-emerald-400 text-[9px] px-2 py-1 rounded-md opacity-0 group-hover/bar:opacity-100 transition-all duration-200 whitespace-nowrap z-10 shadow-lg shadow-black/30 stat-number font-medium">
+                                    {formatNPR(m.income)}
+                                    <div className="absolute -bottom-0.5 left-1/2 -translate-x-1/2 w-1.5 h-1.5 bg-zinc-800/95 border-r border-b border-white/[0.06] rotate-45" />
+                                  </div>
+                                </div>
+                                {/* Expense bar */}
+                                <div
+                                  className="flex-1 rounded-t-sm min-h-[2px] transition-all duration-500 relative group/bar"
+                                  style={{ height: `${expenseH}%` }}
+                                >
+                                  <div className="absolute inset-0 bg-gradient-to-t from-red-600/80 to-red-400/80 rounded-t-sm group-hover/bar:from-red-500 group-hover/bar:to-red-300 transition-colors" />
+                                  <div className="absolute inset-0 bg-gradient-to-t from-red-600/40 to-red-400/40 rounded-t-sm opacity-0 group-hover/bar:opacity-100 blur-sm transition-opacity" />
+                                  <div className="absolute -top-7 left-1/2 -translate-x-1/2 bg-zinc-800/95 border border-white/[0.06] text-red-400 text-[9px] px-2 py-1 rounded-md opacity-0 group-hover/bar:opacity-100 transition-all duration-200 whitespace-nowrap z-10 shadow-lg shadow-black/30 stat-number font-medium">
+                                    {formatNPR(m.expense)}
+                                    <div className="absolute -bottom-0.5 left-1/2 -translate-x-1/2 w-1.5 h-1.5 bg-zinc-800/95 border-r border-b border-white/[0.06] rotate-45" />
+                                  </div>
                                 </div>
                               </div>
-                              {/* Expense bar */}
-                              <div
-                                className="flex-1 bg-gradient-to-t from-red-600 to-red-400 rounded-t-sm min-h-[2px] transition-all duration-500 hover:from-red-500 hover:to-red-300 relative group"
-                                style={{ height: `${expenseH}%` }}
-                              >
-                                <div className="absolute -top-6 left-1/2 -translate-x-1/2 bg-zinc-800 text-red-400 text-[9px] px-1.5 py-0.5 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-10">
-                                  {formatNPR(m.expense)}
-                                </div>
-                              </div>
+                              <span className="text-[10px] text-zinc-500 mt-1 font-medium">{m.month.slice(0, 3)}</span>
                             </div>
-                            <span className="text-[10px] text-zinc-500 mt-1">{m.month.slice(0, 3)}</span>
-                          </div>
-                        )
-                      })}
+                          )
+                        })}
+                      </div>
                     </div>
                   )
                 })()}
               </div>
             ) : (
-              <div className="h-[280px] flex items-center justify-center text-zinc-500">
-                <div className="text-center">
-                  <Receipt className="h-10 w-10 mx-auto mb-2 text-zinc-700" />
-                  <p className="text-sm">No monthly data yet</p>
-                  <p className="text-xs text-zinc-600">
-                    Start adding transactions to see trends
-                  </p>
-                </div>
-              </div>
+              <EmptyState
+                icon={BarChart3}
+                title="No monthly data yet"
+                subtitle="Start adding transactions to see trends"
+              />
             )}
           </CardContent>
         </Card>
 
         {/* Recent Transactions (last 5) */}
-        <Card className="bg-white/[0.02] border-white/5 backdrop-blur-sm">
+        <Card className="glass-card">
           <CardHeader>
             <div className="flex items-center justify-between">
               <div>
-                <CardTitle className="text-base text-zinc-200">
+                <CardTitle className="text-base text-zinc-200 flex items-center gap-2">
+                  <Activity className="h-4 w-4 text-emerald-500/60" />
                   हालको गतिविधि / Recent Activity
                 </CardTitle>
-                <CardDescription className="text-zinc-500">
+                <CardDescription className="text-zinc-500 mt-1">
                   {mode === 'simple' ? 'Latest transactions' : 'Latest journal entries'}
                 </CardDescription>
               </div>
               <Button
                 variant="ghost"
                 size="sm"
-                className="text-xs gap-1 text-emerald-400 hover:text-emerald-300 hover:bg-emerald-500/10"
+                className="text-xs gap-1.5 text-emerald-400/80 hover:text-emerald-300 hover:bg-emerald-500/10 transition-premium"
                 onClick={() => router.push('/journal')}
               >
                 <Eye className="h-3 w-3" />
                 View All
+                <ArrowRight className="h-3 w-3" />
               </Button>
             </div>
           </CardHeader>
           <CardContent>
             {data.recentTransactions.length > 0 ? (
-              <div className="space-y-0.5 max-h-[320px] overflow-y-auto pr-1 custom-scrollbar">
+              <div className="space-y-0.5 max-h-[340px] overflow-y-auto pr-1 custom-scrollbar">
                 {data.recentTransactions.slice(0, 5).map((tx) => (
                   <TransactionRow key={tx.id} tx={tx} />
                 ))}
               </div>
             ) : (
-              <div className="h-[200px] flex items-center justify-center text-zinc-500">
-                <div className="text-center">
-                  <Receipt className="h-10 w-10 mx-auto mb-2 text-zinc-700" />
-                  <p className="text-sm">कुनै लेनदेन भएको छैन</p>
-                  <p className="text-xs text-zinc-600">
-                    No transactions yet
-                  </p>
-                </div>
-              </div>
+              <EmptyState
+                icon={Receipt}
+                title="कुनै लेनदेन भएको छैन"
+                subtitle="No transactions yet"
+              />
             )}
           </CardContent>
         </Card>
@@ -741,14 +872,15 @@ export function DashboardView() {
       {/* ── Bottom Row ── */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Top Parties */}
-        <Card className="bg-white/[0.02] border-white/5 backdrop-blur-sm">
+        <Card className="glass-card">
           <CardHeader>
             <div className="flex items-center justify-between">
               <div>
-                <CardTitle className="text-base text-zinc-200">
+                <CardTitle className="text-base text-zinc-200 flex items-center gap-2">
+                  <Users className="h-4 w-4 text-emerald-500/60" />
                   शीर्ष पक्षहरू / Top Parties
                 </CardTitle>
-                <CardDescription className="text-zinc-500">
+                <CardDescription className="text-zinc-500 mt-1">
                   {mode === 'simple'
                     ? 'Customers & suppliers with highest balances'
                     : 'Key parties by outstanding balance'}
@@ -757,40 +889,51 @@ export function DashboardView() {
               <Button
                 variant="ghost"
                 size="sm"
-                className="text-xs text-emerald-400 hover:text-emerald-300 hover:bg-emerald-500/10"
+                className="text-xs gap-1.5 text-emerald-400/80 hover:text-emerald-300 hover:bg-emerald-500/10 transition-premium"
                 onClick={() => router.push('/parties')}
               >
                 View All
+                <ArrowRight className="h-3 w-3" />
               </Button>
             </div>
           </CardHeader>
           <CardContent>
             {data.topParties.length > 0 ? (
-              <div className="space-y-1">
+              <div className="space-y-1 max-h-[320px] overflow-y-auto custom-scrollbar">
                 {data.topParties.map((party) => {
                   const isReceivable = party.currentBalance > 0
                   return (
                     <div
                       key={party.id}
-                      className="flex items-center justify-between py-2.5 px-3 rounded-lg hover:bg-white/[0.03] transition-colors"
+                      className="flex items-center justify-between py-2.5 px-3 rounded-lg hover:bg-white/[0.04] transition-premium group/party"
                     >
                       <div className="flex items-center gap-3 min-w-0">
                         <div
                           className={cn(
-                            'h-8 w-8 rounded-lg flex items-center justify-center shrink-0',
+                            'h-9 w-9 rounded-lg flex items-center justify-center shrink-0 transition-all duration-300',
                             isReceivable
-                              ? 'bg-emerald-500/10'
-                              : 'bg-red-500/10'
+                              ? 'bg-emerald-500/10 group-hover/party:bg-emerald-500/15 group-hover/party:shadow-[0_0_8px_rgba(16,185,129,0.15)]'
+                              : 'bg-red-500/10 group-hover/party:bg-red-500/15 group-hover/party:shadow-[0_0_8px_rgba(239,68,68,0.15)]'
                           )}
                         >
                           <Users className={cn(
-                            'h-4 w-4',
+                            'h-4 w-4 transition-colors',
                             isReceivable ? 'text-emerald-400' : 'text-red-400'
                           )} />
                         </div>
                         <div className="min-w-0">
-                          <p className="text-sm font-medium text-zinc-200 truncate">{party.name}</p>
-                          <Badge variant="outline" className="text-[10px] px-1.5 py-0 mt-0.5 border-zinc-700 text-zinc-400">
+                          <p className="text-sm font-medium text-zinc-200 truncate group-hover/party:text-zinc-100 transition-colors">
+                            {party.name}
+                          </p>
+                          <Badge
+                            variant="outline"
+                            className={cn(
+                              "text-[10px] px-1.5 py-0 mt-0.5 border-white/[0.06] transition-colors",
+                              isReceivable
+                                ? 'text-emerald-500/70 group-hover/party:text-emerald-400 group-hover/party:border-emerald-500/20'
+                                : 'text-red-500/70 group-hover/party:text-red-400 group-hover/party:border-red-500/20'
+                            )}
+                          >
                             {party.partyType}
                           </Badge>
                         </div>
@@ -798,7 +941,7 @@ export function DashboardView() {
                       <div className="text-right ml-3">
                         <p
                           className={cn(
-                            'text-sm font-semibold tabular-nums',
+                            'text-sm font-semibold stat-number',
                             isReceivable
                               ? 'text-emerald-400'
                               : 'text-red-400'
@@ -807,7 +950,7 @@ export function DashboardView() {
                           {isReceivable ? '↑ ' : '↓ '}
                           {formatNPR(Math.abs(party.currentBalance))}
                         </p>
-                        <p className="text-[10px] text-zinc-500">
+                        <p className="text-[10px] text-zinc-500 mt-0.5">
                           {isReceivable ? 'प्राप्य / Receivable' : 'देय / Payable'}
                         </p>
                       </div>
@@ -816,81 +959,106 @@ export function DashboardView() {
                 })}
               </div>
             ) : (
-              <div className="h-[200px] flex items-center justify-center text-zinc-500">
-                <div className="text-center">
-                  <Users className="h-10 w-10 mx-auto mb-2 text-zinc-700" />
-                  <p className="text-sm">कुनै पक्ष भेटिएन</p>
-                  <p className="text-xs text-zinc-600">No parties found</p>
-                </div>
-              </div>
+              <EmptyState
+                icon={Users}
+                title="कुनै पक्ष भेटिएन"
+                subtitle="No parties found"
+              />
             )}
           </CardContent>
         </Card>
 
         {/* Advanced: Account Balance Summary / Simple: VAT Summary */}
         {mode === 'advanced' && hasFeature(currentPlan, 'advancedMode') ? (
-          <Card className="bg-white/[0.02] border-white/5 backdrop-blur-sm">
+          <Card className="glass-card">
             <CardHeader>
-              <CardTitle className="text-base text-zinc-200">
+              <CardTitle className="text-base text-zinc-200 flex items-center gap-2">
+                <Wallet className="h-4 w-4 text-emerald-500/60" />
                 खाता मौज्दात / Account Balance Summary
               </CardTitle>
-              <CardDescription className="text-zinc-500">Key accounts with current balances</CardDescription>
+              <CardDescription className="text-zinc-500 mt-1">Key accounts with current balances</CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <Wallet className="h-4 w-4 text-emerald-500/60" />
-                    <span className="text-sm text-zinc-300">Cash in Hand</span>
-                    <span className="text-[10px] text-zinc-600">(हातमा नगद)</span>
+              <div className="space-y-1">
+                <div className="flex items-center justify-between py-2.5 px-3 rounded-lg hover:bg-white/[0.04] transition-premium">
+                  <div className="flex items-center gap-3">
+                    <div className="h-8 w-8 rounded-lg bg-emerald-500/10 flex items-center justify-center">
+                      <Wallet className="h-4 w-4 text-emerald-500/70" />
+                    </div>
+                    <div>
+                      <span className="text-sm text-zinc-300">Cash in Hand</span>
+                      <span className="text-[10px] text-zinc-600 block">(हातमा नगद)</span>
+                    </div>
                   </div>
-                  <span className="text-sm font-semibold tabular-nums text-emerald-400">
+                  <span className="text-sm font-semibold stat-number text-emerald-400">
                     {formatNPR(data.cashBalance || 0)}
                   </span>
                 </div>
-                <Separator className="bg-white/5" />
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <Landmark className="h-4 w-4 text-emerald-500/60" />
-                    <span className="text-sm text-zinc-300">Bank Balance</span>
-                    <span className="text-[10px] text-zinc-600">(बैंक मौज्दात)</span>
+                <Separator className="bg-white/[0.04] mx-3" />
+                <div className="flex items-center justify-between py-2.5 px-3 rounded-lg hover:bg-white/[0.04] transition-premium">
+                  <div className="flex items-center gap-3">
+                    <div className="h-8 w-8 rounded-lg bg-emerald-500/10 flex items-center justify-center">
+                      <Landmark className="h-4 w-4 text-emerald-500/70" />
+                    </div>
+                    <div>
+                      <span className="text-sm text-zinc-300">Bank Balance</span>
+                      <span className="text-[10px] text-zinc-600 block">(बैंक मौज्दात)</span>
+                    </div>
                   </div>
-                  <span className="text-sm font-semibold tabular-nums text-emerald-400">
+                  <span className="text-sm font-semibold stat-number text-emerald-400">
                     {formatNPR(data.bankBalance || 0)}
                   </span>
                 </div>
-                <Separator className="bg-white/5" />
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <HandCoins className="h-4 w-4 text-emerald-500/60" />
-                    <span className="text-sm text-zinc-300">Accounts Receivable</span>
-                    <span className="text-[10px] text-zinc-600">(प्राप्य)</span>
+                <Separator className="bg-white/[0.04] mx-3" />
+                <div className="flex items-center justify-between py-2.5 px-3 rounded-lg hover:bg-white/[0.04] transition-premium">
+                  <div className="flex items-center gap-3">
+                    <div className="h-8 w-8 rounded-lg bg-emerald-500/10 flex items-center justify-center">
+                      <HandCoins className="h-4 w-4 text-emerald-500/70" />
+                    </div>
+                    <div>
+                      <span className="text-sm text-zinc-300">Accounts Receivable</span>
+                      <span className="text-[10px] text-zinc-600 block">(प्राप्य)</span>
+                    </div>
                   </div>
-                  <span className="text-sm font-semibold tabular-nums text-emerald-400">
+                  <span className="text-sm font-semibold stat-number text-emerald-400">
                     {formatNPR(data.totalReceivable)}
                   </span>
                 </div>
-                <Separator className="bg-white/5" />
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <CreditCard className="h-4 w-4 text-red-500/60" />
-                    <span className="text-sm text-zinc-300">Accounts Payable</span>
-                    <span className="text-[10px] text-zinc-600">(देय)</span>
+                <Separator className="bg-white/[0.04] mx-3" />
+                <div className="flex items-center justify-between py-2.5 px-3 rounded-lg hover:bg-white/[0.04] transition-premium">
+                  <div className="flex items-center gap-3">
+                    <div className="h-8 w-8 rounded-lg bg-red-500/10 flex items-center justify-center">
+                      <CreditCard className="h-4 w-4 text-red-500/70" />
+                    </div>
+                    <div>
+                      <span className="text-sm text-zinc-300">Accounts Payable</span>
+                      <span className="text-[10px] text-zinc-600 block">(देय)</span>
+                    </div>
                   </div>
-                  <span className="text-sm font-semibold tabular-nums text-red-400">
+                  <span className="text-sm font-semibold stat-number text-red-400">
                     {formatNPR(data.totalPayable)}
                   </span>
                 </div>
-                <Separator className="bg-white/5" />
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <Receipt className="h-4 w-4 text-zinc-500" />
-                    <span className="text-sm text-zinc-300">Net VAT</span>
-                    <span className="text-[10px] text-zinc-600">(भ्याट)</span>
+                <Separator className="bg-white/[0.04] mx-3" />
+                <div className="flex items-center justify-between py-2.5 px-3 rounded-lg hover:bg-white/[0.04] transition-premium">
+                  <div className="flex items-center gap-3">
+                    <div className={cn(
+                      'h-8 w-8 rounded-lg flex items-center justify-center',
+                      data.vatSummary.netVATPayable > 0 ? 'bg-red-500/10' : 'bg-emerald-500/10'
+                    )}>
+                      <Receipt className={cn(
+                        'h-4 w-4',
+                        data.vatSummary.netVATPayable > 0 ? 'text-red-500/70' : 'text-emerald-500/70'
+                      )} />
+                    </div>
+                    <div>
+                      <span className="text-sm text-zinc-300">Net VAT</span>
+                      <span className="text-[10px] text-zinc-600 block">(भ्याट)</span>
+                    </div>
                   </div>
                   <span
                     className={cn(
-                      'text-sm font-semibold tabular-nums',
+                      'text-sm font-semibold stat-number',
                       data.vatSummary.netVATPayable > 0
                         ? 'text-red-400'
                         : 'text-emerald-400'
@@ -904,65 +1072,91 @@ export function DashboardView() {
           </Card>
         ) : (
           /* Simple Mode: VAT Summary */
-          <Card className="bg-white/[0.02] border-white/5 backdrop-blur-sm">
+          <Card className="glass-card">
             <CardHeader>
-              <CardTitle className="text-base text-zinc-200">
+              <CardTitle className="text-base text-zinc-200 flex items-center gap-2">
+                <Receipt className="h-4 w-4 text-emerald-500/60" />
                 भ्याट सारांश / VAT Summary
               </CardTitle>
-              <CardDescription className="text-zinc-500">Value Added Tax breakdown</CardDescription>
+              <CardDescription className="text-zinc-500 mt-1">Value Added Tax breakdown</CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-zinc-300">Output VAT (निर्गत भ्याट)</p>
-                    <p className="text-xs text-zinc-500">VAT collected on sales</p>
+              <div className="space-y-1">
+                <div className="flex items-center justify-between py-2.5 px-3 rounded-lg hover:bg-white/[0.04] transition-premium">
+                  <div className="flex items-center gap-3">
+                    <div className="h-8 w-8 rounded-lg bg-red-500/10 flex items-center justify-center">
+                      <ArrowUpRight className="h-4 w-4 text-red-500/70" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium text-zinc-300">Output VAT (निर्गत भ्याट)</p>
+                      <p className="text-[10px] text-zinc-600">VAT collected on sales</p>
+                    </div>
                   </div>
-                  <span className="text-sm font-semibold tabular-nums text-red-400">
+                  <span className="text-sm font-semibold stat-number text-red-400">
                     {formatNPR(data.vatSummary.outputVAT)}
                   </span>
                 </div>
-                <Separator className="bg-white/5" />
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-zinc-300">Input VAT (आगत भ्याट)</p>
-                    <p className="text-xs text-zinc-500">VAT paid on purchases</p>
+                <Separator className="bg-white/[0.04] mx-3" />
+                <div className="flex items-center justify-between py-2.5 px-3 rounded-lg hover:bg-white/[0.04] transition-premium">
+                  <div className="flex items-center gap-3">
+                    <div className="h-8 w-8 rounded-lg bg-emerald-500/10 flex items-center justify-center">
+                      <ArrowDownRight className="h-4 w-4 text-emerald-500/70" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium text-zinc-300">Input VAT (आगत भ्याट)</p>
+                      <p className="text-[10px] text-zinc-600">VAT paid on purchases</p>
+                    </div>
                   </div>
-                  <span className="text-sm font-semibold tabular-nums text-emerald-400">
+                  <span className="text-sm font-semibold stat-number text-emerald-400">
                     {formatNPR(data.vatSummary.inputVAT)}
                   </span>
                 </div>
-                <Separator className="bg-white/5" />
+                <Separator className="bg-white/[0.04] mx-3" />
                 <div
                   className={cn(
-                    'flex items-center justify-between p-4 rounded-xl',
+                    'flex items-center justify-between p-4 rounded-xl mt-2 transition-premium',
                     data.vatSummary.netVATPayable > 0
-                      ? 'bg-red-500/5 border border-red-500/10'
+                      ? 'bg-red-500/[0.04] border border-red-500/10 hover:border-red-500/20'
                       : data.vatSummary.netVATPayable < 0
-                        ? 'bg-emerald-500/5 border border-emerald-500/10'
-                        : 'bg-white/[0.02] border border-white/5'
+                        ? 'bg-emerald-500/[0.04] border border-emerald-500/10 hover:border-emerald-500/20'
+                        : 'bg-white/[0.02] border border-white/[0.04]'
                   )}
                 >
-                  <div>
-                    <p className="text-sm font-bold text-zinc-200">
-                      Net VAT{' '}
-                      {data.vatSummary.netVATPayable > 0
-                        ? 'Payable'
-                        : data.vatSummary.netVATPayable < 0
-                          ? 'Refund'
-                          : ''}
-                    </p>
-                    <p className="text-xs text-zinc-500">
-                      {data.vatSummary.netVATPayable > 0
-                        ? 'खातामा बुझाउनुपर्ने भ्याट'
-                        : data.vatSummary.netVATPayable < 0
-                          ? 'फिर्ता पाउनुपर्ने भ्याट'
-                          : 'कुनै भ्याट बक्यौता छैन'}
-                    </p>
+                  <div className="flex items-center gap-3">
+                    <div className={cn(
+                      'h-9 w-9 rounded-lg flex items-center justify-center',
+                      data.vatSummary.netVATPayable > 0
+                        ? 'bg-red-500/10'
+                        : 'bg-emerald-500/10'
+                    )}>
+                      <Sparkles className={cn(
+                        'h-4 w-4',
+                        data.vatSummary.netVATPayable > 0
+                          ? 'text-red-400'
+                          : 'text-emerald-400'
+                      )} />
+                    </div>
+                    <div>
+                      <p className="text-sm font-bold text-zinc-200">
+                        Net VAT{' '}
+                        {data.vatSummary.netVATPayable > 0
+                          ? 'Payable'
+                          : data.vatSummary.netVATPayable < 0
+                            ? 'Refund'
+                            : ''}
+                      </p>
+                      <p className="text-[10px] text-zinc-500">
+                        {data.vatSummary.netVATPayable > 0
+                          ? 'खातामा बुझाउनुपर्ने भ्याट'
+                          : data.vatSummary.netVATPayable < 0
+                            ? 'फिर्ता पाउनुपर्ने भ्याट'
+                            : 'कुनै भ्याट बक्यौता छैन'}
+                      </p>
+                    </div>
                   </div>
                   <span
                     className={cn(
-                      'text-lg font-bold tabular-nums',
+                      'text-lg font-bold stat-number',
                       data.vatSummary.netVATPayable > 0
                         ? 'text-red-400'
                         : 'text-emerald-400'
