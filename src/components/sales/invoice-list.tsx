@@ -26,6 +26,7 @@ import {
   Plus, Search, MoreHorizontal, Eye, CheckCircle, XCircle, FileText,
   ChevronLeft, ChevronRight, Calendar, Send, Pencil, Trash2,
 } from 'lucide-react'
+import { authFetch } from '@/lib/session'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
 
@@ -125,7 +126,7 @@ export function InvoiceList() {
       if (statusFilter !== 'all') params.set('status', statusFilter)
       if (dateFrom) params.set('dateFrom', dateFrom)
       if (dateTo) params.set('dateTo', dateTo)
-      const res = await fetch(`/api/invoices?${params}`)
+      const res = await authFetch(`/api/invoices?${params}`)
       if (res.ok) {
         const data = await res.json()
         setInvoices(Array.isArray(data) ? data : [])
@@ -166,7 +167,7 @@ export function InvoiceList() {
   // Actions
   const handleMarkAsPaid = async (invoiceId: string, totalAmount: number) => {
     try {
-      const res = await fetch('/api/invoices', {
+      const res = await authFetch('/api/invoices', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ id: invoiceId, status: 'paid', amountPaid: totalAmount }),
@@ -185,7 +186,7 @@ export function InvoiceList() {
 
   const handleSend = async (invoiceId: string) => {
     try {
-      const res = await fetch('/api/invoices', {
+      const res = await authFetch('/api/invoices', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ id: invoiceId, status: 'sent' }),
@@ -203,7 +204,7 @@ export function InvoiceList() {
 
   const handleCancel = async (invoiceId: string) => {
     try {
-      const res = await fetch('/api/invoices', {
+      const res = await authFetch('/api/invoices', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ id: invoiceId, status: 'cancelled' }),

@@ -15,6 +15,7 @@ import {
 import { Switch } from '@/components/ui/switch'
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 import { Separator } from '@/components/ui/separator'
+import { authFetch } from '@/lib/session'
 import { ArrowLeft, Package } from 'lucide-react'
 import { toast } from 'sonner'
 
@@ -96,7 +97,7 @@ export function ProductForm() {
         description: description.trim() || null,
       }
 
-      const res = await fetch('/api/inventory', {
+      const res = await authFetch('/api/inventory', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),

@@ -56,6 +56,7 @@ import {
   FileText,
   RefreshCw,
 } from 'lucide-react'
+import { authFetch } from '@/lib/session'
 import { toast } from 'sonner'
 
 // ─── Types ─────────────────────────────────────────────────────
@@ -154,7 +155,7 @@ export function JournalEntries() {
         if (fromDate) params.set('fromDate', fromDate)
         if (toDate) params.set('toDate', toDate)
 
-        const res = await fetch(`/api/journal-entries?${params.toString()}`)
+        const res = await authFetch(`/api/journal-entries?${params.toString()}`)
         if (!res.ok) throw new Error('Failed to fetch')
         const data = await res.json()
 
@@ -181,7 +182,7 @@ export function JournalEntries() {
     if (!cancelEntryId) return
     setCancelling(true)
     try {
-      const res = await fetch('/api/journal-entries', {
+      const res = await authFetch('/api/journal-entries', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ id: cancelEntryId, isCancelled: true }),

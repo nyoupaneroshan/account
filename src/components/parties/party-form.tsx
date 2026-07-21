@@ -13,6 +13,7 @@ import {
 } from '@/components/ui/select'
 import { Switch } from '@/components/ui/switch'
 import { Separator } from '@/components/ui/separator'
+import { authFetch } from '@/lib/session'
 import { ArrowLeft, Loader2 } from 'lucide-react'
 import { toast } from 'sonner'
 
@@ -84,7 +85,7 @@ export function PartyForm() {
     const loadParty = async () => {
       setLoading(true)
       try {
-        const res = await fetch(`/api/parties?orgId=${currentOrgId}`)
+        const res = await authFetch(`/api/parties?orgId=${currentOrgId}`)
         if (res.ok) {
           const parties = await res.json()
           const party = parties.find((p: Party) => p.id === editId)
@@ -165,7 +166,7 @@ export function PartyForm() {
 
       if (isEdit && editId) {
         // Update existing party
-        const res = await fetch('/api/parties', {
+        const res = await authFetch('/api/parties', {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ id: editId, ...payload }),
@@ -179,7 +180,7 @@ export function PartyForm() {
         }
       } else {
         // Create new party
-        const res = await fetch('/api/parties', {
+        const res = await authFetch('/api/parties', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(payload),

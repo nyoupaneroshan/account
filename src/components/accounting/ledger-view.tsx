@@ -43,6 +43,7 @@ import {
   RefreshCw,
 } from 'lucide-react'
 import { toast } from 'sonner'
+import { authFetch } from '@/lib/session'
 
 // ─── Types ─────────────────────────────────────────────────────
 
@@ -126,7 +127,7 @@ export function LedgerView() {
     if (!currentOrgId) return
     setLoadingAccounts(true)
     try {
-      const res = await fetch(`/api/accounts?orgId=${currentOrgId}`)
+      const res = await authFetch(`/api/accounts?orgId=${currentOrgId}`)
       if (!res.ok) throw new Error('Failed to fetch')
       const data = await res.json()
       setAccounts(data)
@@ -155,7 +156,7 @@ export function LedgerView() {
       if (fromDate) params.set('fromDate', fromDate)
       if (toDate) params.set('toDate', toDate)
 
-      const res = await fetch(`/api/journal-entries?${params.toString()}`)
+      const res = await authFetch(`/api/journal-entries?${params.toString()}`)
       if (!res.ok) throw new Error('Failed to fetch')
       const data = await res.json()
       setEntries(data.data || [])

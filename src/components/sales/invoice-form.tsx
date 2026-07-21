@@ -28,6 +28,7 @@ import {
 import {
   ArrowLeft, Plus, Trash2, ChevronDown, Check, Save, Send,
 } from 'lucide-react'
+import { authFetch } from '@/lib/session'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
 
@@ -149,8 +150,8 @@ export function InvoiceForm() {
     if (!currentOrgId) return
     setLoadingData(true)
     Promise.all([
-      fetch(`/api/parties?orgId=${currentOrgId}&partyType=customer`).then((r) => r.json()),
-      fetch(`/api/inventory?orgId=${currentOrgId}`).then((r) => r.json()),
+      authFetch(`/api/parties?orgId=${currentOrgId}&partyType=customer`).then((r) => r.json()),
+      authFetch(`/api/inventory?orgId=${currentOrgId}`).then((r) => r.json()),
     ])
       .then(([partyData, productData]) => {
         setParties(Array.isArray(partyData) ? partyData : [])
@@ -278,7 +279,7 @@ export function InvoiceForm() {
           vatRate: l.vatRate,
         })),
       }
-      const res = await fetch('/api/invoices', {
+      const res = await authFetch('/api/invoices', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),

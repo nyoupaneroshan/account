@@ -26,6 +26,7 @@ import {
   Plus, Search, MoreHorizontal, Eye, CheckCircle, XCircle, ShoppingCart,
   ChevronLeft, ChevronRight, Calendar, Pencil, Truck,
 } from 'lucide-react'
+import { authFetch } from '@/lib/session'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
 
@@ -125,7 +126,7 @@ export function PurchaseList() {
       if (statusFilter !== 'all') params.set('status', statusFilter)
       if (dateFrom) params.set('dateFrom', dateFrom)
       if (dateTo) params.set('dateTo', dateTo)
-      const res = await fetch(`/api/purchases?${params}`)
+      const res = await authFetch(`/api/purchases?${params}`)
       if (res.ok) {
         const data = await res.json()
         setPurchaseBills(Array.isArray(data) ? data : [])
@@ -162,7 +163,7 @@ export function PurchaseList() {
 
   const handleMarkAsPaid = async (billId: string, totalAmount: number) => {
     try {
-      const res = await fetch('/api/purchases', {
+      const res = await authFetch('/api/purchases', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ id: billId, status: 'paid', amountPaid: totalAmount }),
@@ -180,7 +181,7 @@ export function PurchaseList() {
 
   const handleCancel = async (billId: string) => {
     try {
-      const res = await fetch('/api/purchases', {
+      const res = await authFetch('/api/purchases', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ id: billId, status: 'cancelled' }),

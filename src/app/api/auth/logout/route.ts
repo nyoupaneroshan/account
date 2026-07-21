@@ -1,5 +1,4 @@
 import { NextResponse } from 'next/server'
-import { clearSessionCookieOptions } from '@/lib/auth'
 
 export async function POST() {
   try {
@@ -9,9 +8,14 @@ export async function POST() {
       message: 'Logged out successfully',
     })
 
-    // Clear the session cookie
-    const cookieConfig = clearSessionCookieOptions()
-    response.cookies.set(cookieConfig.name, cookieConfig.value, cookieConfig.options)
+    // Clear the session cookie directly (no need for shared auth module)
+    response.cookies.set('hisab-session', '', {
+      httpOnly: false,
+      secure: false,
+      sameSite: 'lax',
+      maxAge: 0,
+      path: '/',
+    })
 
     return response
   } catch (error) {

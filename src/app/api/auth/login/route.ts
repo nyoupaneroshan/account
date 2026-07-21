@@ -1,9 +1,10 @@
 import { db } from '@/lib/db'
 import { NextResponse } from 'next/server'
 import { createHash } from 'crypto'
-import { setSessionCookie } from '@/lib/auth'
 
 const SALT = 'hisab-pro-salt'
+const SESSION_COOKIE = 'hisab-session'
+const SESSION_MAX_AGE = 30 * 24 * 60 * 60 // 30 days
 
 function hashPassword(password: string): string {
   return createHash('sha256').update(password + SALT).digest('hex')
@@ -86,9 +87,14 @@ export async function POST(request: Request) {
       })),
     })
 
-    // Set the session cookie (for cookie-based auth fallback)
-    const cookieConfig = setSessionCookie(user.id)
-    response.cookies.set(cookieConfig.name, cookieConfig.value, cookieConfig.options)
+    // Set the session cookie directly (avoid importing shared auth module)
+    response.cookies.set(SESSION_COOKIE, user.id, {
+      httpOnly: false,
+      secure: false, // Must be false for sandbox/proxy environments
+      sameSite: 'lax',
+      maxAge: SESSION_MAX_AGE,
+      path: '/',
+    })
 
     return response
 

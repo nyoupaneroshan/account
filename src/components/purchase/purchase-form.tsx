@@ -27,6 +27,7 @@ import {
 import {
   ArrowLeft, Plus, Trash2, ChevronDown, Check, Save, Warehouse,
 } from 'lucide-react'
+import { authFetch } from '@/lib/session'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
 
@@ -152,8 +153,8 @@ export function PurchaseForm() {
     if (!currentOrgId) return
     setLoadingData(true)
     Promise.all([
-      fetch(`/api/parties?orgId=${currentOrgId}&partyType=supplier`).then((r) => r.json()),
-      fetch(`/api/inventory?orgId=${currentOrgId}`).then((r) => r.json()),
+      authFetch(`/api/parties?orgId=${currentOrgId}&partyType=supplier`).then((r) => r.json()),
+      authFetch(`/api/inventory?orgId=${currentOrgId}`).then((r) => r.json()),
     ])
       .then(([partyData, productData]) => {
         setParties(Array.isArray(partyData) ? partyData : [])
@@ -294,7 +295,7 @@ export function PurchaseForm() {
           vatRate: l.vatRate,
         })),
       }
-      const res = await fetch('/api/purchases', {
+      const res = await authFetch('/api/purchases', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),

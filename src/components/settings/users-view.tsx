@@ -38,6 +38,7 @@ import {
   ToggleLeft,
   ToggleRight,
 } from 'lucide-react'
+import { authFetch } from '@/lib/session'
 import { toast } from 'sonner'
 
 // ============================================================
@@ -131,7 +132,7 @@ export function UsersView() {
     if (!currentOrgId) return
     setLoading(true)
     try {
-      const res = await fetch(`/api/admin/user?orgId=${currentOrgId}`)
+      const res = await authFetch(`/api/admin/user?orgId=${currentOrgId}`)
       if (res.ok) {
         const data = await res.json()
         setUsers(Array.isArray(data) ? data : [])
@@ -176,7 +177,7 @@ export function UsersView() {
 
     setAdding(true)
     try {
-      const res = await fetch('/api/admin/user', {
+      const res = await authFetch('/api/admin/user', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -225,7 +226,7 @@ export function UsersView() {
     }
 
     try {
-      const res = await fetch('/api/admin/user', {
+      const res = await authFetch('/api/admin/user', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

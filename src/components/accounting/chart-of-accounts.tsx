@@ -45,6 +45,7 @@ import {
   CircleDollarSign,
   RefreshCw,
 } from 'lucide-react'
+import { authFetch } from '@/lib/session'
 import { toast } from 'sonner'
 
 // ─── Types ─────────────────────────────────────────────────────
@@ -148,7 +149,7 @@ export function ChartOfAccounts() {
     setLoading(true)
     setError(null)
     try {
-      const res = await fetch(`/api/accounts?orgId=${currentOrgId}`)
+      const res = await authFetch(`/api/accounts?orgId=${currentOrgId}`)
       if (!res.ok) throw new Error('Failed to fetch accounts')
       const data = await res.json()
       setAccounts(data)
@@ -207,7 +208,7 @@ export function ChartOfAccounts() {
     }
     setSubmitting(true)
     try {
-      const res = await fetch('/api/accounts', {
+      const res = await authFetch('/api/accounts', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

@@ -17,6 +17,24 @@ import {
 } from 'lucide-react'
 import { CLIENT_SESSION_KEY } from '@/lib/session'
 
+// Key for tracking recent login to prevent redirect loops
+const JUST_LOGGED_IN_KEY = 'hisab-just-logged-in'
+// Keys for persisting user data in localStorage (survives page reload)
+const USER_DATA_KEY = 'hisab-user-data'
+const ORGS_DATA_KEY = 'hisab-orgs-data'
+
+/**
+ * Save user/org data to localStorage so we can restore without API call
+ */
+function saveUserDataLocally(user: { id: string; email: string; name: string; role: string; language: string }, orgs: { id: string; name: string; role: string; plan: string }[]) {
+  try {
+    localStorage.setItem(USER_DATA_KEY, JSON.stringify(user))
+    localStorage.setItem(ORGS_DATA_KEY, JSON.stringify(orgs))
+  } catch {
+    // ignore
+  }
+}
+
 /* ────────────────────────────────────────────
    PASSWORD STRENGTH HELPER
    ──────────────────────────────────────────── */
@@ -150,30 +168,71 @@ function LoginForm() {
   }
 
   // Check if already logged in — only ONCE on mount
+  // Loop detection: if redirected from dashboard, don't auto-redirect back
   useEffect(() => {
     const checkSession = async () => {
       if (redirectAttempted.current) return
 
-      try {
-        const headers: Record<string, string> = {}
-        const storedToken = localStorage.getItem(CLIENT_SESSION_KEY)
-        if (storedToken) {
-          headers['x-session-token'] = storedToken
-        }
+      // Loop detection: if we were just redirected here from the app,
+      // don't auto-redirect back even if session cookie exists
+      const redirectCount = parseInt(sessionStorage.getItem('hisab-redirect-count') || '0', 10)
+      if (redirectCount >= 2) {
+        // We've been bouncing between login and dashboard — stop the loop.
+        // Clear the counter and session — force re-login
+        sessionStorage.removeItem('hisab-redirect-count')
+        localStorage.removeItem(CLIENT_SESSION_KEY)
+        localStorage.removeItem(JUST_LOGGED_IN_KEY)
+        try { await fetch('/api/auth/logout', { method: 'POST' }) } catch {}
+        setCheckingSession(false)
+        return
+      }
 
-        const res = await fetch('/api/auth/session', { headers })
+      // If there's no local session token, check cookie as fallback
+      let storedToken: string | null = null
+      try {
+        storedToken = localStorage.getItem(CLIENT_SESSION_KEY)
+      } catch {
+        // localStorage not available
+      }
+      if (!storedToken) {
+        try {
+          const cookies = document.cookie.split(';').map(c => c.trim())
+          const sessionCookie = cookies.find(c => c.startsWith('hisab-session='))
+          if (sessionCookie) {
+            storedToken = sessionCookie.split('=')[1]
+          }
+        } catch {
+          // cookies not available
+        }
+      }
+      if (!storedToken) {
+        sessionStorage.removeItem('hisab-redirect-count')
+        setCheckingSession(false)
+        return
+      }
+
+      try {
+        const headers: Record<string, string> = { 'x-session-token': storedToken }
+
+        const controller = new AbortController()
+        const timeoutId = setTimeout(() => controller.abort(), 15000)
+
+        const res = await fetch('/api/auth/session', { headers, signal: controller.signal })
+        clearTimeout(timeoutId)
+
         if (res.ok) {
           const data = await res.json()
           if (data.user && data.organizations && data.organizations.length > 0) {
             redirectAttempted.current = true
-            localStorage.setItem(CLIENT_SESSION_KEY, data.user.id)
-            setCurrentUser({
+            try { localStorage.setItem(CLIENT_SESSION_KEY, data.user.id) } catch {}
+            const userData = {
               id: data.user.id,
               email: data.user.email,
               name: data.user.name,
               role: data.user.role,
               language: data.user.language,
-            })
+            }
+            setCurrentUser(userData)
             const orgs = data.organizations.map((o: { id: string; name: string; role: string; plan: string }) => ({
               id: o.id,
               name: o.name,
@@ -185,6 +244,10 @@ function LoginForm() {
             if (orgs.length > 0) {
               setCurrentOrg(orgs[0].id, orgs[0].name)
             }
+            // Save user data locally for fast restore on dashboard
+            saveUserDataLocally(userData, orgs)
+            // Set just-logged-in flag so dashboard knows to be patient with API calls
+            localStorage.setItem(JUST_LOGGED_IN_KEY, Date.now().toString())
             // Use window.location for a hard navigation to avoid client-side loop
             window.location.href = '/dashboard'
             return
@@ -193,6 +256,8 @@ function LoginForm() {
       } catch {
         // Not logged in or network error, show login form
       }
+      // Reset redirect count on successful login page load (not auto-redirected)
+      sessionStorage.removeItem('hisab-redirect-count')
       setCheckingSession(false)
     }
     checkSession()
@@ -229,7 +294,7 @@ function LoginForm() {
       const data = await res.json()
       if (data.success) {
         if (data.token) {
-          localStorage.setItem(CLIENT_SESSION_KEY, data.token)
+          try { localStorage.setItem(CLIENT_SESSION_KEY, data.token) } catch {}
         }
         setCurrentUser(data.user)
         setUserOrganizations(data.organizations)
@@ -237,6 +302,12 @@ function LoginForm() {
         if (data.organizations.length > 0) {
           setCurrentOrg(data.organizations[0].id, data.organizations[0].name)
         }
+        // Save user data locally for fast restore on dashboard
+        saveUserDataLocally(data.user, data.organizations)
+        // Set just-logged-in flag so dashboard knows to be patient with API calls
+        localStorage.setItem(JUST_LOGGED_IN_KEY, Date.now().toString())
+        // Reset any redirect loop counter
+        sessionStorage.removeItem('hisab-redirect-count')
         window.location.href = '/dashboard'
       } else {
         showError(data.error || 'Login failed')
@@ -281,7 +352,7 @@ function LoginForm() {
       const data = await res.json()
       if (data.success) {
         if (data.token) {
-          localStorage.setItem(CLIENT_SESSION_KEY, data.token)
+          try { localStorage.setItem(CLIENT_SESSION_KEY, data.token) } catch {}
         }
         setCurrentUser(data.user)
         setUserOrganizations(data.organizations)
@@ -289,6 +360,10 @@ function LoginForm() {
         if (data.organizations.length > 0) {
           setCurrentOrg(data.organizations[0].id, data.organizations[0].name)
         }
+        localStorage.setItem(JUST_LOGGED_IN_KEY, Date.now().toString())
+        sessionStorage.removeItem('hisab-redirect-count')
+        // Save user data locally for fast restore on dashboard
+        saveUserDataLocally(data.user, data.organizations)
         window.location.href = '/dashboard'
       } else {
         showError(data.error || 'Registration failed')

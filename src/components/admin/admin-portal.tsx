@@ -66,6 +66,7 @@ import {
   Mail,
   LayoutGrid,
 } from 'lucide-react'
+import { authFetch } from '@/lib/session'
 import { toast } from 'sonner'
 
 // ============================================================
@@ -216,7 +217,7 @@ export function AdminPortal() {
   const loadData = useCallback(async (showRefreshing = false) => {
     if (showRefreshing) setRefreshing(true)
     try {
-      const res = await fetch(`/api/admin?userId=${currentUser?.id}`)
+      const res = await authFetch(`/api/admin?userId=${currentUser?.id}`)
       const data = await res.json()
       if (data.success) {
         setStats(data.stats)
@@ -240,7 +241,7 @@ export function AdminPortal() {
     if (!selectedOrg) return
     setMembersLoading(true)
     try {
-      const res = await fetch(`/api/admin/rbac?orgId=${selectedOrg}&userId=${currentUser?.id}`)
+      const res = await authFetch(`/api/admin/rbac?orgId=${selectedOrg}&userId=${currentUser?.id}`)
       const data = await res.json()
       if (data.success) {
         setOrgMembers(data.members || [])
@@ -272,7 +273,7 @@ export function AdminPortal() {
     }
 
     try {
-      const res = await fetch('/api/admin', {
+      const res = await authFetch('/api/admin', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'toggle_user', userId, isActive: !currentStatus, adminUserId: currentUser?.id }),
@@ -292,7 +293,7 @@ export function AdminPortal() {
 
   const updateOrgPlan = async (orgId: string, plan: string) => {
     try {
-      const res = await fetch('/api/admin/subscription', {
+      const res = await authFetch('/api/admin/subscription', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ organizationId: orgId, plan, userId: currentUser?.id }),
@@ -315,7 +316,7 @@ export function AdminPortal() {
     if (!addUserEmail.trim() || !selectedOrg) return
     setAddingUser(true)
     try {
-      const res = await fetch('/api/admin/rbac', {
+      const res = await authFetch('/api/admin/rbac', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -347,7 +348,7 @@ export function AdminPortal() {
     if (!editMember || !selectedOrg || !editRole) return
     setUpdatingRole(true)
     try {
-      const res = await fetch('/api/admin/rbac', {
+      const res = await authFetch('/api/admin/rbac', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -378,7 +379,7 @@ export function AdminPortal() {
     if (!removeMember || !selectedOrg) return
     setRemovingUser(true)
     try {
-      const res = await fetch('/api/admin/rbac', {
+      const res = await authFetch('/api/admin/rbac', {
         method: 'DELETE',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -427,7 +428,7 @@ export function AdminPortal() {
     if (!editOrg) return
     setUpdatingOrg(true)
     try {
-      const res = await fetch('/api/admin', {
+      const res = await authFetch('/api/admin', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -467,7 +468,7 @@ export function AdminPortal() {
   const loadAllMemberships = useCallback(async () => {
     setMembershipsLoading(true)
     try {
-      const res = await fetch(`/api/admin/rbac?orgId=all&userId=${currentUser?.id}`)
+      const res = await authFetch(`/api/admin/rbac?orgId=all&userId=${currentUser?.id}`)
       const data = await res.json()
       if (data.success) {
         setAllMemberships(data.members || [])

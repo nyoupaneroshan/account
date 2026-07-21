@@ -42,6 +42,7 @@ import {
   TrendingUp,
 } from 'lucide-react'
 import { toast } from 'sonner'
+import { authFetch } from '@/lib/session'
 
 // ============================================================
 // Types
@@ -118,7 +119,7 @@ export function OrganizationView() {
     if (!currentOrgId) return
     setLoading(true)
     try {
-      const res = await fetch(`/api/settings?orgId=${currentOrgId}`)
+      const res = await authFetch(`/api/settings?orgId=${currentOrgId}`)
       if (res.ok) {
         const data = await res.json()
         setOrgData(data as OrgData)
@@ -146,7 +147,7 @@ export function OrganizationView() {
   // Refresh org list from API
   const refreshOrgs = useCallback(async () => {
     try {
-      const res = await fetch('/api/organizations')
+      const res = await authFetch('/api/organizations')
       if (res.ok) {
         const data = await res.json()
         if (data.organizations) {
@@ -190,7 +191,7 @@ export function OrganizationView() {
     }
     setCreating(true)
     try {
-      const res = await fetch('/api/organizations', {
+      const res = await authFetch('/api/organizations', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ name: newOrgName.trim() }),

@@ -27,6 +27,7 @@ import {
   Users, Plus, Search, Receipt, Truck, Eye, Pencil, Trash2,
   ChevronLeft, ChevronRight, ArrowUpRight, ArrowDownRight,
 } from 'lucide-react'
+import { authFetch } from '@/lib/session'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
 
@@ -95,7 +96,7 @@ export function PartyList() {
       const params = new URLSearchParams({ orgId: currentOrgId })
       if (activeTab !== 'all') params.set('partyType', activeTab)
       if (search.trim()) params.set('search', search.trim())
-      const res = await fetch(`/api/parties?${params}`)
+      const res = await authFetch(`/api/parties?${params}`)
       if (res.ok) {
         const data = await res.json()
         setParties(Array.isArray(data) ? data : [])
@@ -117,7 +118,7 @@ export function PartyList() {
     if (!deleteTarget) return
     setDeleting(true)
     try {
-      const res = await fetch('/api/parties', {
+      const res = await authFetch('/api/parties', {
         method: 'DELETE',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ id: deleteTarget.id }),
@@ -406,6 +407,7 @@ export function PartyList() {
         <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle>Party Details</DialogTitle>
+            <DialogDescription className="sr-only">View party contact details and outstanding balance</DialogDescription>
           </DialogHeader>
           {selectedParty && (
             <div className="space-y-4">

@@ -1,0 +1,915 @@
+     1→'use client'
+     2→
+     3→import { useState, Suspense, useEffect, useRef } from 'react'
+     4→import { useRouter, useSearchParams } from 'next/navigation'
+     5→import { useAppStore } from '@/store/app-store'
+     6→import { Card, CardContent, CardHeader, CardFooter } from '@/components/ui/card'
+     7→import { Input } from '@/components/ui/input'
+     8→import { Button } from '@/components/ui/button'
+     9→import { Label } from '@/components/ui/label'
+    10→import { Checkbox } from '@/components/ui/checkbox'
+    11→import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+    12→import { cn } from '@/lib/utils'
+    13→import {
+    14→  Eye, EyeOff, Loader2, Calculator, Shield, Globe, ArrowLeft,
+    15→  Receipt, TrendingUp, BarChart3, CheckCircle2, Users, Zap,
+    16→  Sparkles, ChevronRight,
+    17→} from 'lucide-react'
+    18→import { CLIENT_SESSION_KEY } from '@/lib/session'
+    19→
+    20→/* ────────────────────────────────────────────
+    21→   PASSWORD STRENGTH HELPER
+    22→   ──────────────────────────────────────────── */
+    23→function getPasswordStrength(password: string): {
+    24→  score: number; label: string; color: string
+    25→} {
+    26→  if (!password) return { score: 0, label: '', color: '' }
+    27→  let score = 0
+    28→  if (password.length >= 6) score++
+    29→  if (password.length >= 10) score++
+    30→  if (/[A-Z]/.test(password)) score++
+    31→  if (/[0-9]/.test(password)) score++
+    32→  if (/[^A-Za-z0-9]/.test(password)) score++
+    33→
+    34→  if (score <= 1) return { score: 1, label: 'Weak', color: '#ef4444' }
+    35→  if (score <= 2) return { score: 2, label: 'Fair', color: '#f97316' }
+    36→  if (score <= 3) return { score: 3, label: 'Good', color: '#eab308' }
+    37→  if (score <= 4) return { score: 4, label: 'Strong', color: '#22c55e' }
+    38→  return { score: 5, label: 'Very Strong', color: '#10B981' }
+    39→}
+    40→
+    41→/* ────────────────────────────────────────────
+    42→   ANIMATED INPUT WRAPPER
+    43→   ──────────────────────────────────────────── */
+    44→function AnimatedInput({
+    45→  id,
+    46→  label,
+    47→  type = 'text',
+    48→  placeholder,
+    49→  value,
+    50→  onChange,
+    51→  onKeyDown,
+    52→  icon: Icon,
+    53→  rightElement,
+    54→  className,
+    55→  hint,
+    56→}: {
+    57→  id: string
+    58→  label: string
+    59→  type?: string
+    60→  placeholder: string
+    61→  value: string
+    62→  onChange: (e: React.ChangeEvent<HTMLInputElement>) => void
+    63→  onKeyDown?: (e: React.KeyboardEvent<HTMLInputElement>) => void
+    64→  icon?: React.ElementType
+    65→  rightElement?: React.ReactNode
+    66→  className?: string
+    67→  hint?: string
+    68→}) {
+    69→  const [focused, setFocused] = useState(false)
+    70→  const hasValue = value.length > 0
+    71→
+    72→  return (
+    73→    <div className="space-y-1.5">
+    74→      <Label htmlFor={id} className={cn(
+    75→        "text-sm font-medium transition-colors duration-200",
+    76→        focused ? "text-emerald-400" : "text-zinc-300"
+    77→      )}>
+    78→        {label}
+    79→      </Label>
+    80→      <div className={cn(
+    81→        "relative rounded-lg transition-all duration-200",
+    82→        focused && "ring-1 ring-emerald-500/30"
+    83→      )}>
+    84→        {Icon && (
+    85→          <div className={cn(
+    86→            "absolute left-3 top-1/2 -translate-y-1/2 transition-colors duration-200",
+    87→            focused ? "text-emerald-400" : "text-zinc-600"
+    88→          )}>
+    89→            <Icon className="h-4 w-4" />
+    90→          </div>
+    91→        )}
+    92→        <Input
+    93→          id={id}
+    94→          type={type}
+    95→          placeholder={placeholder}
+    96→          value={value}
+    97→          onChange={onChange}
+    98→          onKeyDown={onKeyDown}
+    99→          onFocus={() => setFocused(true)}
+   100→          onBlur={() => setFocused(false)}
+   101→          className={cn(
+   102→            "bg-white/[0.04] border-white/[0.08] text-white placeholder:text-zinc-600",
+   103→            "focus-visible:ring-0 focus-visible:border-emerald-500/50",
+   104→            "transition-all duration-200",
+   105→            Icon && "pl-10",
+   106→            rightElement && "pr-10",
+   107→            className
+   108→          )}
+   109→        />
+   110→        {rightElement && (
+   111→          <div className="absolute right-3 top-1/2 -translate-y-1/2">
+   112→            {rightElement}
+   113→          </div>
+   114→        )}
+   115→      </div>
+   116→      {hint && (
+   117→        <p className={cn(
+   118→          "text-[11px] transition-all duration-300 overflow-hidden",
+   119→          focused || hasValue ? "max-h-6 opacity-100" : "max-h-0 opacity-0"
+   120→        )}>
+   121→          <span className="text-zinc-600">{hint}</span>
+   122→        </p>
+   123→      )}
+   124→    </div>
+   125→  )
+   126→}
+   127→
+   128→/* ────────────────────────────────────────────
+   129→   LOGIN FORM COMPONENT
+   130→   ──────────────────────────────────────────── */
+   131→function LoginForm() {
+   132→  const router = useRouter()
+   133→  const searchParams = useSearchParams()
+   134→  const initialTab = searchParams.get('tab') === 'register' ? 'register' : 'login'
+   135→  const { setCurrentUser, setUserOrganizations, setCurrentOrg, setLanguage } = useAppStore()
+   136→
+   137→  const [tab, setTab] = useState<'login' | 'register'>(initialTab)
+   138→  const [loading, setLoading] = useState(false)
+   139→  const [checkingSession, setCheckingSession] = useState(true)
+   140→  const [error, setError] = useState('')
+   141→  const [errorKey, setErrorKey] = useState(0)
+   142→  const [showPassword, setShowPassword] = useState(false)
+   143→  const [showConfirmPassword, setShowConfirmPassword] = useState(false)
+   144→  const redirectAttempted = useRef(false)
+   145→
+   146→  // Helper to set error with animation re-trigger
+   147→  const showError = (msg: string) => {
+   148→    setError(msg)
+   149→    setErrorKey((k) => k + 1)
+   150→  }
+   151→
+   152→  // Check if already logged in — only ONCE on mount
+   153→  // Loop detection: if redirected from dashboard, don't auto-redirect back
+   154→  useEffect(() => {
+   155→    const checkSession = async () => {
+   156→      if (redirectAttempted.current) return
+   157→
+   158→      // Loop detection: if we were just redirected here from the app,
+   159→      // don't auto-redirect back even if session cookie exists
+   160→      const redirectCount = parseInt(sessionStorage.getItem('hisab-redirect-count') || '0', 10)
+   161→      if (redirectCount >= 2) {
+   162→        // Clear the counter and session — force re-login
+   163→        sessionStorage.removeItem('hisab-redirect-count')
+   164→        localStorage.removeItem(CLIENT_SESSION_KEY)
+   165→        try { await fetch('/api/auth/logout', { method: 'POST' }) } catch {}
+   166→        setCheckingSession(false)
+   167→        return
+   168→      }
+   169→
+   170→      try {
+   171→        const headers: Record<string, string> = {}
+   172→        const storedToken = localStorage.getItem(CLIENT_SESSION_KEY)
+   173→        if (storedToken) {
+   174→          headers['x-session-token'] = storedToken
+   175→        }
+   176→
+   177→        const res = await fetch('/api/auth/session', { headers })
+   178→        if (res.ok) {
+   179→          const data = await res.json()
+   180→          if (data.user && data.organizations && data.organizations.length > 0) {
+   181→            redirectAttempted.current = true
+   182→            localStorage.setItem(CLIENT_SESSION_KEY, data.user.id)
+   183→            setCurrentUser({
+   184→              id: data.user.id,
+   185→              email: data.user.email,
+   186→              name: data.user.name,
+   187→              role: data.user.role,
+   188→              language: data.user.language,
+   189→            })
+   190→            const orgs = data.organizations.map((o: { id: string; name: string; role: string; plan: string }) => ({
+   191→              id: o.id,
+   192→              name: o.name,
+   193→              role: o.role,
+   194→              plan: o.plan,
+   195→            }))
+   196→            setUserOrganizations(orgs)
+   197→            setLanguage(data.user.language || 'en')
+   198→            if (orgs.length > 0) {
+   199→              setCurrentOrg(orgs[0].id, orgs[0].name)
+   200→            }
+   201→            // Track redirect count for loop detection
+   202→            sessionStorage.setItem('hisab-redirect-count', String(redirectCount + 1))
+   203→            // Use window.location for a hard navigation to avoid client-side loop
+   204→            window.location.href = '/dashboard'
+   205→            return
+   206→          }
+   207→        }
+   208→      } catch {
+   209→        // Not logged in or network error, show login form
+   210→      }
+   211→      // Reset redirect count on successful login page load (not auto-redirected)
+   212→      sessionStorage.removeItem('hisab-redirect-count')
+   213→      setCheckingSession(false)
+   214→    }
+   215→    checkSession()
+   216→  }, [])
+   217→
+   218→  // Login form
+   219→  const [loginEmail, setLoginEmail] = useState('')
+   220→  const [loginPassword, setLoginPassword] = useState('')
+   221→
+   222→  // Register form
+   223→  const [regName, setRegName] = useState('')
+   224→  const [regEmail, setRegEmail] = useState('')
+   225→  const [regPassword, setRegPassword] = useState('')
+   226→  const [regConfirmPassword, setRegConfirmPassword] = useState('')
+   227→  const [regBusinessName, setRegBusinessName] = useState('')
+   228→  const [regLanguage, setRegLanguage] = useState('en')
+   229→  const [regTerms, setRegTerms] = useState(false)
+   230→
+   231→  const passwordStrength = getPasswordStrength(regPassword)
+   232→
+   233→  const handleLogin = async () => {
+   234→    setError('')
+   235→    if (!loginEmail || !loginPassword) {
+   236→      showError('Please fill in all fields')
+   237→      return
+   238→    }
+   239→    setLoading(true)
+   240→    try {
+   241→      const res = await fetch('/api/auth/login', {
+   242→        method: 'POST',
+   243→        headers: { 'Content-Type': 'application/json' },
+   244→        body: JSON.stringify({ email: loginEmail, password: loginPassword }),
+   245→      })
+   246→      const data = await res.json()
+   247→      if (data.success) {
+   248→        if (data.token) {
+   249→          localStorage.setItem(CLIENT_SESSION_KEY, data.token)
+   250→        }
+   251→        setCurrentUser(data.user)
+   252→        setUserOrganizations(data.organizations)
+   253→        setLanguage(data.user.language || 'en')
+   254→        if (data.organizations.length > 0) {
+   255→          setCurrentOrg(data.organizations[0].id, data.organizations[0].name)
+   256→        }
+   257→        window.location.href = '/dashboard'
+   258→      } else {
+   259→        showError(data.error || 'Login failed')
+   260→      }
+   261→    } catch {
+   262→      showError('Network error. Please try again.')
+   263→    }
+   264→    setLoading(false)
+   265→  }
+   266→
+   267→  const handleRegister = async () => {
+   268→    setError('')
+   269→    if (!regName || !regEmail || !regPassword || !regConfirmPassword || !regBusinessName) {
+   270→      showError('Please fill in all fields')
+   271→      return
+   272→    }
+   273→    if (regPassword !== regConfirmPassword) {
+   274→      showError('Passwords do not match')
+   275→      return
+   276→    }
+   277→    if (regPassword.length < 6) {
+   278→      showError('Password must be at least 6 characters')
+   279→      return
+   280→    }
+   281→    if (!regTerms) {
+   282→      showError('Please accept the terms and conditions')
+   283→      return
+   284→    }
+   285→    setLoading(true)
+   286→    try {
+   287→      const res = await fetch('/api/auth/register', {
+   288→        method: 'POST',
+   289→        headers: { 'Content-Type': 'application/json' },
+   290→        body: JSON.stringify({
+   291→          name: regName,
+   292→          email: regEmail,
+   293→          password: regPassword,
+   294→          businessName: regBusinessName,
+   295→          language: regLanguage,
+   296→        }),
+   297→      })
+   298→      const data = await res.json()
+   299→      if (data.success) {
+   300→        if (data.token) {
+   301→          localStorage.setItem(CLIENT_SESSION_KEY, data.token)
+   302→        }
+   303→        setCurrentUser(data.user)
+   304→        setUserOrganizations(data.organizations)
+   305→        setLanguage(regLanguage)
+   306→        if (data.organizations.length > 0) {
+   307→          setCurrentOrg(data.organizations[0].id, data.organizations[0].name)
+   308→        }
+   309→        window.location.href = '/dashboard'
+   310→      } else {
+   311→        showError(data.error || 'Registration failed')
+   312→      }
+   313→    } catch {
+   314→      showError('Network error. Please try again.')
+   315→    }
+   316→    setLoading(false)
+   317→  }
+   318→
+   319→  // Show loading while checking session
+   320→  if (checkingSession) {
+   321→    return (
+   322→      <div className="min-h-screen flex items-center justify-center bg-[#09090b]">
+   323→        <div className="text-center animate-fade-in-up">
+   324→          <div className="relative mb-6">
+   325→            <div className="h-16 w-16 rounded-2xl bg-gradient-to-br from-emerald-500 to-emerald-600 flex items-center justify-center mx-auto shadow-xl shadow-emerald-500/25">
+   326→              <img src="/logo-generated.png" alt="HP" className="h-10 w-10 rounded-lg" />
+   327→            </div>
+   328→            <div className="absolute inset-0 h-16 w-16 rounded-2xl bg-emerald-500/20 mx-auto animate-ping" />
+   329→          </div>
+   330→          <Loader2 className="h-5 w-5 animate-spin mx-auto text-emerald-400" />
+   331→        </div>
+   332→      </div>
+   333→    )
+   334→  }
+   335→
+   336→  return (
+   337→    <div className="min-h-screen flex flex-col bg-[#09090b] text-white">
+   338→      {/* ─── MAIN LAYOUT ─── */}
+   339→      <div className="flex-1 flex flex-col lg:flex-row">
+   340→        {/* ─── LEFT SIDE: BRANDING (desktop only) ─── */}
+   341→        <div className="hidden lg:flex lg:w-[55%] relative overflow-hidden noise-overlay grain-texture">
+   342→          {/* Background gradient orbs */}
+   343→          <div className="absolute top-0 left-0 w-[500px] h-[500px] bg-emerald-500/[0.08] rounded-full blur-[120px] animate-pulse-glow" />
+   344→          <div className="absolute bottom-0 right-0 w-[400px] h-[400px] bg-emerald-300/[0.05] rounded-full blur-[100px] animate-pulse-glow" style={{ animationDelay: '2s' }} />
+   345→          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-emerald-500/[0.03] rounded-full blur-[80px]" />
+   346→
+   347→          {/* Subtle grid pattern */}
+   348→          <div
+   349→            className="absolute inset-0 opacity-[0.02]"
+   350→            style={{
+   351→              backgroundImage: `linear-gradient(rgba(16,185,129,0.3) 1px, transparent 1px), linear-gradient(90deg, rgba(16,185,129,0.3) 1px, transparent 1px)`,
+   352→              backgroundSize: '50px 50px',
+   353→            }}
+   354→          />
+   355→
+   356→          {/* Content */}
+   357→          <div className="relative z-10 flex flex-col justify-center px-12 xl:px-20 py-16 w-full">
+   358→            {/* Back to Home */}
+   359→            <button
+   360→              onClick={() => router.push('/')}
+   361→              className="flex items-center gap-2 text-sm text-zinc-500 hover:text-emerald-400 transition-colors duration-200 mb-12 group"
+   362→            >
+   363→              <ArrowLeft className="h-4 w-4 group-hover:-translate-x-1 transition-transform duration-200" />
+   364→              Back to Home
+   365→            </button>
+   366→
+   367→            {/* Logo */}
+   368→            <div className="mb-10 animate-fade-in-up">
+   369→              <div className="flex items-center gap-4 mb-6">
+   370→                <div className="h-14 w-14 rounded-2xl bg-gradient-to-br from-emerald-500 to-emerald-600 flex items-center justify-center shadow-xl shadow-emerald-500/25 premium-glow">
+   371→                  <img src="/logo-generated.png" alt="Hisab Pro" className="h-9 w-9 rounded-lg" />
+   372→                </div>
+   373→                <div>
+   374→                  <h1 className="text-3xl font-bold tracking-tight">
+   375→                    Hisab<span className="text-emerald-400"> Pro</span>
+   376→                  </h1>
+   377→                  <p className="text-sm text-zinc-500">नेपालको आफ्नै लेखांकन प्रणाली</p>
+   378→                </div>
+   379→              </div>
+   380→            </div>
+   381→
+   382→            {/* Headline */}
+   383→            <div className="mb-10 animate-fade-in-up stagger-2">
+   384→              <h2 className="text-4xl xl:text-5xl font-bold tracking-tight leading-tight mb-4">
+   385→                Easy like Excel,
+   386→                <br />
+   387→                <span className="bg-gradient-to-r from-emerald-400 via-emerald-300 to-emerald-500 bg-clip-text text-transparent animate-gradient-shift">
+   388→                  Powerful like ERP
+   389→                </span>
+   390→              </h2>
+   391→              <p className="text-lg text-zinc-400 max-w-md leading-relaxed">
+   392→                Nepal&apos;s first dual-mode accounting software with VAT/TDS compliance, NFRS standards, and bilingual support.
+   393→              </p>
+   394→            </div>
+   395→
+   396→            {/* Trust badges */}
+   397→            <div className="flex flex-wrap gap-3 mb-10 animate-fade-in-up stagger-4">
+   398→              {[
+   399→                { icon: Shield, text: 'IRD Compliant', sub: 'आईआरडी अनुपालन' },
+   400→                { icon: Calculator, text: 'VAT/TDS Ready', sub: 'भ्याट/टीडीएस तयार' },
+   401→                { icon: Globe, text: 'Multi-lingual', sub: 'बहुभाषी' },
+   402→              ].map((badge) => {
+   403→                const BadgeIcon = badge.icon
+   404→                return (
+   405→                  <div
+   406→                    key={badge.text}
+   407→                    className="glass rounded-xl px-4 py-3 flex items-center gap-3 hover:bg-white/[0.06] transition-all duration-300 hover:-translate-y-0.5 hover:shadow-lg"
+   408→                  >
+   409→                    <div className="h-9 w-9 rounded-lg bg-emerald-500/15 flex items-center justify-center">
+   410→                      <BadgeIcon className="h-4 w-4 text-emerald-400" />
+   411→                    </div>
+   412→                    <div>
+   413→                      <p className="text-sm font-medium text-zinc-200">{badge.text}</p>
+   414→                      <p className="text-xs text-zinc-500">{badge.sub}</p>
+   415→                    </div>
+   416→                  </div>
+   417→                )
+   418→              })}
+   419→            </div>
+   420→
+   421→            {/* Feature highlights */}
+   422→            <div className="space-y-3 mb-10 animate-fade-in-up stagger-5">
+   423→              {[
+   424→                { icon: Sparkles, text: 'Dual-mode: Simple + Advanced accounting' },
+   425→                { icon: Receipt, text: 'Auto VAT calculation at 13% Nepal rate' },
+   426→                { icon: BarChart3, text: 'One-click P&L and Balance Sheet reports' },
+   427→              ].map((feature) => {
+   428→                const FeatureIcon = feature.icon
+   429→                return (
+   430→                  <div key={feature.text} className="flex items-center gap-3 group">
+   431→                    <div className="h-6 w-6 rounded-md bg-emerald-500/10 flex items-center justify-center group-hover:bg-emerald-500/15 transition-colors">
+   432→                      <FeatureIcon className="h-3 w-3 text-emerald-500/60 group-hover:text-emerald-400 transition-colors" />
+   433→                    </div>
+   434→                    <span className="text-sm text-zinc-400 group-hover:text-zinc-300 transition-colors">{feature.text}</span>
+   435→                  </div>
+   436→                )
+   437→              })}
+   438→            </div>
+   439→
+   440→            {/* Social proof */}
+   441→            <div className="animate-fade-in-up stagger-6">
+   442→              <div className="glass rounded-xl px-5 py-4 inline-flex items-center gap-4">
+   443→                <div className="flex -space-x-2">
+   444→                  {['RS', 'SA', 'BT', 'KM'].map((initials, i) => (
+   445→                    <div
+   446→                      key={initials}
+   447→                      className="h-8 w-8 rounded-full bg-gradient-to-br from-emerald-500/30 to-emerald-600/30 border-2 border-[#09090b] flex items-center justify-center text-[10px] font-bold text-emerald-300"
+   448→                    >
+   449→                      {initials}
+   450→                    </div>
+   451→                  ))}
+   452→                </div>
+   453→                <div>
+   454→                  <div className="flex items-center gap-1">
+   455→                    <Users className="h-3.5 w-3.5 text-emerald-400" />
+   456→                    <p className="text-sm font-semibold text-white">Join 500+ Nepali businesses</p>
+   457→                  </div>
+   458→                  <p className="text-xs text-zinc-500">500+ नेपाली व्यवसायले भरोसा गरेका</p>
+   459→                </div>
+   460→              </div>
+   461→            </div>
+   462→
+   463→            {/* Floating elements */}
+   464→            <div className="absolute top-[15%] right-[10%] glass rounded-xl px-4 py-3 shadow-xl animate-float hover-lift hidden xl:flex items-center gap-3">
+   465→              <div className="h-9 w-9 rounded-lg bg-emerald-500/15 flex items-center justify-center">
+   466→                <Receipt className="h-4 w-4 text-emerald-400" />
+   467→              </div>
+   468→              <div>
+   469→                <p className="text-xs text-zinc-400">VAT Filed</p>
+   470→                <p className="text-sm font-semibold text-emerald-400">Rs. 2,45,000</p>
+   471→              </div>
+   472→            </div>
+   473→
+   474→            <div className="absolute bottom-[20%] right-[8%] glass rounded-xl px-4 py-3 shadow-xl animate-float-slow hover-lift hidden xl:flex items-center gap-3">
+   475→              <div className="h-9 w-9 rounded-lg bg-emerald-500/15 flex items-center justify-center">
+   476→                <TrendingUp className="h-4 w-4 text-emerald-400" />
+   477→              </div>
+   478→              <div>
+   479→                <p className="text-xs text-zinc-400">Revenue</p>
+   480→                <p className="text-sm font-semibold text-white">+23.5%</p>
+   481→              </div>
+   482→            </div>
+   483→
+   484→            <div className="absolute top-[55%] right-[25%] glass rounded-xl px-4 py-3 shadow-xl animate-float-delayed hover-lift hidden xl:flex items-center gap-3">
+   485→              <div className="h-9 w-9 rounded-lg bg-emerald-500/15 flex items-center justify-center">
+   486→                <BarChart3 className="h-4 w-4 text-emerald-400" />
+   487→              </div>
+   488→              <div>
+   489→                <p className="text-xs text-zinc-400">P&L Report</p>
+   490→                <p className="text-sm font-semibold text-emerald-400">Auto-generated</p>
+   491→              </div>
+   492→            </div>
+   493→
+   494→            {/* Spinning ring decoration */}
+   495→            <div className="absolute bottom-[8%] left-[8%] w-20 h-20 border border-emerald-500/10 rounded-full animate-spin-slow hidden xl:block" />
+   496→          </div>
+   497→        </div>
+   498→
+   499→        {/* ─── RIGHT SIDE: FORM ─── */}
+   500→        <div className="flex-1 flex items-center justify-center p-4 sm:p-6 lg:p-8 relative">
+   501→          {/* Subtle background for form side */}
+   502→          <div className="absolute top-0 right-0 w-[300px] h-[300px] bg-emerald-500/[0.04] rounded-full blur-[80px]" />
+   503→          <div className="absolute bottom-0 left-0 w-[200px] h-[200px] bg-emerald-300/[0.03] rounded-full blur-[60px]" />
+   504→
+   505→          <div className="w-full max-w-[440px] relative z-10">
+   506→            {/* Mobile: Back to Home + Logo */}
+   507→            <div className="lg:hidden mb-8 animate-fade-in-up">
+   508→              <button
+   509→                onClick={() => router.push('/')}
+   510→                className="flex items-center gap-2 text-sm text-zinc-500 hover:text-emerald-400 transition-colors duration-200 mb-6 group"
+   511→              >
+   512→                <ArrowLeft className="h-4 w-4 group-hover:-translate-x-1 transition-transform duration-200" />
+   513→                Back to Home
+   514→              </button>
+   515→              <div className="flex items-center gap-3 mb-4">
+   516→                <div className="h-12 w-12 rounded-xl bg-gradient-to-br from-emerald-500 to-emerald-600 flex items-center justify-center shadow-lg shadow-emerald-500/25 premium-glow">
+   517→                  <img src="/logo-generated.png" alt="Hisab Pro" className="h-7 w-7 rounded-md" />
+   518→                </div>
+   519→                <div>
+   520→                  <h1 className="text-2xl font-bold tracking-tight">
+   521→                    Hisab<span className="text-emerald-400"> Pro</span>
+   522→                  </h1>
+   523→                  <p className="text-xs text-zinc-500">Nepal&apos;s Accounting System</p>
+   524→                </div>
+   525→              </div>
+   526→              {/* Mobile trust badges */}
+   527→              <div className="flex items-center gap-4 text-xs text-zinc-500">
+   528→                <div className="flex items-center gap-1.5">
+   529→                  <Shield className="h-3.5 w-3.5 text-emerald-400" />
+   530→                  <span>IRD Compliant</span>
+   531→                </div>
+   532→                <div className="flex items-center gap-1.5">
+   533→                  <Calculator className="h-3.5 w-3.5 text-emerald-400" />
+   534→                  <span>VAT/TDS</span>
+   535→                </div>
+   536→                <div className="flex items-center gap-1.5">
+   537→                  <Globe className="h-3.5 w-3.5 text-emerald-400" />
+   538→                  <span>Multi-lingual</span>
+   539→                </div>
+   540→              </div>
+   541→            </div>
+   542→
+   543→            {/* Desktop: Welcome text */}
+   544→            <div className="hidden lg:block mb-8 animate-fade-in-up">
+   545→              <h2 className="text-2xl font-bold tracking-tight mb-2">
+   546→                {tab === 'login' ? 'Welcome back' : 'Create your account'}
+   547→              </h2>
+   548→              <p className="text-sm text-zinc-400">
+   549→                {tab === 'login'
+   550→                  ? 'Sign in to continue to your dashboard'
+   551→                  : 'Start your free trial today. No credit card required.'}
+   552→              </p>
+   553→            </div>
+   554→
+   555→            {/* Main Card */}
+   556→            <div className="glass-strong rounded-2xl overflow-hidden premium-glow animate-fade-in-up stagger-2 grain-texture">
+   557→              {/* Tab Toggle */}
+   558→              <div className="px-6 pt-6">
+   559→                <div className="relative flex rounded-xl bg-white/[0.04] p-1">
+   560→                  {/* Sliding indicator */}
+   561→                  <div
+   562→                    className="absolute top-1 bottom-1 w-[calc(50%-4px)] rounded-lg bg-gradient-to-r from-emerald-500 to-emerald-600 shadow-lg shadow-emerald-500/20 tab-slider"
+   563→                    style={{ transform: tab === 'register' ? 'translateX(100%)' : 'translateX(0)' }}
+   564→                  />
+   565→                  <button
+   566→                    onClick={() => { setTab('login'); setError('') }}
+   567→                    className={cn(
+   568→                      'relative z-10 flex-1 py-2.5 text-sm font-medium rounded-lg transition-colors duration-300',
+   569→                      tab === 'login' ? 'text-black' : 'text-zinc-400 hover:text-zinc-200'
+   570→                    )}
+   571→                  >
+   572→                    Sign In
+   573→                  </button>
+   574→                  <button
+   575→                    onClick={() => { setTab('register'); setError('') }}
+   576→                    className={cn(
+   577→                      'relative z-10 flex-1 py-2.5 text-sm font-medium rounded-lg transition-colors duration-300',
+   578→                      tab === 'register' ? 'text-black' : 'text-zinc-400 hover:text-zinc-200'
+   579→                    )}
+   580→                  >
+   581→                    Create Account
+   582→                  </button>
+   583→                </div>
+   584→              </div>
+   585→
+   586→              {/* Form Content */}
+   587→              <div className="p-6">
+   588→                {/* Error Display with Animation */}
+   589→                {error && (
+   590→                  <div
+   591→                    key={errorKey}
+   592→                    className="mb-5 px-4 py-3 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-sm flex items-start gap-2 animate-slide-down"
+   593→                  >
+   594→                    <div className="h-4 w-4 rounded-full bg-red-500/20 flex items-center justify-center shrink-0 mt-0.5">
+   595→                      <span className="text-[10px] font-bold">!</span>
+   596→                    </div>
+   597→                    <span>{error}</span>
+   598→                  </div>
+   599→                )}
+   600→
+   601→                {/* Login Form */}
+   602→                <div
+   603→                  className={cn(
+   604→                    'transition-all duration-300',
+   605→                    tab === 'login'
+   606→                      ? 'opacity-100 translate-x-0'
+   607→                      : 'absolute opacity-0 translate-x-8 pointer-events-none h-0 overflow-hidden'
+   608→                  )}
+   609→                >
+   610→                  <div className="space-y-4">
+   611→                    <AnimatedInput
+   612→                      id="login-email"
+   613→                      label="Email"
+   614→                      type="email"
+   615→                      placeholder="you@example.com"
+   616→                      value={loginEmail}
+   617→                      onChange={(e) => setLoginEmail(e.target.value)}
+   618→                      onKeyDown={(e) => e.key === 'Enter' && handleLogin()}
+   619→                    />
+   620→
+   621→                    <AnimatedInput
+   622→                      id="login-password"
+   623→                      label="Password"
+   624→                      type={showPassword ? 'text' : 'password'}
+   625→                      placeholder="Enter your password"
+   626→                      value={loginPassword}
+   627→                      onChange={(e) => setLoginPassword(e.target.value)}
+   628→                      onKeyDown={(e) => e.key === 'Enter' && handleLogin()}
+   629→                      rightElement={
+   630→                        <button
+   631→                          type="button"
+   632→                          onClick={() => setShowPassword(!showPassword)}
+   633→                          className="text-zinc-500 hover:text-zinc-300 transition-colors duration-200"
+   634→                        >
+   635→                          {showPassword ? (
+   636→                            <EyeOff className="h-4 w-4" />
+   637→                          ) : (
+   638→                            <Eye className="h-4 w-4" />
+   639→                          )}
+   640→                        </button>
+   641→                      }
+   642→                    />
+   643→
+   644→                    <div className="flex items-center justify-between">
+   645→                      <div className="flex items-center gap-2">
+   646→                        <Checkbox
+   647→                          id="remember"
+   648→                          className="border-white/20 data-[state=checked]:bg-emerald-500 data-[state=checked]:border-emerald-500"
+   649→                        />
+   650→                        <label htmlFor="remember" className="text-xs text-zinc-500 cursor-pointer hover:text-zinc-400 transition-colors">
+   651→                          Remember me
+   652→                        </label>
+   653→                      </div>
+   654→                      <button
+   655→                        type="button"
+   656→                        className="text-xs text-emerald-400/70 hover:text-emerald-300 transition-colors duration-200"
+   657→                      >
+   658→                        Forgot password?
+   659→                      </button>
+   660→                    </div>
+   661→
+   662→                    <Button
+   663→                      className="w-full h-11 bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-400 hover:to-emerald-500 text-black font-semibold shadow-lg shadow-emerald-500/20 hover:shadow-emerald-400/30 transition-all duration-300 hover:scale-[1.01] active:scale-[0.99]"
+   664→                      onClick={handleLogin}
+   665→                      disabled={loading}
+   666→                    >
+   667→                      {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+   668→                      Sign In
+   669→                      <ChevronRight className="ml-1 h-4 w-4" />
+   670→                    </Button>
+   671→                  </div>
+   672→                </div>
+   673→
+   674→                {/* Register Form */}
+   675→                <div
+   676→                  className={cn(
+   677→                    'transition-all duration-300',
+   678→                    tab === 'register'
+   679→                      ? 'opacity-100 translate-x-0'
+   680→                      : 'absolute opacity-0 -translate-x-8 pointer-events-none h-0 overflow-hidden'
+   681→                  )}
+   682→                >
+   683→                  <div className="space-y-4">
+   684→                    <AnimatedInput
+   685→                      id="reg-name"
+   686→                      label="Full Name"
+   687→                      placeholder="Ram Sharma"
+   688→                      value={regName}
+   689→                      onChange={(e) => setRegName(e.target.value)}
+   690→                      hint="As it appears on your PAN"
+   691→                    />
+   692→
+   693→                    <AnimatedInput
+   694→                      id="reg-email"
+   695→                      label="Email"
+   696→                      type="email"
+   697→                      placeholder="you@example.com"
+   698→                      value={regEmail}
+   699→                      onChange={(e) => setRegEmail(e.target.value)}
+   700→                    />
+   701→
+   702→                    <div className="grid grid-cols-2 gap-3">
+   703→                      <AnimatedInput
+   704→                        id="reg-password"
+   705→                        label="Password"
+   706→                        type={showPassword ? 'text' : 'password'}
+   707→                        placeholder="Min 6 chars"
+   708→                        value={regPassword}
+   709→                        onChange={(e) => setRegPassword(e.target.value)}
+   710→                        rightElement={
+   711→                          <button
+   712→                            type="button"
+   713→                            onClick={() => setShowPassword(!showPassword)}
+   714→                            className="text-zinc-500 hover:text-zinc-300 transition-colors duration-200"
+   715→                          >
+   716→                            {showPassword ? (
+   717→                              <EyeOff className="h-4 w-4" />
+   718→                            ) : (
+   719→                              <Eye className="h-4 w-4" />
+   720→                            )}
+   721→                          </button>
+   722→                        }
+   723→                      />
+   724→
+   725→                      <AnimatedInput
+   726→                        id="reg-confirm-password"
+   727→                        label="Confirm"
+   728→                        type={showConfirmPassword ? 'text' : 'password'}
+   729→                        placeholder="Re-enter"
+   730→                        value={regConfirmPassword}
+   731→                        onChange={(e) => setRegConfirmPassword(e.target.value)}
+   732→                        rightElement={
+   733→                          <button
+   734→                            type="button"
+   735→                            onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+   736→                            className="text-zinc-500 hover:text-zinc-300 transition-colors duration-200"
+   737→                          >
+   738→                            {showConfirmPassword ? (
+   739→                              <EyeOff className="h-4 w-4" />
+   740→                            ) : (
+   741→                              <Eye className="h-4 w-4" />
+   742→                            )}
+   743→                          </button>
+   744→                        }
+   745→                      />
+   746→                    </div>
+   747→
+   748→                    {/* Password Strength Indicator */}
+   749→                    {regPassword && (
+   750→                      <div className="animate-slide-down">
+   751→                        <div className="flex gap-1 mb-1.5">
+   752→                          {[1, 2, 3, 4, 5].map((level) => (
+   753→                            <div
+   754→                              key={level}
+   755→                              className="h-1 flex-1 rounded-full transition-all duration-300"
+   756→                              style={{
+   757→                                backgroundColor:
+   758→                                  level <= passwordStrength.score
+   759→                                    ? passwordStrength.color
+   760→                                    : 'rgba(255,255,255,0.06)',
+   761→                              }}
+   762→                            />
+   763→                          ))}
+   764→                        </div>
+   765→                        <div className="flex items-center gap-2">
+   766→                          <p
+   767→                            className="text-xs transition-colors duration-300"
+   768→                            style={{ color: passwordStrength.color }}
+   769→                          >
+   770→                            {passwordStrength.label}
+   771→                          </p>
+   772→                          {passwordStrength.score >= 4 && (
+   773→                            <CheckCircle2 className="h-3 w-3 text-emerald-400 animate-scale-in" />
+   774→                          )}
+   775→                        </div>
+   776→                      </div>
+   777→                    )}
+   778→
+   779→                    <AnimatedInput
+   780→                      id="reg-business"
+   781→                      label="Business Name"
+   782→                      placeholder="e.g. Sharma Trading"
+   783→                      value={regBusinessName}
+   784→                      onChange={(e) => setRegBusinessName(e.target.value)}
+   785→                      hint="This creates your organization"
+   786→                    />
+   787→
+   788→                    <div className="space-y-2">
+   789→                      <Label className="text-zinc-300 text-sm font-medium">
+   790→                        Language / भाषा
+   791→                      </Label>
+   792→                      <Select value={regLanguage} onValueChange={setRegLanguage}>
+   793→                        <SelectTrigger className="bg-white/[0.04] border-white/[0.08] text-white focus:ring-emerald-500/30 focus:border-emerald-500/50 transition-all duration-200">
+   794→                          <SelectValue placeholder="Select language" />
+   795→                        </SelectTrigger>
+   796→                        <SelectContent className="bg-[#1a1a2e] border-white/[0.1] text-white">
+   797→                          <SelectItem value="en" className="focus:bg-emerald-500/20 focus:text-white">English</SelectItem>
+   798→                          <SelectItem value="ne" className="focus:bg-emerald-500/20 focus:text-white">नेपाली (Nepali)</SelectItem>
+   799→                          <SelectItem value="hi" className="focus:bg-emerald-500/20 focus:text-white">हिंदी (Hindi)</SelectItem>
+   800→                        </SelectContent>
+   801→                      </Select>
+   802→                    </div>
+   803→
+   804→                    <div className="flex items-start gap-3 py-1">
+   805→                      <Checkbox
+   806→                        id="reg-terms"
+   807→                        checked={regTerms}
+   808→                        onCheckedChange={(checked) => setRegTerms(checked === true)}
+   809→                        className="mt-0.5 border-white/20 data-[state=checked]:bg-emerald-500 data-[state=checked]:border-emerald-500"
+   810→                      />
+   811→                      <label
+   812→                        htmlFor="reg-terms"
+   813→                        className="text-sm text-zinc-400 leading-tight cursor-pointer hover:text-zinc-300 transition-colors duration-200"
+   814→                      >
+   815→                        I agree to the{' '}
+   816→                        <span className="text-emerald-400 hover:text-emerald-300">Terms of Service</span>{' '}
+   817→                        and{' '}
+   818→                        <span className="text-emerald-400 hover:text-emerald-300">Privacy Policy</span>
+   819→                      </label>
+   820→                    </div>
+   821→
+   822→                    <Button
+   823→                      className="w-full h-11 bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-400 hover:to-emerald-500 text-black font-semibold shadow-lg shadow-emerald-500/20 hover:shadow-emerald-400/30 transition-all duration-300 hover:scale-[1.01] active:scale-[0.99]"
+   824→                      onClick={handleRegister}
+   825→                      disabled={loading}
+   826→                    >
+   827→                      {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+   828→                      Create Account
+   829→                      <ChevronRight className="ml-1 h-4 w-4" />
+   830→                    </Button>
+   831→                  </div>
+   832→                </div>
+   833→              </div>
+   834→
+   835→              {/* Footer Switch */}
+   836→              <div className="px-6 pb-6 pt-2 border-t border-white/[0.04]">
+   837→                {tab === 'login' ? (
+   838→                  <p className="text-center text-sm text-zinc-500">
+   839→                    Don&apos;t have an account?{' '}
+   840→                    <button
+   841→                      onClick={() => { setTab('register'); setError('') }}
+   842→                      className="text-emerald-400 hover:text-emerald-300 font-medium transition-colors duration-200"
+   843→                    >
+   844→                      Create one →
+   845→                    </button>
+   846→                  </p>
+   847→                ) : (
+   848→                  <p className="text-center text-sm text-zinc-500">
+   849→                    Already have an account?{' '}
+   850→                    <button
+   851→                      onClick={() => { setTab('login'); setError('') }}
+   852→                      className="text-emerald-400 hover:text-emerald-300 font-medium transition-colors duration-200"
+   853→                    >
+   854→                      Sign in →
+   855→                    </button>
+   856→                  </p>
+   857→                )}
+   858→              </div>
+   859→            </div>
+   860→
+   861→            {/* Social proof (mobile) */}
+   862→            <div className="lg:hidden mt-6 text-center animate-fade-in-up stagger-4">
+   863→              <div className="inline-flex items-center gap-2 glass rounded-full px-4 py-2">
+   864→                <Users className="h-3.5 w-3.5 text-emerald-400" />
+   865→                <span className="text-xs text-zinc-400">Join 500+ Nepali businesses</span>
+   866→              </div>
+   867→            </div>
+   868→
+   869→            {/* Footer */}
+   870→            <div className="mt-8 text-center animate-fade-in-up stagger-6">
+   871→              <div className="flex items-center justify-center gap-2 mb-2">
+   872→                <img src="/logo-generated.png" alt="Hisab Pro" className="h-4 w-4 rounded" />
+   873→                <span className="text-xs text-zinc-500 font-medium">
+   874→                  Hisab<span className="text-emerald-400/60"> Pro</span>
+   875→                </span>
+   876→              </div>
+   877→              <p className="text-xs text-zinc-600">
+   878→                &copy; {new Date().getFullYear()} Hisab Pro. All rights reserved.
+   879→              </p>
+   880→              <p className="text-xs text-zinc-700 mt-1">
+   881→                Dual-mode: Simple + Advanced &bull; VAT/TDS Compliant &bull; IRD Ready
+   882→              </p>
+   883→            </div>
+   884→          </div>
+   885→        </div>
+   886→      </div>
+   887→    </div>
+   888→  )
+   889→}
+   890→
+   891→/* ────────────────────────────────────────────
+   892→   PAGE EXPORT WITH SUSPENSE
+   893→   ──────────────────────────────────────────── */
+   894→export default function LoginPage() {
+   895→  return (
+   896→    <Suspense
+   897→      fallback={
+   898→        <div className="min-h-screen flex items-center justify-center bg-[#09090b]">
+   899→          <div className="text-center">
+   900→            <div className="relative mb-6">
+   901→              <div className="h-16 w-16 rounded-2xl bg-gradient-to-br from-emerald-500 to-emerald-600 flex items-center justify-center mx-auto shadow-xl shadow-emerald-500/25">
+   902→                <img src="/logo-generated.png" alt="HP" className="h-10 w-10 rounded-lg" />
+   903→              </div>
+   904→              <div className="absolute inset-0 h-16 w-16 rounded-2xl bg-emerald-500/20 mx-auto animate-ping" />
+   905→            </div>
+   906→            <Loader2 className="h-5 w-5 animate-spin mx-auto text-emerald-400" />
+   907→          </div>
+   908→        </div>
+   909→      }
+   910→    >
+   911→      <LoginForm />
+   912→    </Suspense>
+   913→  )
+   914→}
+   915→

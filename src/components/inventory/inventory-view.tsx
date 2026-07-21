@@ -25,6 +25,7 @@ import {
   Plus, Search, Package, AlertTriangle, PackageX,
   SlidersHorizontal, ChevronLeft, ChevronRight,
 } from 'lucide-react'
+import { authFetch } from '@/lib/session'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
 
@@ -91,7 +92,7 @@ export function InventoryView() {
       const params = new URLSearchParams({ orgId: currentOrgId })
       if (searchQuery) params.set('search', searchQuery)
       if (categoryFilter !== 'all') params.set('category', categoryFilter)
-      const res = await fetch(`/api/inventory?${params}`)
+      const res = await authFetch(`/api/inventory?${params}`)
       if (res.ok) {
         const data = await res.json()
         setProducts(Array.isArray(data) ? data : [])
@@ -197,7 +198,7 @@ export function InventoryView() {
     if (!adjustProduct || !adjustQty) return
     setAdjustSubmitting(true)
     try {
-      const res = await fetch('/api/inventory/stock-adjustment', {
+      const res = await authFetch('/api/inventory/stock-adjustment', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

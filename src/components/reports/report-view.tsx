@@ -30,6 +30,7 @@ import {
   Loader2,
   FileText,
 } from 'lucide-react'
+import { authFetch } from '@/lib/session'
 
 // ============================================================
 // Types
@@ -319,7 +320,7 @@ function TrialBalanceTab() {
     setLoading(true)
     setError(null)
     try {
-      const res = await fetch(`/api/reports?orgId=${currentOrgId}&reportType=trial_balance&fromDate=${fromDate}&toDate=${toDate}`)
+      const res = await authFetch(`/api/reports?orgId=${currentOrgId}&reportType=trial_balance&fromDate=${fromDate}&toDate=${toDate}`)
       if (!res.ok) throw new Error('Failed to fetch trial balance')
       const json = await res.json()
       setData(json)
@@ -436,7 +437,7 @@ function ProfitLossTab() {
     setLoading(true)
     setError(null)
     try {
-      const res = await fetch(`/api/reports?orgId=${currentOrgId}&reportType=profit_loss&fromDate=${fromDate}&toDate=${toDate}`)
+      const res = await authFetch(`/api/reports?orgId=${currentOrgId}&reportType=profit_loss&fromDate=${fromDate}&toDate=${toDate}`)
       if (!res.ok) throw new Error('Failed to fetch P&L')
       const json = await res.json()
       setData(json)
@@ -590,7 +591,7 @@ function BalanceSheetTab() {
     setLoading(true)
     setError(null)
     try {
-      const res = await fetch(`/api/reports?orgId=${currentOrgId}&reportType=balance_sheet&fromDate=${asOfDate}&toDate=${asOfDate}`)
+      const res = await authFetch(`/api/reports?orgId=${currentOrgId}&reportType=balance_sheet&fromDate=${asOfDate}&toDate=${asOfDate}`)
       if (!res.ok) throw new Error('Failed to fetch balance sheet')
       const json = await res.json()
       setData(json)
@@ -737,7 +738,7 @@ function CashFlowTab() {
     setLoading(true)
     setError(null)
     try {
-      const res = await fetch(`/api/reports?orgId=${currentOrgId}&reportType=cash_flow&fromDate=${fromDate}&toDate=${toDate}`)
+      const res = await authFetch(`/api/reports?orgId=${currentOrgId}&reportType=cash_flow&fromDate=${fromDate}&toDate=${toDate}`)
       if (!res.ok) throw new Error('Failed to fetch cash flow')
       const json = await res.json()
       setData(json)
@@ -854,7 +855,7 @@ function VATReportTab() {
     setLoading(true)
     setError(null)
     try {
-      const res = await fetch(`/api/reports?orgId=${currentOrgId}&reportType=vat_report&fromDate=${fromDate}&toDate=${toDate}`)
+      const res = await authFetch(`/api/reports?orgId=${currentOrgId}&reportType=vat_report&fromDate=${fromDate}&toDate=${toDate}`)
       if (!res.ok) throw new Error('Failed to fetch VAT report')
       const json = await res.json()
       setData(json)

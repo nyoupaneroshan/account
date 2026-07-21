@@ -1,11 +1,30 @@
 import { db } from '@/lib/db'
 import { NextResponse } from 'next/server'
-import { getSessionUserId } from '@/lib/auth'
+
+const SESSION_HEADER = 'x-session-token'
+const SESSION_COOKIE = 'hisab-session'
+
+export const dynamic = 'force-dynamic'
 
 export async function GET(request: Request) {
   try {
-    // Read userId from session cookie OR custom header
-    const userId = await getSessionUserId(request)
+    // Read userId from custom header first, then from cookie header
+    let userId: string | null = null
+
+    // Method 1: Check custom header (from localStorage-based session)
+    userId = request.headers.get(SESSION_HEADER)
+
+    // Method 2: Parse cookie header manually (avoid importing next/headers which is heavy)
+    if (!userId) {
+      const cookieHeader = request.headers.get('cookie')
+      if (cookieHeader) {
+        const cookies = cookieHeader.split(';').map(c => c.trim())
+        const sessionCookie = cookies.find(c => c.startsWith(`${SESSION_COOKIE}=`))
+        if (sessionCookie) {
+          userId = sessionCookie.split('=')[1]
+        }
+      }
+    }
 
     if (!userId) {
       return NextResponse.json(
@@ -14,30 +33,40 @@ export async function GET(request: Request) {
       )
     }
 
-    // Find user with their organizations and subscription info
+    // Find user with their organizations - keep query lean to avoid memory issues
     const user = await db.user.findUnique({
       where: { id: userId },
-      include: {
+      select: {
+        id: true,
+        email: true,
+        name: true,
+        role: true,
+        language: true,
+        isActive: true,
         organizations: {
-          include: {
+          select: {
+            role: true,
             organization: {
-              include: {
-                subscription: true,
-                fiscalYears: {
-                  where: { isCurrent: true },
-                  take: 1,
-                },
-                settings: true,
-                _count: {
-                  select: {
-                    accounts: true,
-                    parties: true,
-                    products: true,
-                    journalEntries: true,
-                    invoices: true,
-                    users: true,
-                  },
-                },
+              select: {
+                id: true,
+                name: true,
+                nameNepali: true,
+                panNumber: true,
+                address: true,
+                city: true,
+                province: true,
+                plan: true,
+                mode: true,
+                language: true,
+                currency: true,
+                vatEnabled: true,
+                tdsEnabled: true,
+                ssfEnabled: true,
+                subscriptionStatus: true,
+                subscriptionStart: true,
+                subscriptionEnd: true,
+                trialEndsAt: true,
+                fiscalYear: true,
               },
             },
           },
@@ -58,9 +87,6 @@ export async function GET(request: Request) {
         { status: 403 }
       )
     }
-
-    // Return comprehensive session info (exclude passwordHash)
-    const { passwordHash: _, ...userSafe } = user
 
     const organizations = user.organizations.map(uo => ({
       id: uo.organization.id,
@@ -83,14 +109,16 @@ export async function GET(request: Request) {
       trialEndsAt: uo.organization.trialEndsAt,
       fiscalYear: uo.organization.fiscalYear,
       role: uo.role,
-      subscription: uo.organization.subscription,
-      currentFiscalYear: uo.organization.fiscalYears[0] || null,
-      settings: uo.organization.settings,
-      counts: uo.organization._count,
     }))
 
     return NextResponse.json({
-      user: userSafe,
+      user: {
+        id: user.id,
+        email: user.email,
+        name: user.name,
+        role: user.role,
+        language: user.language,
+      },
       organizations,
     })
 

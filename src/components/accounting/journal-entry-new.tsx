@@ -46,6 +46,7 @@ import {
   AlertCircle,
   Loader2,
 } from 'lucide-react'
+import { authFetch } from '@/lib/session'
 import { toast } from 'sonner'
 
 // ─── Types ─────────────────────────────────────────────────────
@@ -113,7 +114,7 @@ export function JournalEntryNew() {
     if (!currentOrgId) return
     setLoadingAccounts(true)
     try {
-      const res = await fetch(`/api/accounts?orgId=${currentOrgId}`)
+      const res = await authFetch(`/api/accounts?orgId=${currentOrgId}`)
       if (!res.ok) throw new Error('Failed to fetch accounts')
       const data = await res.json()
       const eligible = data.filter(
@@ -223,7 +224,7 @@ export function JournalEntryNew() {
           })),
       }
 
-      const res = await fetch('/api/journal-entries', {
+      const res = await authFetch('/api/journal-entries', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),

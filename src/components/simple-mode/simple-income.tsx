@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { useAppStore } from '@/store/app-store'
 import { calculateVAT, formatNPR, NEPAL_VAT_RATE } from '@/lib/nepal-accounting'
 import { t } from '@/lib/i18n'
+import { authFetch } from '@/lib/session'
 import { toast } from 'sonner'
 import {
   Card,
@@ -143,8 +144,8 @@ export function SimpleIncome() {
       setError(null)
       try {
         const [accRes, partyRes] = await Promise.all([
-          fetch(`/api/accounts?orgId=${currentOrgId}`),
-          fetch(`/api/parties?orgId=${currentOrgId}`),
+          authFetch(`/api/accounts?orgId=${currentOrgId}`),
+          authFetch(`/api/parties?orgId=${currentOrgId}`),
         ])
 
         if (accRes.ok) {
@@ -238,7 +239,7 @@ export function SimpleIncome() {
 
       const narration = `Income: ${notes || category} (${category}) via ${paymentMethod}${vatInclusive ? ' (VAT Inclusive)' : ''}`
 
-      const res = await fetch('/api/journal-entries', {
+      const res = await authFetch('/api/journal-entries', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

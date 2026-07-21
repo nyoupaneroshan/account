@@ -2,9 +2,10 @@ import { db } from '@/lib/db'
 import { NEPAL_COA_GROUPS, DEFAULT_ACCOUNTS } from '@/lib/nepal-accounting'
 import { NextResponse } from 'next/server'
 import { createHash } from 'crypto'
-import { setSessionCookie } from '@/lib/auth'
 
 const SALT = 'hisab-pro-salt'
+const SESSION_COOKIE = 'hisab-session'
+const SESSION_MAX_AGE = 30 * 24 * 60 * 60
 
 function hashPassword(password: string): string {
   return createHash('sha256').update(password + SALT).digest('hex')
@@ -206,8 +207,14 @@ export async function POST(request: Request) {
       }],
     }, { status: 201 })
 
-    const cookieConfig = setSessionCookie(user.id)
-    response.cookies.set(cookieConfig.name, cookieConfig.value, cookieConfig.options)
+    // Set session cookie directly (avoid importing shared auth module)
+    response.cookies.set(SESSION_COOKIE, user.id, {
+      httpOnly: false,
+      secure: false,
+      sameSite: 'lax',
+      maxAge: SESSION_MAX_AGE,
+      path: '/',
+    })
 
     return response
 
