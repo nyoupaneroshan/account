@@ -10,7 +10,7 @@ import {
   DialogDescription,
 } from '@/components/ui/dialog'
 import { ScrollArea } from '@/components/ui/scroll-area'
-import { Keyboard } from 'lucide-react'
+import { Keyboard, Compass, Zap, ToggleLeft, FileCheck, Database, Settings } from 'lucide-react'
 
 // ──────────────────────────────────────────────
 // Keyboard key renderer
@@ -47,9 +47,12 @@ function renderKeys(keys: string) {
 // ──────────────────────────────────────────────
 
 const CATEGORIES = [
-  { key: 'navigation' as const, label: 'Navigation', labelNepali: 'नेभिगेसन', icon: '⌘' },
-  { key: 'quick-action' as const, label: 'Quick Actions', labelNepali: 'छिटो कार्य', icon: '⚡' },
-  { key: 'general' as const, label: 'General', labelNepali: 'सामान्य', icon: '🎛' },
+  { key: 'navigation' as const, label: 'Navigation', labelNepali: 'नेभिगेसन', icon: Compass, color: 'text-sky-400' },
+  { key: 'quick-action' as const, label: 'Quick Actions (F-keys)', labelNepali: 'छिटो कार्य (F-कुञ्जी)', icon: Zap, color: 'text-emerald-400' },
+  { key: 'mode' as const, label: 'Mode', labelNepali: 'मोड', icon: ToggleLeft, color: 'text-amber-400' },
+  { key: 'form' as const, label: 'Form Actions', labelNepali: 'फारम कार्य', icon: FileCheck, color: 'text-violet-400' },
+  { key: 'data' as const, label: 'Data Operations', labelNepali: 'डाटा सञ्चालन', icon: Database, color: 'text-cyan-400' },
+  { key: 'general' as const, label: 'General', labelNepali: 'सामान्य', icon: Settings, color: 'text-zinc-400' },
 ]
 
 // ──────────────────────────────────────────────
@@ -69,7 +72,12 @@ function ShortcutRow({ shortcut, mode }: { shortcut: ShortcutDef; mode: AppMode 
     >
       <div className="flex flex-col min-w-0">
         <span className="text-sm text-zinc-200 truncate">{shortcut.label}</span>
-        <span className="text-[11px] text-zinc-500 truncate">{shortcut.labelNepali}</span>
+        <div className="flex items-center gap-2">
+          <span className="text-[11px] text-zinc-500 truncate">{shortcut.labelNepali}</span>
+          {shortcut.description && (
+            <span className="text-[10px] text-zinc-600 truncate hidden sm:inline">· {shortcut.description}</span>
+          )}
+        </div>
       </div>
       <div className="shrink-0">
         {renderKeys(shortcut.keys)}
@@ -91,12 +99,8 @@ export function ShortcutCheatsheet({ open, onOpenChange }: ShortcutCheatsheetPro
   const mode = useAppStore((s) => s.mode)
   const language = useAppStore((s) => s.language)
 
-  // Filter shortcuts based on current mode
-  const visibleShortcuts = SHORTCUTS.filter((s) => {
-    // For F2, we show both entries but in different modes
-    // For mode-restricted shortcuts, show them greyed out
-    return true
-  })
+  // Show all shortcuts, mode-restricted ones are greyed out
+  const visibleShortcuts = SHORTCUTS
 
   const isNepali = language === 'ne'
 
@@ -115,8 +119,8 @@ export function ShortcutCheatsheet({ open, onOpenChange }: ShortcutCheatsheetPro
               </DialogTitle>
               <DialogDescription className="text-xs text-zinc-500 mt-0.5">
                 {isNepali
-                  ? 'Tally-शैली सर्टकटहरू · द्रुत नेभिगेसन र कार्यहरू'
-                  : 'Tally-style shortcuts · Quick navigation & actions'}
+                  ? 'Tally-शैली सर्टकटहरू · F1 मद्दतको लागि'
+                  : 'Tally-style shortcuts · Press F1 for help'}
               </DialogDescription>
             </div>
           </div>
@@ -148,12 +152,13 @@ export function ShortcutCheatsheet({ open, onOpenChange }: ShortcutCheatsheetPro
             {CATEGORIES.map((cat) => {
               const categoryShortcuts = visibleShortcuts.filter((s) => s.category === cat.key)
               if (categoryShortcuts.length === 0) return null
+              const CatIcon = cat.icon
 
               return (
                 <div key={cat.key}>
                   {/* Category header */}
                   <div className="flex items-center gap-2 mb-2 px-3">
-                    <span className="text-sm">{cat.icon}</span>
+                    <CatIcon className={`h-3.5 w-3.5 ${cat.color}`} />
                     <h3 className="text-xs font-semibold uppercase tracking-wider text-zinc-400">
                       {isNepali ? cat.labelNepali : cat.label}
                     </h3>
@@ -188,9 +193,7 @@ export function ShortcutCheatsheet({ open, onOpenChange }: ShortcutCheatsheetPro
                 : 'Shortcuts don\'t fire in input fields (except Esc)'}
             </p>
             <div className="flex items-center gap-1.5">
-              <Kbd>Ctrl</Kbd>
-              <span className="text-zinc-600 text-[10px]">+</span>
-              <Kbd>/</Kbd>
+              <Kbd>F1</Kbd>
               <span className="text-[10px] text-zinc-600 ml-1">
                 {isNepali ? 'यो प्यानल' : 'this panel'}
               </span>

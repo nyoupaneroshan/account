@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useRef } from 'react'
 import { useAppStore } from '@/store/app-store'
 import { formatNPR, NEPAL_FISCAL_YEARS, calculateVAT } from '@/lib/nepal-accounting'
 import { t } from '@/lib/i18n'
@@ -46,6 +46,10 @@ import {
   Activity,
   Sparkles,
   ArrowRight,
+  LayoutDashboard,
+  Clock,
+  Send,
+  Banknote,
 } from 'lucide-react'
 
 // ── Types ──────────────────────────────────────────────────────
@@ -148,6 +152,41 @@ function getTransactionAmount(tx: RecentTransaction): number {
   return tx.totalDebit
 }
 
+// ── Animated Number Counter Hook ──────────────────────────────
+function useCountUp(target: number, duration: number = 800, enabled: boolean = true) {
+  const [count, setCount] = useState(0)
+  const prevTarget = useRef(0)
+
+  // When disabled, directly reflect target value
+  useEffect(() => {
+    if (!enabled) return
+
+    const start = prevTarget.current
+    const diff = target - start
+    if (diff === 0) return
+
+    const startTime = Date.now()
+    const animate = () => {
+      const elapsed = Date.now() - startTime
+      const progress = Math.min(elapsed / duration, 1)
+      // Ease out cubic
+      const eased = 1 - Math.pow(1 - progress, 3)
+      setCount(start + diff * eased)
+      if (progress < 1) {
+        requestAnimationFrame(animate)
+      } else {
+        prevTarget.current = target
+      }
+    }
+    requestAnimationFrame(animate)
+  }, [target, duration, enabled])
+
+  // Separate sync for disabled state
+  const displayCount = enabled ? count : target
+
+  return displayCount
+}
+
 // ── Premium Skeletons ──────────────────────────────────────────
 function StatCardSkeleton() {
   return (
@@ -190,7 +229,7 @@ function ChartSkeleton() {
   )
 }
 
-// ── Premium Stat Card ──────────────────────────────────────────
+// ── Premium Stat Card with Animated Counter ───────────────────
 function StatCard({
   title,
   titleNepali,
@@ -200,8 +239,9 @@ function StatCard({
   trendLabel,
   colorClass,
   iconBgClass,
-  accentColor,
   accentGradient,
+  variant = 'default',
+  delay = 0,
 }: {
   title: string
   titleNepali: string
@@ -211,25 +251,42 @@ function StatCard({
   trendLabel?: string
   colorClass: string
   iconBgClass: string
-  accentColor?: string
   accentGradient?: string
+  variant?: 'income' | 'expense' | 'profit' | 'loss' | 'balance' | 'default'
+  delay?: number
 }) {
+  const [visible, setVisible] = useState(false)
+  const animatedValue = useCountUp(value, 1000, visible)
+
+  useEffect(() => {
+    const timer = setTimeout(() => setVisible(true), delay)
+    return () => clearTimeout(timer)
+  }, [delay])
+
+  const variantClass = variant === 'income' ? 'stat-card-income'
+    : variant === 'expense' ? 'stat-card-expense'
+    : variant === 'profit' ? 'stat-card-profit'
+    : variant === 'loss' ? 'stat-card-loss'
+    : variant === 'balance' ? 'stat-card-balance'
+    : ''
+
   return (
     <Card className={cn(
-      "relative overflow-hidden glass-card hover-lift group cursor-default",
+      "relative overflow-hidden glass-card hover-lift group cursor-default grain-texture",
+      variantClass
     )}>
       {/* Refined gradient accent line at top */}
       <div
         className={cn(
           "absolute top-0 left-0 right-0 h-[2px] opacity-70",
-          accentGradient || accentColor || 'bg-gradient-to-r from-emerald-500 to-emerald-400'
+          accentGradient || 'bg-gradient-to-r from-emerald-500 to-emerald-400'
         )}
       />
       {/* Subtle glow on hover */}
       <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none">
         <div className={cn(
           "absolute top-0 left-0 right-0 h-20 blur-xl opacity-20",
-          accentGradient || accentColor || 'bg-gradient-to-r from-emerald-500 to-emerald-400'
+          accentGradient || 'bg-gradient-to-r from-emerald-500 to-emerald-400'
         )} />
       </div>
       <CardHeader className="pb-2 relative">
@@ -253,20 +310,35 @@ function StatCard({
       </CardHeader>
       <CardContent className="relative">
         <div className="flex items-baseline gap-2">
-          <p className={cn('text-xl font-bold tracking-tight stat-number', colorClass)}>
-            {formatNPR(value)}
+          <p className={cn(
+            'text-xl font-bold tracking-tight stat-number animate-count-up',
+            colorClass
+          )}>
+            {formatNPR(Math.round(animatedValue))}
           </p>
         </div>
         {trend && trendLabel && (
           <div className="flex items-center gap-1.5 mt-2">
             {trend === 'up' && (
-              <span className="flex items-center justify-center h-4 w-4 rounded-full bg-emerald-500/10">
-                <ArrowUpRight className="h-2.5 w-2.5 text-emerald-400" />
+              <span className={cn(
+                "flex items-center justify-center h-4 w-4 rounded-full",
+                variant === 'expense' ? 'bg-red-500/10' : 'bg-emerald-500/10'
+              )}>
+                <ArrowUpRight className={cn(
+                  'h-2.5 w-2.5',
+                  variant === 'expense' ? 'text-red-400' : 'text-emerald-400'
+                )} />
               </span>
             )}
             {trend === 'down' && (
-              <span className="flex items-center justify-center h-4 w-4 rounded-full bg-red-500/10">
-                <ArrowDownRight className="h-2.5 w-2.5 text-red-400" />
+              <span className={cn(
+                "flex items-center justify-center h-4 w-4 rounded-full",
+                variant === 'income' ? 'bg-red-500/10' : variant === 'expense' ? 'bg-emerald-500/10' : 'bg-red-500/10'
+              )}>
+                <ArrowDownRight className={cn(
+                  'h-2.5 w-2.5',
+                  variant === 'income' ? 'text-red-400' : variant === 'expense' ? 'text-emerald-400' : 'text-red-400'
+                )} />
               </span>
             )}
             {trend === 'neutral' && (
@@ -277,7 +349,11 @@ function StatCard({
             <span
               className={cn(
                 'text-[11px] font-medium',
-                trend === 'up' ? 'text-emerald-400' : trend === 'down' ? 'text-red-400' : 'text-zinc-500'
+                trend === 'up'
+                  ? (variant === 'expense' ? 'text-red-400' : 'text-emerald-400')
+                  : trend === 'down'
+                    ? (variant === 'expense' ? 'text-emerald-400' : 'text-red-400')
+                    : 'text-zinc-500'
               )}
             >
               {trendLabel}
@@ -290,11 +366,14 @@ function StatCard({
 }
 
 // ── Premium Transaction Row ────────────────────────────────────
-function TransactionRow({ tx }: { tx: RecentTransaction }) {
+function TransactionRow({ tx, index }: { tx: RecentTransaction; index: number }) {
   const txType = getTransactionType(tx)
   const amount = getTransactionAmount(tx)
   return (
-    <div className="flex items-center justify-between py-2.5 px-3 rounded-lg hover:bg-white/[0.04] transition-premium group/tx">
+    <div
+      className="flex items-center justify-between py-2.5 px-3 rounded-lg hover:bg-white/[0.04] transition-premium group/tx"
+      style={{ animationDelay: `${index * 50}ms` }}
+    >
       <div className="flex items-center gap-3 min-w-0 flex-1">
         <div
           className={cn(
@@ -319,7 +398,8 @@ function TransactionRow({ tx }: { tx: RecentTransaction }) {
             {tx.narration}
           </p>
           <div className="flex items-center gap-2 text-[11px] text-zinc-500 mt-0.5">
-            <span>
+            <span className="flex items-center gap-1">
+              <Clock className="h-2.5 w-2.5 text-zinc-600" />
               {new Date(tx.date).toLocaleDateString('en-US', {
                 month: 'short',
                 day: 'numeric',
@@ -327,7 +407,7 @@ function TransactionRow({ tx }: { tx: RecentTransaction }) {
               })}
             </span>
             <span className="text-zinc-700">&middot;</span>
-            <span className="text-zinc-600">{tx.entryNumber}</span>
+            <span className="text-zinc-600 font-mono">{tx.entryNumber}</span>
             <Badge
               variant="outline"
               className={cn(
@@ -349,9 +429,9 @@ function TransactionRow({ tx }: { tx: RecentTransaction }) {
           className={cn(
             'text-sm font-semibold stat-number',
             txType === 'income'
-              ? 'text-emerald-400'
+              ? 'financial-positive'
               : txType === 'expense'
-                ? 'text-red-400'
+                ? 'financial-negative'
                 : 'text-zinc-300'
           )}
         >
@@ -383,6 +463,63 @@ function EmptyState({
         <p className="text-xs text-zinc-600 mt-0.5">{subtitle}</p>
       </div>
     </div>
+  )
+}
+
+// ── Quick Action Card ─────────────────────────────────────────
+function QuickActionCard({
+  icon: Icon,
+  label,
+  labelNepali,
+  description,
+  onClick,
+  variant = 'default',
+}: {
+  icon: React.ElementType
+  label: string
+  labelNepali: string
+  description: string
+  onClick: () => void
+  variant?: 'primary' | 'default' | 'danger'
+}) {
+  return (
+    <button
+      onClick={onClick}
+      className={cn(
+        "flex items-center gap-3 p-3 rounded-xl border transition-all duration-200 text-left w-full",
+        "hover:-translate-y-0.5 hover:shadow-lg group",
+        variant === 'primary'
+          ? "bg-gradient-to-r from-emerald-500/10 to-emerald-400/5 border-emerald-500/20 hover:border-emerald-500/40 hover:shadow-emerald-500/10"
+          : variant === 'danger'
+            ? "bg-red-500/[0.04] border-red-500/10 hover:border-red-500/30 hover:shadow-red-500/5"
+            : "bg-white/[0.02] border-white/[0.06] hover:border-white/[0.12] hover:shadow-white/[0.02]"
+      )}
+    >
+      <div className={cn(
+        "h-10 w-10 rounded-lg flex items-center justify-center shrink-0 transition-all duration-200",
+        variant === 'primary'
+          ? "bg-emerald-500/15 group-hover:bg-emerald-500/20 group-hover:shadow-[0_0_12px_rgba(16,185,129,0.2)]"
+          : variant === 'danger'
+            ? "bg-red-500/10 group-hover:bg-red-500/15"
+            : "bg-white/[0.04] group-hover:bg-white/[0.06]"
+      )}>
+        <Icon className={cn(
+          "h-4.5 w-4.5 transition-colors",
+          variant === 'primary' ? "text-emerald-400" : variant === 'danger' ? "text-red-400" : "text-zinc-400 group-hover:text-zinc-300"
+        )} />
+      </div>
+      <div className="min-w-0 flex-1">
+        <p className={cn(
+          "text-sm font-medium transition-colors",
+          variant === 'primary' ? "text-emerald-300 group-hover:text-emerald-200" : variant === 'danger' ? "text-red-300 group-hover:text-red-200" : "text-zinc-300 group-hover:text-zinc-200"
+        )}>
+          {label}
+          <span className="text-[10px] text-zinc-600 ml-1.5">{labelNepali}</span>
+        </p>
+        <p className="text-[10px] text-zinc-600 truncate">{description}</p>
+      </div>
+      <ArrowRight className="h-3.5 w-3.5 text-zinc-600 group-hover:text-zinc-400 transition-all group-hover:translate-x-0.5 shrink-0" />
+    </button>
   )
 }
 
@@ -531,66 +668,82 @@ export function DashboardView() {
         </CardContent>
       </Card>
 
-      {/* ── Quick Actions Row ── */}
-      <div className="flex flex-wrap gap-2">
-        {mode === 'simple' ? (
-          <>
-            <Button
-              onClick={() => router.push('/income')}
-              className="gap-2 bg-gradient-to-r from-emerald-600 to-emerald-500 hover:from-emerald-500 hover:to-emerald-400 text-white shadow-lg shadow-emerald-500/20 hover:shadow-emerald-500/30 transition-premium hover:-translate-y-px"
-              size="sm"
-            >
-              <PlusCircle className="h-4 w-4" />
-              {t('add_income')} / Add Income
-            </Button>
-            <Button
-              onClick={() => router.push('/expense')}
-              className="gap-2 bg-red-600/80 hover:bg-red-600 text-white shadow-lg shadow-red-500/10 hover:shadow-red-500/20 transition-premium hover:-translate-y-px"
-              size="sm"
-            >
-              <MinusCircle className="h-4 w-4" />
-              {t('add_expense')} / Add Expense
-            </Button>
-          </>
-        ) : (
-          <>
-            <Button
+      {/* ── Quick Actions Section ── */}
+      <div>
+        <div className="flex items-center gap-2 mb-3">
+          <Zap className="h-3.5 w-3.5 text-emerald-500/60" />
+          <h3 className="text-xs font-semibold text-zinc-500 uppercase tracking-wider">
+            द्रुत कार्य / Quick Actions
+          </h3>
+        </div>
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2">
+          {mode === 'simple' ? (
+            <>
+              <QuickActionCard
+                icon={PlusCircle}
+                label="Add Income"
+                labelNepali="आम्दानी"
+                description="Record new income"
+                onClick={() => router.push('/income')}
+                variant="primary"
+              />
+              <QuickActionCard
+                icon={MinusCircle}
+                label="Add Expense"
+                labelNepali="खर्च"
+                description="Record new expense"
+                onClick={() => router.push('/expense')}
+                variant="danger"
+              />
+            </>
+          ) : (
+            <QuickActionCard
+              icon={BookOpen}
+              label="Journal Entry"
+              labelNepali="जर्नल"
+              description="New double entry"
               onClick={() => router.push('/journal/new')}
-              className="gap-2 bg-gradient-to-r from-emerald-600 to-emerald-500 hover:from-emerald-500 hover:to-emerald-400 text-white shadow-lg shadow-emerald-500/20 hover:shadow-emerald-500/30 transition-premium hover:-translate-y-px"
-              size="sm"
-            >
-              <BookOpen className="h-4 w-4" />
-              New Journal Entry
-            </Button>
-          </>
-        )}
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={() => router.push('/invoices')}
-          className="gap-2 text-zinc-500 hover:text-zinc-200 hover:bg-white/[0.04] border border-transparent hover:border-white/[0.06] transition-premium"
-        >
-          <FileText className="h-4 w-4" />
-          <span className="hidden sm:inline">New Invoice</span>
-        </Button>
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={() => router.push('/purchases')}
-          className="gap-2 text-zinc-500 hover:text-zinc-200 hover:bg-white/[0.04] border border-transparent hover:border-white/[0.06] transition-premium"
-        >
-          <ShoppingCart className="h-4 w-4" />
-          <span className="hidden sm:inline">New Purchase</span>
-        </Button>
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={() => router.push('/parties')}
-          className="gap-2 text-zinc-500 hover:text-zinc-200 hover:bg-white/[0.04] border border-transparent hover:border-white/[0.06] transition-premium"
-        >
-          <Users className="h-4 w-4" />
-          <span className="hidden sm:inline">Add Party</span>
-        </Button>
+              variant="primary"
+            />
+          )}
+          <QuickActionCard
+            icon={FileText}
+            label="New Invoice"
+            labelNepali="इनभ्वाइस"
+            description="Create sales invoice"
+            onClick={() => router.push('/invoices/new')}
+          />
+          <QuickActionCard
+            icon={ShoppingCart}
+            label="New Purchase"
+            labelNepali="खरिद"
+            description="Record a purchase"
+            onClick={() => router.push('/purchases/new')}
+          />
+          <QuickActionCard
+            icon={Users}
+            label="Add Party"
+            labelNepali="पक्ष"
+            description="Customer or supplier"
+            onClick={() => router.push('/parties/new')}
+          />
+          <QuickActionCard
+            icon={Banknote}
+            label="View Reports"
+            labelNepali="रिपोर्ट"
+            description="P&L, Balance Sheet"
+            onClick={() => router.push('/reports')}
+          />
+          {mode === 'advanced' && (
+            <QuickActionCard
+              icon={Send}
+              label="Payment"
+              labelNepali="भुक्तानी"
+              description="Record payment"
+              onClick={() => router.push('/journal/new')}
+            />
+          )}
+        </div>
       </div>
 
       {/* ── Top Stats (4 cards) ── */}
@@ -605,6 +758,8 @@ export function DashboardView() {
           colorClass="text-emerald-400"
           iconBgClass="bg-emerald-500/10"
           accentGradient="bg-gradient-to-r from-emerald-500 to-teal-400"
+          variant="income"
+          delay={0}
         />
         <StatCard
           title="Total Expense"
@@ -616,6 +771,8 @@ export function DashboardView() {
           colorClass="text-red-400"
           iconBgClass="bg-red-500/10"
           accentGradient="bg-gradient-to-r from-red-500 to-rose-400"
+          variant="expense"
+          delay={100}
         />
         <StatCard
           title="Net Profit"
@@ -635,6 +792,8 @@ export function DashboardView() {
               : 'bg-red-500/10'
           }
           accentGradient={data.netProfit >= 0 ? 'bg-gradient-to-r from-emerald-500 to-teal-400' : 'bg-gradient-to-r from-red-500 to-rose-400'}
+          variant={data.netProfit >= 0 ? 'profit' : 'loss'}
+          delay={200}
         />
         <StatCard
           title="Cash Balance"
@@ -646,6 +805,8 @@ export function DashboardView() {
           colorClass="text-emerald-300"
           iconBgClass="bg-emerald-500/10"
           accentGradient="bg-gradient-to-r from-emerald-500 to-cyan-400"
+          variant="balance"
+          delay={300}
         />
       </div>
 
@@ -662,6 +823,8 @@ export function DashboardView() {
             colorClass="text-emerald-400"
             iconBgClass="bg-emerald-500/10"
             accentGradient="bg-gradient-to-r from-emerald-500 to-teal-400"
+            variant="income"
+            delay={400}
           />
           <StatCard
             title="Payable"
@@ -673,6 +836,8 @@ export function DashboardView() {
             colorClass="text-red-400"
             iconBgClass="bg-red-500/10"
             accentGradient="bg-gradient-to-r from-red-500 to-rose-400"
+            variant="expense"
+            delay={500}
           />
           <StatCard
             title="VAT Payable"
@@ -698,6 +863,8 @@ export function DashboardView() {
                 : 'bg-emerald-500/10'
             }
             accentGradient={data.vatSummary.netVATPayable > 0 ? 'bg-gradient-to-r from-red-500 to-rose-400' : 'bg-gradient-to-r from-emerald-500 to-teal-400'}
+            variant={data.vatSummary.netVATPayable > 0 ? 'expense' : 'income'}
+            delay={600}
           />
           <StatCard
             title="Net Worth"
@@ -717,6 +884,8 @@ export function DashboardView() {
                 : 'bg-red-500/10'
             }
             accentGradient={netWorth >= 0 ? 'bg-gradient-to-r from-emerald-500 to-teal-400' : 'bg-gradient-to-r from-red-500 to-rose-400'}
+            variant={netWorth >= 0 ? 'profit' : 'loss'}
+            delay={700}
           />
         </div>
       )}
@@ -854,8 +1023,8 @@ export function DashboardView() {
           <CardContent>
             {data.recentTransactions.length > 0 ? (
               <div className="space-y-0.5 max-h-[340px] overflow-y-auto pr-1 custom-scrollbar">
-                {data.recentTransactions.slice(0, 5).map((tx) => (
-                  <TransactionRow key={tx.id} tx={tx} />
+                {data.recentTransactions.slice(0, 5).map((tx, idx) => (
+                  <TransactionRow key={tx.id} tx={tx} index={idx} />
                 ))}
               </div>
             ) : (
@@ -942,9 +1111,7 @@ export function DashboardView() {
                         <p
                           className={cn(
                             'text-sm font-semibold stat-number',
-                            isReceivable
-                              ? 'text-emerald-400'
-                              : 'text-red-400'
+                            isReceivable ? 'financial-positive' : 'financial-negative'
                           )}
                         >
                           {isReceivable ? '↑ ' : '↓ '}
@@ -990,7 +1157,7 @@ export function DashboardView() {
                       <span className="text-[10px] text-zinc-600 block">(हातमा नगद)</span>
                     </div>
                   </div>
-                  <span className="text-sm font-semibold stat-number text-emerald-400">
+                  <span className="text-sm font-semibold stat-number financial-positive">
                     {formatNPR(data.cashBalance || 0)}
                   </span>
                 </div>
@@ -1005,7 +1172,7 @@ export function DashboardView() {
                       <span className="text-[10px] text-zinc-600 block">(बैंक मौज्दात)</span>
                     </div>
                   </div>
-                  <span className="text-sm font-semibold stat-number text-emerald-400">
+                  <span className="text-sm font-semibold stat-number financial-positive">
                     {formatNPR(data.bankBalance || 0)}
                   </span>
                 </div>
@@ -1020,7 +1187,7 @@ export function DashboardView() {
                       <span className="text-[10px] text-zinc-600 block">(प्राप्य)</span>
                     </div>
                   </div>
-                  <span className="text-sm font-semibold stat-number text-emerald-400">
+                  <span className="text-sm font-semibold stat-number financial-positive">
                     {formatNPR(data.totalReceivable)}
                   </span>
                 </div>
@@ -1035,7 +1202,7 @@ export function DashboardView() {
                       <span className="text-[10px] text-zinc-600 block">(देय)</span>
                     </div>
                   </div>
-                  <span className="text-sm font-semibold stat-number text-red-400">
+                  <span className="text-sm font-semibold stat-number financial-negative">
                     {formatNPR(data.totalPayable)}
                   </span>
                 </div>
@@ -1059,9 +1226,7 @@ export function DashboardView() {
                   <span
                     className={cn(
                       'text-sm font-semibold stat-number',
-                      data.vatSummary.netVATPayable > 0
-                        ? 'text-red-400'
-                        : 'text-emerald-400'
+                      data.vatSummary.netVATPayable > 0 ? 'financial-negative' : 'financial-positive'
                     )}
                   >
                     {formatNPR(data.vatSummary.netVATPayable)}
@@ -1092,7 +1257,7 @@ export function DashboardView() {
                       <p className="text-[10px] text-zinc-600">VAT collected on sales</p>
                     </div>
                   </div>
-                  <span className="text-sm font-semibold stat-number text-red-400">
+                  <span className="text-sm font-semibold stat-number financial-negative">
                     {formatNPR(data.vatSummary.outputVAT)}
                   </span>
                 </div>
@@ -1107,7 +1272,7 @@ export function DashboardView() {
                       <p className="text-[10px] text-zinc-600">VAT paid on purchases</p>
                     </div>
                   </div>
-                  <span className="text-sm font-semibold stat-number text-emerald-400">
+                  <span className="text-sm font-semibold stat-number financial-positive">
                     {formatNPR(data.vatSummary.inputVAT)}
                   </span>
                 </div>
@@ -1116,9 +1281,9 @@ export function DashboardView() {
                   className={cn(
                     'flex items-center justify-between p-4 rounded-xl mt-2 transition-premium',
                     data.vatSummary.netVATPayable > 0
-                      ? 'bg-red-500/[0.04] border border-red-500/10 hover:border-red-500/20'
+                      ? 'financial-negative-bg border'
                       : data.vatSummary.netVATPayable < 0
-                        ? 'bg-emerald-500/[0.04] border border-emerald-500/10 hover:border-emerald-500/20'
+                        ? 'financial-positive-bg border'
                         : 'bg-white/[0.02] border border-white/[0.04]'
                   )}
                 >
@@ -1157,9 +1322,7 @@ export function DashboardView() {
                   <span
                     className={cn(
                       'text-lg font-bold stat-number',
-                      data.vatSummary.netVATPayable > 0
-                        ? 'text-red-400'
-                        : 'text-emerald-400'
+                      data.vatSummary.netVATPayable > 0 ? 'financial-negative' : 'financial-positive'
                     )}
                   >
                     {formatNPR(Math.abs(data.vatSummary.netVATPayable))}

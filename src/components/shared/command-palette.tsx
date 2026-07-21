@@ -11,7 +11,7 @@ import {
   CommandSeparator,
   CommandShortcut,
 } from '@/components/ui/command'
-import { Dialog, DialogContent } from '@/components/ui/dialog'
+import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog'
 import {
   LayoutDashboard,
   Users,
@@ -136,6 +136,7 @@ export function CommandPalette({ open, onOpenChange, mode, onNavigate, onAction 
         showCloseButton={false}
         className="bg-[#0c0f14] border-white/[0.06] shadow-2xl shadow-black/50 p-0 overflow-hidden max-w-lg rounded-xl"
       >
+        <DialogTitle className="sr-only">Command Palette</DialogTitle>
         <Command className="bg-transparent [&_[cmdk-group-heading]]:text-zinc-500 [&_[cmdk-group]]:px-2 [&_[cmdk-input-wrapper]]:border-b-white/[0.06] [&_[cmdk-input-wrapper]]:border-b [&_[cmdk-item]]:px-3 [&_[cmdk-item]]:py-2.5 [&_[cmdk-item]_svg]:h-4 [&_[cmdk-item]_svg]:w-4">
           <CommandInput
             placeholder="Type a command or search…"

@@ -242,7 +242,20 @@ export function AppSidebar({ onLogout }: { onLogout?: () => void }) {
               />
             </div>
             <div className="flex-1 min-w-0">
-              <h3 className="text-sm font-semibold text-zinc-100 truncate tracking-tight">{currentOrgName}</h3>
+              <div className="flex items-center gap-2">
+                <h3 className="text-sm font-semibold text-zinc-100 truncate tracking-tight">{currentOrgName}</h3>
+                {/* Mode badge in header */}
+                <Badge
+                  className={cn(
+                    "text-[8px] px-1.5 py-0 h-4 leading-none font-bold uppercase tracking-wider border-0 shrink-0 transition-premium",
+                    mode === 'simple'
+                      ? 'bg-emerald-500/15 text-emerald-400'
+                      : 'bg-violet-500/15 text-violet-400'
+                  )}
+                >
+                  {mode === 'simple' ? 'SIM' : 'ADV'}
+                </Badge>
+              </div>
               <div className="flex items-center gap-2 mt-0.5">
                 <span className="text-[11px] text-zinc-500 font-medium">FY: {currentFiscalYear}</span>
                 {currentOrg && (
@@ -265,8 +278,13 @@ export function AppSidebar({ onLogout }: { onLogout?: () => void }) {
           </div>
         </div>
 
-        {/* Mode Toggle — Refined with better visual feedback */}
-        <div className="px-4 py-3 border-b border-white/[0.06]">
+        {/* Mode Toggle — Enhanced with visual distinction and descriptions */}
+        <div className={cn(
+          "px-4 py-3 border-b border-white/[0.06] transition-all duration-300",
+          mode === 'simple'
+            ? 'bg-gradient-to-b from-emerald-500/[0.03] to-transparent'
+            : 'bg-gradient-to-b from-violet-500/[0.03] to-transparent'
+        )}>
           <div className="flex items-center justify-between gap-2">
             <span className={cn(
               "text-[11px] font-semibold uppercase tracking-wider transition-premium",
@@ -277,17 +295,33 @@ export function AppSidebar({ onLogout }: { onLogout?: () => void }) {
             <Switch
               checked={mode === 'advanced'}
               onCheckedChange={(checked) => setMode(checked ? 'advanced' : 'simple')}
-              className="data-[state=checked]:bg-emerald-600 data-[state=unchecked]:bg-zinc-700 shadow-[0_0_0_1px_rgba(16,185,129,0.1)]"
+              className={cn(
+                "transition-premium",
+                mode === 'advanced'
+                  ? 'data-[state=checked]:bg-violet-600'
+                  : 'data-[state=checked]:bg-emerald-600',
+                'data-[state=unchecked]:bg-zinc-700'
+              )}
             />
             <span className={cn(
               "text-[11px] font-semibold uppercase tracking-wider transition-premium",
-              mode === 'advanced' ? 'text-emerald-400' : 'text-zinc-600'
+              mode === 'advanced' ? 'text-violet-400' : 'text-zinc-600'
             )}>
               Advanced
             </span>
+            {/* F5 shortcut hint */}
+            <kbd className="px-1 py-0.5 rounded bg-white/[0.04] border border-white/[0.06] text-[9px] text-zinc-500 font-mono shrink-0 ml-1">
+              F5
+            </kbd>
           </div>
-          <p className="text-[10px] text-zinc-600 mt-1.5 tracking-wide">
-            {mode === 'simple' ? 'Easy entry, auto-accounting' : 'Full double-entry system'}
+          <p className={cn(
+            "text-[10px] mt-1.5 tracking-wide transition-colors duration-300",
+            mode === 'simple' ? 'text-emerald-500/60' : 'text-violet-500/60'
+          )}>
+            {mode === 'simple'
+              ? 'सरल मोड · Easy entry, auto-accounting'
+              : 'उन्नत मोड · Full double-entry system'
+            }
           </p>
         </div>
 

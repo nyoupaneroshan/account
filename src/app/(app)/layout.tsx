@@ -5,12 +5,14 @@ import { useRouter } from 'next/navigation'
 import dynamic from 'next/dynamic'
 import { useAppStore } from '@/store/app-store'
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet'
+import { TooltipProvider } from '@/components/ui/tooltip'
 import { cn } from '@/lib/utils'
 import { Loader2 } from 'lucide-react'
 import { CLIENT_SESSION_KEY, getSessionHeaders } from '@/lib/session'
 import { useKeyboardShortcuts } from '@/hooks/use-keyboard-shortcuts'
 import { CommandPalette } from '@/components/shared/command-palette'
 import { ShortcutCheatsheet } from '@/components/shared/shortcut-cheatsheet'
+import { OrgSwitcherDialog } from '@/components/shared/org-switcher-dialog'
 
 const AppSidebar = dynamic(
   () => import('@/components/layout/app-sidebar').then((mod) => ({ default: mod.AppSidebar })),
@@ -19,6 +21,10 @@ const AppSidebar = dynamic(
 const AppHeader = dynamic(
   () => import('@/components/layout/app-header').then((mod) => ({ default: mod.AppHeader })),
   { ssr: false, loading: () => <div className="h-14 border-b border-white/5 bg-[#0c0f14]/80 animate-pulse" /> }
+)
+const QuickActionsBar = dynamic(
+  () => import('@/components/shared/quick-actions-bar').then((mod) => ({ default: mod.QuickActionsBar })),
+  { ssr: false }
 )
 
 export default function AppLayout({
@@ -39,12 +45,14 @@ export default function AppLayout({
     setLanguage,
     setRefreshSession,
     logout,
+    toggleMode,
   } = useAppStore()
 
   const [initializing, setInitializing] = useState(true)
   const [shouldRedirect, setShouldRedirect] = useState(false)
   const [commandPaletteOpen, setCommandPaletteOpen] = useState(false)
   const [cheatsheetOpen, setCheatsheetOpen] = useState(false)
+  const [orgSwitcherOpen, setOrgSwitcherOpen] = useState(false)
   const hasRestoredSession = useRef(false)
 
   // Keyboard shortcuts
@@ -53,7 +61,10 @@ export default function AppLayout({
       if (mode === 'simple') router.push('/income')
       else router.push('/journal/new')
     },
-    onQuickExpense: () => router.push('/expense'),
+    onQuickExpense: () => {
+      if (mode === 'simple') router.push('/expense')
+      else router.push('/journal/new') // Contra entry in advanced
+    },
     onNewInvoice: () => router.push('/invoices/new'),
     onNewPurchaseBill: () => router.push('/purchases/new'),
     onNewParty: () => router.push('/parties/new'),
@@ -62,15 +73,67 @@ export default function AppLayout({
     onCloseModal: () => {
       setCommandPaletteOpen(false)
       setCheatsheetOpen(false)
+      setOrgSwitcherOpen(false)
     },
     onOpenCheatsheet: () => setCheatsheetOpen(true),
+    onToggleMode: () => toggleMode(),
+    onOrgSwitcher: () => setOrgSwitcherOpen(true),
+    onReports: () => router.push('/reports'),
+    onAcceptForm: () => {
+      // Try to find and click the submit/save button on the current form
+      const submitBtn = document.querySelector<HTMLButtonElement>('button[type="submit"], button[data-action="save"], button[data-action="accept"]')
+      if (submitBtn) {
+        submitBtn.click()
+      }
+    },
+    onCancelForm: () => {
+      // Try to find and click the cancel button
+      const cancelBtn = document.querySelector<HTMLButtonElement>('button[data-action="cancel"], button[data-action="close"]')
+      if (cancelBtn) {
+        cancelBtn.click()
+      } else {
+        // If no cancel button, go back
+        router.back()
+      }
+    },
+    onCreateNew: () => {
+      // Contextual new record based on current path
+      const pathMap: Record<string, string> = {
+        '/invoices': '/invoices/new',
+        '/purchases': '/purchases/new',
+        '/parties': '/parties/new',
+        '/journal': '/journal/new',
+        '/inventory': '/inventory/new',
+        '/income': '/income',
+        '/expense': '/expense',
+      }
+      const currentPath = window.location.pathname
+      const newPath = pathMap[currentPath]
+      if (newPath) router.push(newPath)
+    },
+    onSaveRecord: () => {
+      const submitBtn = document.querySelector<HTMLButtonElement>('button[type="submit"]')
+      if (submitBtn) submitBtn.click()
+    },
+    onPrint: () => window.print(),
+    onExport: () => {
+      // Dispatch a custom event that pages can listen to for export
+      window.dispatchEvent(new CustomEvent('hisab-export'))
+    },
+    onDeleteRecord: () => {
+      // Dispatch a custom event that pages can listen to for delete
+      window.dispatchEvent(new CustomEvent('hisab-delete'))
+    },
+    onLogout: () => {
+      logout()
+      localStorage.removeItem(CLIENT_SESSION_KEY)
+      localStorage.removeItem('hisab-current-org')
+      window.location.href = '/login'
+    },
   })
 
-  // Restore session on mount — ONLY ONCE
-  const restoreSession = useCallback(async () => {
-    if (hasRestoredSession.current) return
-    hasRestoredSession.current = true
-
+  // Refresh session data from server (can be called multiple times)
+  const refreshSessionData = useCallback(async () => {
     try {
       const headers = getSessionHeaders()
       const controller = new AbortController()
@@ -110,25 +173,34 @@ export default function AppLayout({
           } else {
             setCurrentOrg(orgs[0].id, orgs[0].name)
           }
-          setInitializing(false)
-          return
+          return true
         }
       }
+      return false
+    } catch (err) {
+      console.warn('Session refresh failed:', err instanceof Error ? err.message : 'Unknown error')
+      return false
+    }
+  }, [setCurrentUser, setUserOrganizations, setCurrentOrg, setLanguage])
 
+  // Restore session on mount — ONLY ONCE
+  const restoreSession = useCallback(async () => {
+    if (hasRestoredSession.current) return
+    hasRestoredSession.current = true
+
+    const success = await refreshSessionData()
+    if (!success) {
       // Session invalid or expired — trigger redirect
       localStorage.removeItem(CLIENT_SESSION_KEY)
       setShouldRedirect(true)
-    } catch (err) {
-      console.warn('Session restore failed:', err instanceof Error ? err.message : 'Unknown error')
-      // On network error, show the dashboard anyway (might be temporary)
-      setInitializing(false)
     }
-  }, [setCurrentUser, setUserOrganizations, setCurrentOrg, setLanguage])
+    setInitializing(false)
+  }, [refreshSessionData])
 
   useEffect(() => {
     const doRestore = async () => {
       await restoreSession()
-      setRefreshSession(restoreSession)
+      setRefreshSession(refreshSessionData)
     }
     doRestore()
   }, [])
@@ -234,65 +306,78 @@ export default function AppLayout({
   }
 
   return (
-    <div className="h-screen flex overflow-hidden bg-[#09090b]">
-      {/* Desktop Sidebar */}
-      <aside className={cn(
-        "shrink-0 transition-all duration-300 hidden md:block",
-        sidebarOpen ? "w-72" : "w-0 overflow-hidden"
-      )}>
-        <AppSidebar onLogout={handleLogout} />
-      </aside>
-
-      {/* Mobile Sidebar (Sheet) */}
-      <Sheet open={sidebarOpen} onOpenChange={setSidebarOpen}>
-        <SheetContent side="left" className="p-0 w-72 bg-[#0c0f14] border-r border-white/5">
-          <SheetHeader className="sr-only">
-            <SheetTitle>Navigation Sidebar</SheetTitle>
-          </SheetHeader>
+    <TooltipProvider delayDuration={300}>
+      <div className="h-screen flex overflow-hidden bg-[#09090b]">
+        {/* Desktop Sidebar */}
+        <aside className={cn(
+          "shrink-0 transition-all duration-300 hidden md:block",
+          sidebarOpen ? "w-72" : "w-0 overflow-hidden"
+        )}>
           <AppSidebar onLogout={handleLogout} />
-        </SheetContent>
-      </Sheet>
+        </aside>
 
-      {/* Main Content */}
-      <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
-        <AppHeader onLogout={handleLogout} />
-        <main className="flex-1 overflow-y-auto">
-          {children}
-        </main>
+        {/* Mobile Sidebar (Sheet) */}
+        <Sheet open={sidebarOpen} onOpenChange={setSidebarOpen}>
+          <SheetContent side="left" className="p-0 w-72 bg-[#0c0f14] border-r border-white/5">
+            <SheetHeader className="sr-only">
+              <SheetTitle>Navigation Sidebar</SheetTitle>
+            </SheetHeader>
+            <AppSidebar onLogout={handleLogout} />
+          </SheetContent>
+        </Sheet>
+
+        {/* Main Content */}
+        <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
+          <AppHeader onLogout={handleLogout} />
+          <main className="flex-1 overflow-y-auto relative">
+            {children}
+            {/* Quick Actions Bar - floating at bottom on dashboard */}
+            <QuickActionsBar
+              onToggleSidebar={() => setSidebarOpen(!sidebarOpen)}
+              onToggleMode={toggleMode}
+              onOpenCheatsheet={() => setCheatsheetOpen(true)}
+              onOrgSwitcher={() => setOrgSwitcherOpen(true)}
+            />
+          </main>
+        </div>
+
+        {/* Command Palette & Shortcut Cheatsheet */}
+        <CommandPalette
+          open={commandPaletteOpen}
+          onOpenChange={setCommandPaletteOpen}
+          mode={mode}
+          onNavigate={(path) => router.push(path)}
+          onAction={(action) => {
+            switch (action) {
+              case 'add-income': router.push('/income'); break
+              case 'add-expense': router.push('/expense'); break
+              case 'new-invoice': router.push('/invoices/new'); break
+              case 'new-purchase': router.push('/purchases/new'); break
+              case 'new-party': router.push('/parties/new'); break
+              case 'new-journal': router.push('/journal/new'); break
+              case 'toggle-mode': {
+                const newMode = mode === 'simple' ? 'advanced' : 'simple'
+                useAppStore.getState().setMode(newMode)
+                break
+              }
+              case 'switch-language': {
+                const currentLang = useAppStore.getState().language
+                useAppStore.getState().setLanguage(currentLang === 'en' ? 'ne' : 'en')
+                break
+              }
+              case 'toggle-sidebar': setSidebarOpen(!sidebarOpen); break
+            }
+          }}
+        />
+        <ShortcutCheatsheet
+          open={cheatsheetOpen}
+          onOpenChange={setCheatsheetOpen}
+        />
+        <OrgSwitcherDialog
+          open={orgSwitcherOpen}
+          onOpenChange={setOrgSwitcherOpen}
+        />
       </div>
-
-      {/* Command Palette & Shortcut Cheatsheet */}
-      <CommandPalette
-        open={commandPaletteOpen}
-        onOpenChange={setCommandPaletteOpen}
-        mode={mode}
-        onNavigate={(path) => router.push(path)}
-        onAction={(action) => {
-          switch (action) {
-            case 'add-income': router.push('/income'); break
-            case 'add-expense': router.push('/expense'); break
-            case 'new-invoice': router.push('/invoices/new'); break
-            case 'new-purchase': router.push('/purchases/new'); break
-            case 'new-party': router.push('/parties/new'); break
-            case 'new-journal': router.push('/journal/new'); break
-            case 'toggle-mode': {
-              const newMode = mode === 'simple' ? 'advanced' : 'simple'
-              useAppStore.getState().setMode(newMode)
-              break
-            }
-            case 'switch-language': {
-              const currentLang = useAppStore.getState().language
-              useAppStore.getState().setLanguage(currentLang === 'en' ? 'ne' : 'en')
-              break
-            }
-            case 'toggle-sidebar': setSidebarOpen(!sidebarOpen); break
-          }
-        }}
-      />
-      <ShortcutCheatsheet
-        open={cheatsheetOpen}
-        onOpenChange={setCheatsheetOpen}
-      />
-    </div>
+    </TooltipProvider>
   )
 }

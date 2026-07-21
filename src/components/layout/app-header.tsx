@@ -38,7 +38,6 @@ import {
   Globe,
   ChevronRight,
   Home,
-  Sparkles,
   Keyboard,
 } from 'lucide-react'
 import { useState, useEffect } from 'react'
@@ -50,6 +49,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { cn } from '@/lib/utils'
+import { authFetch } from '@/lib/session'
 
 // Pathname to breadcrumb mapping
 const PATH_SEGMENT_MAP: Record<string, string> = {
@@ -170,7 +170,16 @@ export function AppHeader({ onLogout }: { onLogout?: () => void }) {
                     <BreadcrumbPage className="text-zinc-200 font-medium">
                       <span className="flex items-center gap-1.5">
                         {segment.label}
-                        <Sparkles className="h-3 w-3 text-emerald-500/50" />
+                        <Badge
+                          className={cn(
+                            "text-[8px] px-1 py-0 h-3.5 leading-none font-bold uppercase tracking-wider border-0",
+                            mode === 'simple'
+                              ? 'bg-emerald-500/15 text-emerald-400'
+                              : 'bg-violet-500/15 text-violet-400'
+                          )}
+                        >
+                          {mode === 'simple' ? 'SIM' : 'ADV'}
+                        </Badge>
                       </span>
                     </BreadcrumbPage>
                   ) : (
@@ -189,9 +198,19 @@ export function AppHeader({ onLogout }: { onLogout?: () => void }) {
           </BreadcrumbList>
         </Breadcrumb>
 
-        {/* Mobile: just show page title with emerald accent */}
-        <h1 className="text-sm font-medium text-zinc-200 sm:hidden truncate">
+        {/* Mobile: just show page title with mode badge */}
+        <h1 className="text-sm font-medium text-zinc-200 sm:hidden truncate flex items-center gap-1.5">
           {breadcrumbSegments[breadcrumbSegments.length - 1]?.label || 'Dashboard'}
+          <Badge
+            className={cn(
+              "text-[7px] px-1 py-0 h-3 leading-none font-bold uppercase tracking-wider border-0 shrink-0",
+              mode === 'simple'
+                ? 'bg-emerald-500/15 text-emerald-400'
+                : 'bg-violet-500/15 text-violet-400'
+            )}
+          >
+            {mode === 'simple' ? 'SIM' : 'ADV'}
+          </Badge>
         </h1>
 
         {/* Org Switcher - desktop */}
@@ -288,7 +307,7 @@ export function AppHeader({ onLogout }: { onLogout?: () => void }) {
             const next = language === 'en' ? 'ne' : 'en'
             setLanguage(next)
             try {
-              fetch('/api/user/language', {
+              authFetch('/api/user/language', {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ language: next }),

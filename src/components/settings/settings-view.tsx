@@ -41,6 +41,7 @@ import {
   Monitor,
 } from 'lucide-react'
 import { toast } from 'sonner'
+import { authFetch } from '@/lib/session'
 
 // ============================================================
 // Constants
@@ -122,7 +123,7 @@ export function SettingsView() {
     const loadOrg = async () => {
       setLoading(true)
       try {
-        const res = await fetch(`/api/settings?orgId=${currentOrgId}`)
+        const res = await authFetch(`/api/settings?orgId=${currentOrgId}`)
         if (res.ok) {
           const data = await res.json()
           setOrgForm({
@@ -170,7 +171,7 @@ export function SettingsView() {
     setLanguage(preferences.language)
     // Also persist to user language preference so it loads on next login
     if (preferences.language && currentUser?.id) {
-      fetch('/api/user/language', {
+      authFetch('/api/user/language', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ language: preferences.language }),
@@ -189,7 +190,7 @@ export function SettingsView() {
     if (!currentOrgId) return
     setSaving(true)
     try {
-      const res = await fetch('/api/settings', {
+      const res = await authFetch('/api/settings', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

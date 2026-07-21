@@ -25,6 +25,7 @@ import { Label } from '@/components/ui/label'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
 import { cn } from '@/lib/utils'
+import { authFetch } from '@/lib/session'
 import { Building2, ChevronsUpDown, Plus, Check, Loader2 } from 'lucide-react'
 import { getPlan } from '@/lib/plans'
 import { toast } from 'sonner'
@@ -77,7 +78,7 @@ export function OrgSwitcher() {
     }
     setCreating(true)
     try {
-      const res = await fetch('/api/organizations', {
+      const res = await authFetch('/api/organizations', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ name: newOrgName.trim() }),
@@ -90,7 +91,7 @@ export function OrgSwitcher() {
         setNewOrgName('')
         // Refresh org list
         try {
-          const orgsRes = await fetch('/api/organizations')
+          const orgsRes = await authFetch('/api/organizations')
           if (orgsRes.ok) {
             const orgsData = await orgsRes.json()
             if (orgsData.organizations) {

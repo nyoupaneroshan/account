@@ -44,6 +44,32 @@ interface UserOrganization {
   plan: string
 }
 
+// ──────────────────────────────────────────────
+// Persisted mode helper
+// ──────────────────────────────────────────────
+
+const MODE_STORAGE_KEY = 'hisab-app-mode'
+
+function loadPersistedMode(): AppMode {
+  if (typeof window === 'undefined') return 'simple'
+  try {
+    const stored = localStorage.getItem(MODE_STORAGE_KEY)
+    if (stored === 'advanced' || stored === 'simple') return stored
+  } catch {
+    // ignore
+  }
+  return 'simple'
+}
+
+function persistMode(mode: AppMode) {
+  if (typeof window === 'undefined') return
+  try {
+    localStorage.setItem(MODE_STORAGE_KEY, mode)
+  } catch {
+    // ignore
+  }
+}
+
 interface AppState {
   // Mode
   mode: AppMode
@@ -93,9 +119,16 @@ interface AppState {
 }
 
 export const useAppStore = create<AppState>((set) => ({
-  mode: 'simple',
-  setMode: (mode) => set({ mode }),
-  toggleMode: () => set((state) => ({ mode: state.mode === 'simple' ? 'advanced' : 'simple' })),
+  mode: loadPersistedMode(),
+  setMode: (mode) => {
+    persistMode(mode)
+    set({ mode })
+  },
+  toggleMode: () => set((state) => {
+    const newMode = state.mode === 'simple' ? 'advanced' : 'simple'
+    persistMode(newMode)
+    return { mode: newMode }
+  }),
 
   activeModule: 'dashboard',
   setActiveModule: (module) => set({ activeModule: module }),

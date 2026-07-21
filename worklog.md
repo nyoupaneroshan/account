@@ -1,46 +1,125 @@
 ---
-Task ID: 3
-Agent: Main Agent
-Task: Complete testing, lint, install UI/UX Pro Max skill, implement Tally-like keyboard shortcuts, and upgrade design
+Task ID: 1
+Agent: Main
+Task: Get dev server running and stable
 
 Work Log:
-- Ran complete lint check: PASS (0 errors)
-- Tested all pages (Landing, Login, Dashboard): All return HTTP 200
-- Tested login API: Works correctly
-- Installed ui-ux-pro-max-skill from GitHub to .claude/skills/ui-ux-pro-max/
-- Queried skill for design recommendations: Financial Dashboard palette, IBM Plex Sans typography, keyboard shortcuts UX
-- Created keyboard shortcuts hook: /src/hooks/use-keyboard-shortcuts.ts
-  - Alt+1-9,0 for navigation
-  - F2/F4/F6/F7/F8/F9 for quick actions (Tally-style)
-  - Ctrl+K for command palette, Ctrl+/ for cheatsheet, Esc to close
-  - Mode-aware (simple vs advanced shortcuts)
-  - Toast notifications on shortcut trigger
-  - Input field safety (no shortcuts when typing)
-- Created command palette: /src/components/shared/command-palette.tsx
-  - Navigation, Quick Actions, Settings groups
-  - Recent pages from localStorage
-  - Mode-aware filtering
-  - Bilingual labels
-- Created shortcut cheatsheet: /src/components/shared/shortcut-cheatsheet.tsx
-  - Dialog showing all shortcuts grouped by category
-  - Keyboard key styling (kbd elements)
-  - Mode indicator badges
-  - Bilingual labels
-- Integrated all new components into (app)/layout.tsx
-- Added keyboard shortcut hints (kbd elements) to sidebar nav items
-- Upgraded design per UI/UX Pro Max recommendations:
-  - Applied Financial Dashboard color palette (#020617 bg, #0E1223 card, #1E293B secondary, #22C55E primary)
-  - Switched from Geist to IBM Plex Sans typography
-  - Added class="dark" to HTML element
-  - Updated CSS theme tokens
-- Fixed toast import path (was @/components/ui/use-toast, now @/hooks/use-toast)
+- Found that the Next.js dev server kept dying after ~20 seconds
+- Discovered the issue was process management - background processes were being killed by the sandbox
+- Fixed by using double-fork with `setsid` to properly detach from the terminal session
+- Server is now running stably on port 3000, accessible via Caddy proxy on port 81
+- Converted middleware.ts to proxy.ts (Next.js 16 convention), then removed it since it was causing warnings
 
 Stage Summary:
-- All lint checks pass
-- All pages render correctly (HTTP 200)
-- Tally-like keyboard shortcuts fully functional (Alt+1-9, F2-F9, Ctrl+K, Ctrl+/)
-- Command palette accessible via Ctrl+K
-- Shortcut cheatsheet accessible via Ctrl+/
-- Sidebar shows keyboard shortcut hints on nav items
-- Design upgraded to Financial Dashboard palette with IBM Plex Sans
-- UI/UX Pro Max skill installed and integrated
+- Dev server stable at port 3000
+- All routes return HTTP 200 (/, /login, /dashboard)
+- Caddy proxy on port 81 working correctly
+
+---
+Task ID: 2
+Agent: Main
+Task: Run lint check
+
+Work Log:
+- Ran `bun run lint` - passed with 0 errors
+- Project is clean from lint perspective
+
+Stage Summary:
+- Lint: 0 errors, 0 warnings
+
+---
+Task ID: 3
+Agent: Explore
+Task: Explore project structure and identify issues
+
+Work Log:
+- Explored entire src/ directory structure
+- Found 20+ Prisma models, 15+ API routes, 15+ page routes
+- Identified security issues (SHA256 password hashing, raw user ID as session token)
+- Found 7 bugs: settings not saving, DialogTitle missing, add org broken, non-working buttons, language not persisting, Pro role not visible, dead proxy.ts.bak
+
+Stage Summary:
+- Comprehensive project map created
+- 7 critical bugs identified
+- Security concerns noted (weak hashing, session management)
+
+---
+Task ID: 4
+Agent: full-stack-developer
+Task: Fix critical bugs
+
+Work Log:
+- Fixed settings not saving: Changed fetch() to authFetch() for session headers
+- Fixed DialogTitle: Added sr-only DialogTitle to command palette
+- Fixed add organization: Changed fetch() to authFetch() in org-switcher
+- Fixed non-working buttons: Updated dashboard quick action paths
+- Fixed language persistence: authFetch in settings and header language switcher
+- Fixed Pro role visibility: Split refreshSession into restoreSession + refreshSessionData
+- Removed proxy.ts.bak
+
+Stage Summary:
+- All 7 critical bugs fixed
+- Lint passes with 0 errors
+
+---
+Task ID: 5
+Agent: full-stack-developer
+Task: Enhance Tally-like keyboard shortcuts and improve simple/advanced UI mode
+
+Work Log:
+- Added 8 new Tally-like shortcuts: F1 (Help), F3 (Org switcher), F5 (Toggle mode), F10 (Reports), F11 (Save), F12 (Cancel), Alt+F4 (Logout), Ctrl+N/S/P/E/D
+- Updated shortcut cheatsheet with 6 color-coded categories
+- Enhanced mode toggle in sidebar with gradient backgrounds and F5 hint
+- Added mode indicator badge (SIM/ADV) in header breadcrumbs
+- Created Quick Actions Bar component for dashboard
+- Created Org Switcher Dialog component (F3)
+- Mode preference now persists in localStorage
+
+Stage Summary:
+- 18+ keyboard shortcuts (Tally-style)
+- Dual-mode UI toggle with visual feedback
+- Quick actions bar on dashboard
+- Mode persistence via localStorage
+
+---
+Task ID: 7
+Agent: full-stack-developer
+Task: Upgrade design based on ui-ux-pro-max-skill recommendations
+
+Work Log:
+- Upgraded CSS design system: glass effects, financial utilities, waterfall P&L colors, count-up animations, custom scrollbar
+- Switched font to Plus Jakarta Sans (SaaS/Finance recommended)
+- Added stat card gradient backgrounds (income/expense/profit/loss/balance)
+- Added animated number counters on dashboard
+- Added Quick Actions section with 6 action cards
+- Enhanced login page with AnimatedInput, micro-animations, trust badges
+- Added grain texture and premium glow effects
+
+Stage Summary:
+- Financial Dashboard color palette implemented
+- Plus Jakarta Sans font family
+- Glass morphism effects refined
+- Financial-specific CSS utilities (positive/negative colors)
+- Animated counters and premium visual effects
+
+---
+Task ID: 8
+Agent: Main
+Task: Verify with Agent Browser
+
+Work Log:
+- Tested landing page: All sections render correctly (hero, features, pricing, testimonials, CTA, footer)
+- Tested login: Fixed password hash mismatch for test@hisabpro.com
+- Tested dashboard: Stats, quick actions, fiscal year, bilingual labels all working
+- Tested mode toggle: Simple mode shows fewer nav items, Advanced shows full accounting
+- Tested invoices/new: Full VAT-compliant invoice form working
+- Tested parties: Customer list with PAN tracking working
+- Tested reports: Trial balance with NFRS standard accounts working
+- No console errors on any page
+
+Stage Summary:
+- All pages verified working via browser
+- Login flow functional
+- Mode toggle (Simple/Advanced) working
+- Tally keyboard shortcuts visible in sidebar
+- Bilingual UI (English + Nepali) working

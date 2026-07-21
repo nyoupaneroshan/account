@@ -13,6 +13,7 @@ import { cn } from '@/lib/utils'
 import {
   Eye, EyeOff, Loader2, Calculator, Shield, Globe, ArrowLeft,
   Receipt, TrendingUp, BarChart3, CheckCircle2, Users, Zap,
+  Sparkles, ChevronRight,
 } from 'lucide-react'
 import { CLIENT_SESSION_KEY } from '@/lib/session'
 
@@ -35,6 +36,93 @@ function getPasswordStrength(password: string): {
   if (score <= 3) return { score: 3, label: 'Good', color: '#eab308' }
   if (score <= 4) return { score: 4, label: 'Strong', color: '#22c55e' }
   return { score: 5, label: 'Very Strong', color: '#10B981' }
+}
+
+/* ────────────────────────────────────────────
+   ANIMATED INPUT WRAPPER
+   ──────────────────────────────────────────── */
+function AnimatedInput({
+  id,
+  label,
+  type = 'text',
+  placeholder,
+  value,
+  onChange,
+  onKeyDown,
+  icon: Icon,
+  rightElement,
+  className,
+  hint,
+}: {
+  id: string
+  label: string
+  type?: string
+  placeholder: string
+  value: string
+  onChange: (e: React.ChangeEvent<HTMLInputElement>) => void
+  onKeyDown?: (e: React.KeyboardEvent<HTMLInputElement>) => void
+  icon?: React.ElementType
+  rightElement?: React.ReactNode
+  className?: string
+  hint?: string
+}) {
+  const [focused, setFocused] = useState(false)
+  const hasValue = value.length > 0
+
+  return (
+    <div className="space-y-1.5">
+      <Label htmlFor={id} className={cn(
+        "text-sm font-medium transition-colors duration-200",
+        focused ? "text-emerald-400" : "text-zinc-300"
+      )}>
+        {label}
+      </Label>
+      <div className={cn(
+        "relative rounded-lg transition-all duration-200",
+        focused && "ring-1 ring-emerald-500/30"
+      )}>
+        {Icon && (
+          <div className={cn(
+            "absolute left-3 top-1/2 -translate-y-1/2 transition-colors duration-200",
+            focused ? "text-emerald-400" : "text-zinc-600"
+          )}>
+            <Icon className="h-4 w-4" />
+          </div>
+        )}
+        <Input
+          id={id}
+          type={type}
+          placeholder={placeholder}
+          value={value}
+          onChange={onChange}
+          onKeyDown={onKeyDown}
+          onFocus={() => setFocused(true)}
+          onBlur={() => setFocused(false)}
+          className={cn(
+            "bg-white/[0.04] border-white/[0.08] text-white placeholder:text-zinc-600",
+            "focus-visible:ring-0 focus-visible:border-emerald-500/50",
+            "transition-all duration-200",
+            Icon && "pl-10",
+            rightElement && "pr-10",
+            className
+          )}
+        />
+        {rightElement && (
+          <div className="absolute right-3 top-1/2 -translate-y-1/2">
+            {rightElement}
+          </div>
+        )}
+      </div>
+      {hint && (
+        <p className={cn(
+          "text-[11px] transition-all duration-300 overflow-hidden",
+          focused || hasValue ? "max-h-6 opacity-100" : "max-h-0 opacity-0"
+        )}>
+          <span className="text-zinc-600">{hint}</span>
+        </p>
+      )}
+    </div>
+  )
 }
 
 /* ────────────────────────────────────────────
@@ -233,7 +321,7 @@ function LoginForm() {
       {/* ─── MAIN LAYOUT ─── */}
       <div className="flex-1 flex flex-col lg:flex-row">
         {/* ─── LEFT SIDE: BRANDING (desktop only) ─── */}
-        <div className="hidden lg:flex lg:w-[55%] relative overflow-hidden noise-overlay">
+        <div className="hidden lg:flex lg:w-[55%] relative overflow-hidden noise-overlay grain-texture">
           {/* Background gradient orbs */}
           <div className="absolute top-0 left-0 w-[500px] h-[500px] bg-emerald-500/[0.08] rounded-full blur-[120px] animate-pulse-glow" />
           <div className="absolute bottom-0 right-0 w-[400px] h-[400px] bg-emerald-300/[0.05] rounded-full blur-[100px] animate-pulse-glow" style={{ animationDelay: '2s' }} />
@@ -262,7 +350,7 @@ function LoginForm() {
             {/* Logo */}
             <div className="mb-10 animate-fade-in-up">
               <div className="flex items-center gap-4 mb-6">
-                <div className="h-14 w-14 rounded-2xl bg-gradient-to-br from-emerald-500 to-emerald-600 flex items-center justify-center shadow-xl shadow-emerald-500/25">
+                <div className="h-14 w-14 rounded-2xl bg-gradient-to-br from-emerald-500 to-emerald-600 flex items-center justify-center shadow-xl shadow-emerald-500/25 premium-glow">
                   <img src="/logo-generated.png" alt="Hisab Pro" className="h-9 w-9 rounded-lg" />
                 </div>
                 <div>
@@ -299,7 +387,7 @@ function LoginForm() {
                 return (
                   <div
                     key={badge.text}
-                    className="glass rounded-xl px-4 py-3 flex items-center gap-3 hover:bg-white/[0.06] transition-colors duration-300"
+                    className="glass rounded-xl px-4 py-3 flex items-center gap-3 hover:bg-white/[0.06] transition-all duration-300 hover:-translate-y-0.5 hover:shadow-lg"
                   >
                     <div className="h-9 w-9 rounded-lg bg-emerald-500/15 flex items-center justify-center">
                       <BadgeIcon className="h-4 w-4 text-emerald-400" />
@@ -308,6 +396,25 @@ function LoginForm() {
                       <p className="text-sm font-medium text-zinc-200">{badge.text}</p>
                       <p className="text-xs text-zinc-500">{badge.sub}</p>
                     </div>
+                  </div>
+                )
+              })}
+            </div>
+
+            {/* Feature highlights */}
+            <div className="space-y-3 mb-10 animate-fade-in-up stagger-5">
+              {[
+                { icon: Sparkles, text: 'Dual-mode: Simple + Advanced accounting' },
+                { icon: Receipt, text: 'Auto VAT calculation at 13% Nepal rate' },
+                { icon: BarChart3, text: 'One-click P&L and Balance Sheet reports' },
+              ].map((feature) => {
+                const FeatureIcon = feature.icon
+                return (
+                  <div key={feature.text} className="flex items-center gap-3 group">
+                    <div className="h-6 w-6 rounded-md bg-emerald-500/10 flex items-center justify-center group-hover:bg-emerald-500/15 transition-colors">
+                      <FeatureIcon className="h-3 w-3 text-emerald-500/60 group-hover:text-emerald-400 transition-colors" />
+                    </div>
+                    <span className="text-sm text-zinc-400 group-hover:text-zinc-300 transition-colors">{feature.text}</span>
                   </div>
                 )
               })}
@@ -389,7 +496,7 @@ function LoginForm() {
                 Back to Home
               </button>
               <div className="flex items-center gap-3 mb-4">
-                <div className="h-12 w-12 rounded-xl bg-gradient-to-br from-emerald-500 to-emerald-600 flex items-center justify-center shadow-lg shadow-emerald-500/25">
+                <div className="h-12 w-12 rounded-xl bg-gradient-to-br from-emerald-500 to-emerald-600 flex items-center justify-center shadow-lg shadow-emerald-500/25 premium-glow">
                   <img src="/logo-generated.png" alt="Hisab Pro" className="h-7 w-7 rounded-md" />
                 </div>
                 <div>
@@ -429,7 +536,7 @@ function LoginForm() {
             </div>
 
             {/* Main Card */}
-            <div className="glass-strong rounded-2xl overflow-hidden premium-glow animate-fade-in-up stagger-2">
+            <div className="glass-strong rounded-2xl overflow-hidden premium-glow animate-fade-in-up stagger-2 grain-texture">
               {/* Tab Toggle */}
               <div className="px-6 pt-6">
                 <div className="relative flex rounded-xl bg-white/[0.04] p-1">
@@ -484,49 +591,29 @@ function LoginForm() {
                   )}
                 >
                   <div className="space-y-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="login-email" className="text-zinc-300 text-sm font-medium">
-                        Email
-                      </Label>
-                      <div className="premium-input rounded-lg transition-all duration-200">
-                        <Input
-                          id="login-email"
-                          type="email"
-                          placeholder="you@example.com"
-                          value={loginEmail}
-                          onChange={(e) => setLoginEmail(e.target.value)}
-                          onKeyDown={(e) => e.key === 'Enter' && handleLogin()}
-                          className="bg-white/[0.04] border-white/[0.08] text-white placeholder:text-zinc-600 focus-visible:ring-emerald-500/30 focus-visible:border-emerald-500/50 transition-all duration-200"
-                        />
-                      </div>
-                    </div>
+                    <AnimatedInput
+                      id="login-email"
+                      label="Email"
+                      type="email"
+                      placeholder="you@example.com"
+                      value={loginEmail}
+                      onChange={(e) => setLoginEmail(e.target.value)}
+                      onKeyDown={(e) => e.key === 'Enter' && handleLogin()}
+                    />
 
-                    <div className="space-y-2">
-                      <div className="flex items-center justify-between">
-                        <Label htmlFor="login-password" className="text-zinc-300 text-sm font-medium">
-                          Password
-                        </Label>
-                        <button
-                          type="button"
-                          className="text-xs text-emerald-400 hover:text-emerald-300 transition-colors duration-200"
-                        >
-                          Forgot password?
-                        </button>
-                      </div>
-                      <div className="premium-input rounded-lg transition-all duration-200 relative">
-                        <Input
-                          id="login-password"
-                          type={showPassword ? 'text' : 'password'}
-                          placeholder="Enter your password"
-                          value={loginPassword}
-                          onChange={(e) => setLoginPassword(e.target.value)}
-                          onKeyDown={(e) => e.key === 'Enter' && handleLogin()}
-                          className="bg-white/[0.04] border-white/[0.08] text-white placeholder:text-zinc-600 pr-10 focus-visible:ring-emerald-500/30 focus-visible:border-emerald-500/50 transition-all duration-200"
-                        />
+                    <AnimatedInput
+                      id="login-password"
+                      label="Password"
+                      type={showPassword ? 'text' : 'password'}
+                      placeholder="Enter your password"
+                      value={loginPassword}
+                      onChange={(e) => setLoginPassword(e.target.value)}
+                      onKeyDown={(e) => e.key === 'Enter' && handleLogin()}
+                      rightElement={
                         <button
                           type="button"
                           onClick={() => setShowPassword(!showPassword)}
-                          className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-500 hover:text-zinc-300 transition-colors duration-200"
+                          className="text-zinc-500 hover:text-zinc-300 transition-colors duration-200"
                         >
                           {showPassword ? (
                             <EyeOff className="h-4 w-4" />
@@ -534,16 +621,35 @@ function LoginForm() {
                             <Eye className="h-4 w-4" />
                           )}
                         </button>
+                      }
+                    />
+
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <Checkbox
+                          id="remember"
+                          className="border-white/20 data-[state=checked]:bg-emerald-500 data-[state=checked]:border-emerald-500"
+                        />
+                        <label htmlFor="remember" className="text-xs text-zinc-500 cursor-pointer hover:text-zinc-400 transition-colors">
+                          Remember me
+                        </label>
                       </div>
+                      <button
+                        type="button"
+                        className="text-xs text-emerald-400/70 hover:text-emerald-300 transition-colors duration-200"
+                      >
+                        Forgot password?
+                      </button>
                     </div>
 
                     <Button
-                      className="w-full h-11 bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-400 hover:to-emerald-500 text-black font-semibold shadow-lg shadow-emerald-500/20 hover:shadow-emerald-400/30 transition-all duration-300 hover:scale-[1.01]"
+                      className="w-full h-11 bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-400 hover:to-emerald-500 text-black font-semibold shadow-lg shadow-emerald-500/20 hover:shadow-emerald-400/30 transition-all duration-300 hover:scale-[1.01] active:scale-[0.99]"
                       onClick={handleLogin}
                       disabled={loading}
                     >
                       {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                       Sign In
+                      <ChevronRight className="ml-1 h-4 w-4" />
                     </Button>
                   </div>
                 </div>
@@ -558,56 +664,37 @@ function LoginForm() {
                   )}
                 >
                   <div className="space-y-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="reg-name" className="text-zinc-300 text-sm font-medium">
-                        Full Name
-                      </Label>
-                      <div className="premium-input rounded-lg transition-all duration-200">
-                        <Input
-                          id="reg-name"
-                          type="text"
-                          placeholder="Ram Sharma"
-                          value={regName}
-                          onChange={(e) => setRegName(e.target.value)}
-                          className="bg-white/[0.04] border-white/[0.08] text-white placeholder:text-zinc-600 focus-visible:ring-emerald-500/30 focus-visible:border-emerald-500/50 transition-all duration-200"
-                        />
-                      </div>
-                    </div>
+                    <AnimatedInput
+                      id="reg-name"
+                      label="Full Name"
+                      placeholder="Ram Sharma"
+                      value={regName}
+                      onChange={(e) => setRegName(e.target.value)}
+                      hint="As it appears on your PAN"
+                    />
 
-                    <div className="space-y-2">
-                      <Label htmlFor="reg-email" className="text-zinc-300 text-sm font-medium">
-                        Email
-                      </Label>
-                      <div className="premium-input rounded-lg transition-all duration-200">
-                        <Input
-                          id="reg-email"
-                          type="email"
-                          placeholder="you@example.com"
-                          value={regEmail}
-                          onChange={(e) => setRegEmail(e.target.value)}
-                          className="bg-white/[0.04] border-white/[0.08] text-white placeholder:text-zinc-600 focus-visible:ring-emerald-500/30 focus-visible:border-emerald-500/50 transition-all duration-200"
-                        />
-                      </div>
-                    </div>
+                    <AnimatedInput
+                      id="reg-email"
+                      label="Email"
+                      type="email"
+                      placeholder="you@example.com"
+                      value={regEmail}
+                      onChange={(e) => setRegEmail(e.target.value)}
+                    />
 
                     <div className="grid grid-cols-2 gap-3">
-                      <div className="space-y-2">
-                        <Label htmlFor="reg-password" className="text-zinc-300 text-sm font-medium">
-                          Password
-                        </Label>
-                        <div className="premium-input rounded-lg transition-all duration-200 relative">
-                          <Input
-                            id="reg-password"
-                            type={showPassword ? 'text' : 'password'}
-                            placeholder="Min 6 chars"
-                            value={regPassword}
-                            onChange={(e) => setRegPassword(e.target.value)}
-                            className="bg-white/[0.04] border-white/[0.08] text-white placeholder:text-zinc-600 pr-10 focus-visible:ring-emerald-500/30 focus-visible:border-emerald-500/50 transition-all duration-200"
-                          />
+                      <AnimatedInput
+                        id="reg-password"
+                        label="Password"
+                        type={showPassword ? 'text' : 'password'}
+                        placeholder="Min 6 chars"
+                        value={regPassword}
+                        onChange={(e) => setRegPassword(e.target.value)}
+                        rightElement={
                           <button
                             type="button"
                             onClick={() => setShowPassword(!showPassword)}
-                            className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-500 hover:text-zinc-300 transition-colors duration-200"
+                            className="text-zinc-500 hover:text-zinc-300 transition-colors duration-200"
                           >
                             {showPassword ? (
                               <EyeOff className="h-4 w-4" />
@@ -615,26 +702,21 @@ function LoginForm() {
                               <Eye className="h-4 w-4" />
                             )}
                           </button>
-                        </div>
-                      </div>
+                        }
+                      />
 
-                      <div className="space-y-2">
-                        <Label htmlFor="reg-confirm-password" className="text-zinc-300 text-sm font-medium">
-                          Confirm
-                        </Label>
-                        <div className="premium-input rounded-lg transition-all duration-200 relative">
-                          <Input
-                            id="reg-confirm-password"
-                            type={showConfirmPassword ? 'text' : 'password'}
-                            placeholder="Re-enter"
-                            value={regConfirmPassword}
-                            onChange={(e) => setRegConfirmPassword(e.target.value)}
-                            className="bg-white/[0.04] border-white/[0.08] text-white placeholder:text-zinc-600 pr-10 focus-visible:ring-emerald-500/30 focus-visible:border-emerald-500/50 transition-all duration-200"
-                          />
+                      <AnimatedInput
+                        id="reg-confirm-password"
+                        label="Confirm"
+                        type={showConfirmPassword ? 'text' : 'password'}
+                        placeholder="Re-enter"
+                        value={regConfirmPassword}
+                        onChange={(e) => setRegConfirmPassword(e.target.value)}
+                        rightElement={
                           <button
                             type="button"
                             onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                            className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-500 hover:text-zinc-300 transition-colors duration-200"
+                            className="text-zinc-500 hover:text-zinc-300 transition-colors duration-200"
                           >
                             {showConfirmPassword ? (
                               <EyeOff className="h-4 w-4" />
@@ -642,8 +724,8 @@ function LoginForm() {
                               <Eye className="h-4 w-4" />
                             )}
                           </button>
-                        </div>
-                      </div>
+                        }
+                      />
                     </div>
 
                     {/* Password Strength Indicator */}
@@ -663,33 +745,28 @@ function LoginForm() {
                             />
                           ))}
                         </div>
-                        <p
-                          className="text-xs transition-colors duration-300"
-                          style={{ color: passwordStrength.color }}
-                        >
-                          {passwordStrength.label}
-                        </p>
+                        <div className="flex items-center gap-2">
+                          <p
+                            className="text-xs transition-colors duration-300"
+                            style={{ color: passwordStrength.color }}
+                          >
+                            {passwordStrength.label}
+                          </p>
+                          {passwordStrength.score >= 4 && (
+                            <CheckCircle2 className="h-3 w-3 text-emerald-400 animate-scale-in" />
+                          )}
+                        </div>
                       </div>
                     )}
 
-                    <div className="space-y-2">
-                      <Label htmlFor="reg-business" className="text-zinc-300 text-sm font-medium">
-                        Business Name
-                      </Label>
-                      <div className="premium-input rounded-lg transition-all duration-200">
-                        <Input
-                          id="reg-business"
-                          type="text"
-                          placeholder="e.g. Sharma Trading"
-                          value={regBusinessName}
-                          onChange={(e) => setRegBusinessName(e.target.value)}
-                          className="bg-white/[0.04] border-white/[0.08] text-white placeholder:text-zinc-600 focus-visible:ring-emerald-500/30 focus-visible:border-emerald-500/50 transition-all duration-200"
-                        />
-                      </div>
-                      <p className="text-xs text-zinc-600">
-                        This creates your organization
-                      </p>
-                    </div>
+                    <AnimatedInput
+                      id="reg-business"
+                      label="Business Name"
+                      placeholder="e.g. Sharma Trading"
+                      value={regBusinessName}
+                      onChange={(e) => setRegBusinessName(e.target.value)}
+                      hint="This creates your organization"
+                    />
 
                     <div className="space-y-2">
                       <Label className="text-zinc-300 text-sm font-medium">
@@ -726,12 +803,13 @@ function LoginForm() {
                     </div>
 
                     <Button
-                      className="w-full h-11 bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-400 hover:to-emerald-500 text-black font-semibold shadow-lg shadow-emerald-500/20 hover:shadow-emerald-400/30 transition-all duration-300 hover:scale-[1.01]"
+                      className="w-full h-11 bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-400 hover:to-emerald-500 text-black font-semibold shadow-lg shadow-emerald-500/20 hover:shadow-emerald-400/30 transition-all duration-300 hover:scale-[1.01] active:scale-[0.99]"
                       onClick={handleRegister}
                       disabled={loading}
                     >
                       {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                       Create Account
+                      <ChevronRight className="ml-1 h-4 w-4" />
                     </Button>
                   </div>
                 </div>
