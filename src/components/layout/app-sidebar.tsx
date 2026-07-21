@@ -48,6 +48,7 @@ interface NavItem {
   labelNepali: string
   icon: React.ElementType
   path: string
+  shortcut?: string
 }
 
 interface NavGroup {
@@ -92,10 +93,10 @@ const SIMPLE_NAV: NavGroup[] = [
     label: 'Main',
     labelNepali: 'मुख्य',
     items: [
-      { id: 'dashboard', label: 'Dashboard', labelNepali: 'ड्यासबोर्ड', icon: LayoutDashboard, path: '/dashboard' },
-      { id: 'parties', label: 'Parties', labelNepali: 'पक्षहरू', icon: Users, path: '/parties' },
-      { id: 'invoices', label: 'Invoices', labelNepali: 'इनभ्वाइस', icon: Receipt, path: '/invoices' },
-      { id: 'purchases', label: 'Purchases', labelNepali: 'खरिद', icon: ShoppingCart, path: '/purchases' },
+      { id: 'dashboard', label: 'Dashboard', labelNepali: 'ड्यासबोर्ड', icon: LayoutDashboard, path: '/dashboard', shortcut: 'Alt+1' },
+      { id: 'parties', label: 'Parties', labelNepali: 'पक्षहरू', icon: Users, path: '/parties', shortcut: 'Alt+2' },
+      { id: 'invoices', label: 'Invoices', labelNepali: 'इनभ्वाइस', icon: Receipt, path: '/invoices', shortcut: 'Alt+3' },
+      { id: 'purchases', label: 'Purchases', labelNepali: 'खरिद', icon: ShoppingCart, path: '/purchases', shortcut: 'Alt+4' },
     ],
     defaultOpen: true,
   },
@@ -103,8 +104,8 @@ const SIMPLE_NAV: NavGroup[] = [
     label: 'Quick Entry',
     labelNepali: 'छिटो प्रविष्टि',
     items: [
-      { id: 'simple-income', label: 'Add Income', labelNepali: 'आम्दानी थप्नुहोस्', icon: PlusCircle, path: '/income' },
-      { id: 'simple-expense', label: 'Add Expense', labelNepali: 'खर्च थप्नुहोस्', icon: MinusCircle, path: '/expense' },
+      { id: 'simple-income', label: 'Add Income', labelNepali: 'आम्दानी थप्नुहोस्', icon: PlusCircle, path: '/income', shortcut: 'F2' },
+      { id: 'simple-expense', label: 'Add Expense', labelNepali: 'खर्च थप्नुहोस्', icon: MinusCircle, path: '/expense', shortcut: 'F4' },
     ],
     defaultOpen: true,
   },
@@ -123,10 +124,10 @@ const ADVANCED_NAV: NavGroup[] = [
     label: 'Main',
     labelNepali: 'मुख्य',
     items: [
-      { id: 'dashboard', label: 'Dashboard', labelNepali: 'ड्यासबोर्ड', icon: LayoutDashboard, path: '/dashboard' },
-      { id: 'parties', label: 'Parties', labelNepali: 'पक्षहरू', icon: Users, path: '/parties' },
-      { id: 'invoices', label: 'Invoices', labelNepali: 'इनभ्वाइस', icon: Receipt, path: '/invoices' },
-      { id: 'purchases', label: 'Purchases', labelNepali: 'खरिद', icon: Truck, path: '/purchases' },
+      { id: 'dashboard', label: 'Dashboard', labelNepali: 'ड्यासबोर्ड', icon: LayoutDashboard, path: '/dashboard', shortcut: 'Alt+1' },
+      { id: 'parties', label: 'Parties', labelNepali: 'पक्षहरू', icon: Users, path: '/parties', shortcut: 'Alt+2' },
+      { id: 'invoices', label: 'Invoices', labelNepali: 'इनभ्वाइस', icon: Receipt, path: '/invoices', shortcut: 'Alt+3' },
+      { id: 'purchases', label: 'Purchases', labelNepali: 'खरिद', icon: Truck, path: '/purchases', shortcut: 'Alt+4' },
     ],
     defaultOpen: true,
   },
@@ -134,8 +135,8 @@ const ADVANCED_NAV: NavGroup[] = [
     label: 'Accounting',
     labelNepali: 'लेखांकन',
     items: [
-      { id: 'journal-entries', label: 'Journal', labelNepali: 'जर्नल प्रविष्टि', icon: FileText, path: '/journal' },
-      { id: 'chart-of-accounts', label: 'Accounts', labelNepali: 'खाता योजना', icon: BookOpen, path: '/accounts' },
+      { id: 'journal-entries', label: 'Journal', labelNepali: 'जर्नल प्रविष्टि', icon: FileText, path: '/journal', shortcut: 'Alt+5' },
+      { id: 'chart-of-accounts', label: 'Accounts', labelNepali: 'खाता योजना', icon: BookOpen, path: '/accounts', shortcut: 'Alt+6' },
       { id: 'ledgers', label: 'Ledgers', labelNepali: 'खाता खाता', icon: FileSpreadsheet, path: '/ledgers' },
     ],
     defaultOpen: true,
@@ -144,7 +145,7 @@ const ADVANCED_NAV: NavGroup[] = [
     label: 'Inventory',
     labelNepali: 'इन्भेन्ट्री',
     items: [
-      { id: 'inventory', label: 'Stock', labelNepali: 'स्टक व्यवस्थापन', icon: Package, path: '/inventory' },
+      { id: 'inventory', label: 'Stock', labelNepali: 'स्टक व्यवस्थापन', icon: Package, path: '/inventory', shortcut: 'Alt+8' },
     ],
     defaultOpen: false,
   },
@@ -165,9 +166,9 @@ const ADVANCED_NAV: NavGroup[] = [
     label: 'Settings',
     labelNepali: 'सेटिङ',
     items: [
-      { id: 'organization', label: 'Organization', labelNepali: 'संस्था', icon: Building2, path: '/organization' },
+      { id: 'organization', label: 'Organization', labelNepali: 'संस्था', icon: Building2, path: '/organization', shortcut: 'Alt+0' },
       { id: 'users', label: 'Users & Roles', labelNepali: 'प्रयोगकर्ता', icon: UserCog, path: '/users' },
-      { id: 'settings', label: 'Settings', labelNepali: 'सेटिङ', icon: Settings, path: '/settings' },
+      { id: 'settings', label: 'Settings', labelNepali: 'सेटिङ', icon: Settings, path: '/settings', shortcut: 'Alt+9' },
     ],
     defaultOpen: false,
   },
@@ -336,7 +337,7 @@ export function AppSidebar({ onLogout }: { onLogout?: () => void }) {
                                 'h-4 w-4 shrink-0 transition-premium relative z-10',
                                 isActive ? 'text-emerald-400 drop-shadow-[0_0_4px_rgba(16,185,129,0.3)]' : 'text-zinc-500 group-hover:text-emerald-400 group-hover:scale-110'
                               )} />
-                              <div className="flex flex-col items-start min-w-0 relative z-10">
+                              <div className="flex flex-col items-start min-w-0 relative z-10 flex-1">
                                 <span className={cn(
                                   "truncate w-full text-left transition-premium",
                                   !isActive && "group-hover:translate-x-0.5"
@@ -345,6 +346,11 @@ export function AppSidebar({ onLogout }: { onLogout?: () => void }) {
                                   <span className="text-[10px] text-emerald-500/70 truncate w-full text-left">{item.labelNepali}</span>
                                 )}
                               </div>
+                              {item.shortcut && (
+                                <kbd className="hidden lg:inline-flex items-center px-1.5 py-0.5 rounded bg-white/[0.04] border border-white/[0.06] text-[10px] text-zinc-500 font-mono shrink-0 relative z-10">
+                                  {item.shortcut}
+                                </kbd>
+                              )}
                             </button>
                           </TooltipTrigger>
                           <TooltipContent side="right" className="bg-zinc-800/95 backdrop-blur-sm text-zinc-200 border-zinc-700/80 shadow-lg">

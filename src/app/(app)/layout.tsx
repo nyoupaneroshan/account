@@ -8,6 +8,9 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sh
 import { cn } from '@/lib/utils'
 import { Loader2 } from 'lucide-react'
 import { CLIENT_SESSION_KEY, getSessionHeaders } from '@/lib/session'
+import { useKeyboardShortcuts } from '@/hooks/use-keyboard-shortcuts'
+import { CommandPalette } from '@/components/shared/command-palette'
+import { ShortcutCheatsheet } from '@/components/shared/shortcut-cheatsheet'
 
 const AppSidebar = dynamic(
   () => import('@/components/layout/app-sidebar').then((mod) => ({ default: mod.AppSidebar })),
@@ -29,6 +32,7 @@ export default function AppLayout({
     currentOrgId,
     sidebarOpen,
     setSidebarOpen,
+    mode,
     setCurrentUser,
     setUserOrganizations,
     setCurrentOrg,
@@ -38,16 +42,39 @@ export default function AppLayout({
   } = useAppStore()
 
   const [initializing, setInitializing] = useState(true)
-  const redirectAttempted = useRef(false)
+  const [shouldRedirect, setShouldRedirect] = useState(false)
+  const [commandPaletteOpen, setCommandPaletteOpen] = useState(false)
+  const [cheatsheetOpen, setCheatsheetOpen] = useState(false)
+  const hasRestoredSession = useRef(false)
 
-  // Restore session on mount
+  // Keyboard shortcuts
+  useKeyboardShortcuts({
+    onQuickIncome: () => {
+      if (mode === 'simple') router.push('/income')
+      else router.push('/journal/new')
+    },
+    onQuickExpense: () => router.push('/expense'),
+    onNewInvoice: () => router.push('/invoices/new'),
+    onNewPurchaseBill: () => router.push('/purchases/new'),
+    onNewParty: () => router.push('/parties/new'),
+    onToggleSidebar: () => setSidebarOpen(!sidebarOpen),
+    onOpenCommandPalette: () => setCommandPaletteOpen(true),
+    onCloseModal: () => {
+      setCommandPaletteOpen(false)
+      setCheatsheetOpen(false)
+    },
+    onOpenCheatsheet: () => setCheatsheetOpen(true),
+  })
+
+  // Restore session on mount — ONLY ONCE
   const restoreSession = useCallback(async () => {
-    if (redirectAttempted.current) return
+    if (hasRestoredSession.current) return
+    hasRestoredSession.current = true
 
     try {
       const headers = getSessionHeaders()
       const controller = new AbortController()
-      const timeoutId = setTimeout(() => controller.abort(), 10000)
+      const timeoutId = setTimeout(() => controller.abort(), 8000)
 
       const res = await fetch('/api/auth/session', {
         signal: controller.signal,
@@ -58,7 +85,6 @@ export default function AppLayout({
       if (res.ok) {
         const data = await res.json()
         if (data.user && data.organizations && data.organizations.length > 0) {
-          // Ensure token is in localStorage
           localStorage.setItem(CLIENT_SESSION_KEY, data.user.id)
 
           setCurrentUser({
@@ -84,28 +110,20 @@ export default function AppLayout({
           } else {
             setCurrentOrg(orgs[0].id, orgs[0].name)
           }
-        } else {
-          // Valid session but no user/orgs - redirect to login
-          redirectAttempted.current = true
           setInitializing(false)
-          localStorage.removeItem(CLIENT_SESSION_KEY)
-          router.replace('/login')
           return
         }
-      } else {
-        // Session API returned error (401 etc) - redirect to login
-        redirectAttempted.current = true
-        setInitializing(false)
-        localStorage.removeItem(CLIENT_SESSION_KEY)
-        router.replace('/login')
-        return
       }
+
+      // Session invalid or expired — trigger redirect
+      localStorage.removeItem(CLIENT_SESSION_KEY)
+      setShouldRedirect(true)
     } catch (err) {
       console.warn('Session restore failed:', err instanceof Error ? err.message : 'Unknown error')
-      // Don't redirect on network errors - might be temporary
+      // On network error, show the dashboard anyway (might be temporary)
+      setInitializing(false)
     }
-    setInitializing(false)
-  }, [setCurrentUser, setUserOrganizations, setCurrentOrg, setLanguage, router])
+  }, [setCurrentUser, setUserOrganizations, setCurrentOrg, setLanguage])
 
   useEffect(() => {
     const doRestore = async () => {
@@ -115,6 +133,14 @@ export default function AppLayout({
     doRestore()
   }, [])
 
+  // Handle redirect in a separate effect (lint-safe)
+  useEffect(() => {
+    if (shouldRedirect) {
+      localStorage.removeItem(CLIENT_SESSION_KEY)
+      window.location.href = '/login'
+    }
+  }, [shouldRedirect])
+
   // Save current org ID to localStorage
   useEffect(() => {
     if (currentOrgId && typeof window !== 'undefined') {
@@ -123,7 +149,7 @@ export default function AppLayout({
   }, [currentOrgId])
 
   // Handle logout
-  const handleLogout = async () => {
+  const handleLogout = useCallback(async () => {
     try {
       const headers = getSessionHeaders()
       await fetch('/api/auth/logout', { method: 'POST', headers })
@@ -131,14 +157,12 @@ export default function AppLayout({
       // ignore
     }
     logout()
-    if (typeof window !== 'undefined') {
-      localStorage.removeItem(CLIENT_SESSION_KEY)
-      localStorage.removeItem('hisab-current-org')
-    }
-    router.replace('/login')
-  }
+    localStorage.removeItem(CLIENT_SESSION_KEY)
+    localStorage.removeItem('hisab-current-org')
+    window.location.href = '/login'
+  }, [logout])
 
-  // Premium loading screen with animated logo
+  // Loading screen
   if (initializing) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-[#09090b]">
@@ -177,7 +201,6 @@ export default function AppLayout({
           }
         `}</style>
         <div className="text-center">
-          {/* Animated ring decoration */}
           <div className="relative mx-auto mb-6 h-20 w-20">
             <div className="absolute inset-0 rounded-2xl ring-rotate border-2 border-transparent border-t-emerald-500/40 border-r-emerald-500/20" />
             <div className="absolute inset-2 rounded-xl ring-pulse border border-emerald-500/10" />
@@ -198,7 +221,7 @@ export default function AppLayout({
     )
   }
 
-  // If still no user after loading, show redirect message
+  // No user after initialization
   if (!currentUser || !currentOrgId) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-[#09090b]">
@@ -237,6 +260,39 @@ export default function AppLayout({
           {children}
         </main>
       </div>
+
+      {/* Command Palette & Shortcut Cheatsheet */}
+      <CommandPalette
+        open={commandPaletteOpen}
+        onOpenChange={setCommandPaletteOpen}
+        mode={mode}
+        onNavigate={(path) => router.push(path)}
+        onAction={(action) => {
+          switch (action) {
+            case 'add-income': router.push('/income'); break
+            case 'add-expense': router.push('/expense'); break
+            case 'new-invoice': router.push('/invoices/new'); break
+            case 'new-purchase': router.push('/purchases/new'); break
+            case 'new-party': router.push('/parties/new'); break
+            case 'new-journal': router.push('/journal/new'); break
+            case 'toggle-mode': {
+              const newMode = mode === 'simple' ? 'advanced' : 'simple'
+              useAppStore.getState().setMode(newMode)
+              break
+            }
+            case 'switch-language': {
+              const currentLang = useAppStore.getState().language
+              useAppStore.getState().setLanguage(currentLang === 'en' ? 'ne' : 'en')
+              break
+            }
+            case 'toggle-sidebar': setSidebarOpen(!sidebarOpen); break
+          }
+        }}
+      />
+      <ShortcutCheatsheet
+        open={cheatsheetOpen}
+        onOpenChange={setCheatsheetOpen}
+      />
     </div>
   )
 }

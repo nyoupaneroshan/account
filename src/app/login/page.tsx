@@ -61,50 +61,19 @@ function LoginForm() {
     setErrorKey((k) => k + 1)
   }
 
-  // Check if already logged in
+  // Check if already logged in — only ONCE on mount
   useEffect(() => {
     const checkSession = async () => {
       if (redirectAttempted.current) return
 
-      const storedToken = localStorage.getItem(CLIENT_SESSION_KEY)
-      if (storedToken) {
-        try {
-          const res = await fetch('/api/auth/session', {
-            headers: { 'x-session-token': storedToken }
-          })
-          if (res.ok) {
-            const data = await res.json()
-            if (data.user && data.organizations && data.organizations.length > 0) {
-              redirectAttempted.current = true
-              setCurrentUser({
-                id: data.user.id,
-                email: data.user.email,
-                name: data.user.name,
-                role: data.user.role,
-                language: data.user.language,
-              })
-              const orgs = data.organizations.map((o: { id: string; name: string; role: string; plan: string }) => ({
-                id: o.id,
-                name: o.name,
-                role: o.role,
-                plan: o.plan,
-              }))
-              setUserOrganizations(orgs)
-              setLanguage(data.user.language || 'en')
-              if (orgs.length > 0) {
-                setCurrentOrg(orgs[0].id, orgs[0].name)
-              }
-              router.replace('/dashboard')
-              return
-            }
-          }
-        } catch {
-          // Token might be stale, continue to show login form
-        }
-      }
-
       try {
-        const res = await fetch('/api/auth/session')
+        const headers: Record<string, string> = {}
+        const storedToken = localStorage.getItem(CLIENT_SESSION_KEY)
+        if (storedToken) {
+          headers['x-session-token'] = storedToken
+        }
+
+        const res = await fetch('/api/auth/session', { headers })
         if (res.ok) {
           const data = await res.json()
           if (data.user && data.organizations && data.organizations.length > 0) {
@@ -128,12 +97,13 @@ function LoginForm() {
             if (orgs.length > 0) {
               setCurrentOrg(orgs[0].id, orgs[0].name)
             }
-            router.replace('/dashboard')
+            // Use window.location for a hard navigation to avoid client-side loop
+            window.location.href = '/dashboard'
             return
           }
         }
       } catch {
-        // Not logged in, show the form
+        // Not logged in or network error, show login form
       }
       setCheckingSession(false)
     }

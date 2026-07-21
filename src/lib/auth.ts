@@ -10,7 +10,7 @@ export function setSessionCookie(userId: string): {
   options: {
     httpOnly: boolean
     secure: boolean
-    sameSite: 'none' | 'lax'
+    sameSite: 'lax' | 'strict'
     maxAge: number
     path: string
   }
@@ -19,9 +19,9 @@ export function setSessionCookie(userId: string): {
     name: SESSION_COOKIE,
     value: userId,
     options: {
-      httpOnly: false, // Changed to false so client JS can read it for fallback
-      secure: true, // Always secure since we're served through HTTPS proxy
-      sameSite: 'none', // Required for iframe/third-party context
+      httpOnly: false,
+      secure: false, // Must be false for sandbox/proxy environments
+      sameSite: 'lax',
       maxAge: SESSION_MAX_AGE,
       path: '/',
     },
@@ -62,7 +62,7 @@ export function clearSessionCookieOptions(): {
   options: {
     httpOnly: boolean
     secure: boolean
-    sameSite: 'none' | 'lax'
+    sameSite: 'lax' | 'strict'
     maxAge: number
     path: string
   }
@@ -72,8 +72,8 @@ export function clearSessionCookieOptions(): {
     value: '',
     options: {
       httpOnly: false,
-      secure: true,
-      sameSite: 'none',
+      secure: false,
+      sameSite: 'lax',
       maxAge: 0,
       path: '/',
     },

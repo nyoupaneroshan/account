@@ -27,7 +27,7 @@ import {
   Sparkles,
   Play,
 } from 'lucide-react'
-import { CLIENT_SESSION_KEY } from '@/lib/session'
+
 
 /* ────────────────────────────────────────────
    DATA (UNCHANGED)
@@ -225,31 +225,8 @@ export default function HomePage() {
   const stat3 = useAnimatedCounter(STATS[3].value, 1800)
   const statRefs = [stat0, stat1, stat2, stat3]
 
-  // If already logged in, redirect to dashboard
-  useEffect(() => {
-    if (checkedSession.current) return
-    checkedSession.current = true
-    const check = async () => {
-      try {
-        const token = localStorage.getItem(CLIENT_SESSION_KEY)
-        const headers: Record<string, string> = {}
-        if (token) {
-          headers['x-session-token'] = token
-        }
-        const res = await fetch('/api/auth/session', { headers })
-        if (res.ok) {
-          const data = await res.json()
-          if (data.user && data.organizations && data.organizations.length > 0) {
-            localStorage.setItem(CLIENT_SESSION_KEY, data.user.id)
-            window.location.href = '/dashboard'
-          }
-        }
-      } catch {
-        // Not logged in, stay on home page
-      }
-    }
-    check()
-  }, [])
+  // Note: We do NOT auto-redirect to dashboard from the landing page.
+  // This was causing redirect loops. Users can click "Sign In" or "Get Started" to navigate.
 
   // Scroll detection for navbar
   useEffect(() => {
