@@ -14,7 +14,7 @@ function hashPassword(password: string): string {
 export async function POST(request: Request) {
   try {
     const body = await request.json()
-    const { email, password, name, businessName } = body
+    const { email, password, name, businessName, language } = body
 
     // Validate required fields
     if (!email || !password || !name) {
@@ -54,7 +54,7 @@ export async function POST(request: Request) {
         passwordHash,
         role: isFirstUser ? 'super_admin' : 'user',
         isActive: true,
-        language: 'en',
+        language: language || 'en',
       }
     })
 

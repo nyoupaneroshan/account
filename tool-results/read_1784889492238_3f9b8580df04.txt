@@ -1,0 +1,1233 @@
+     1→// Internationalization (i18n) system for Hisab Pro
+     2→// Supports: English (en), Nepali (ne), Hindi (hi)
+     3→
+     4→export type Locale = 'en' | 'ne' | 'hi'
+     5→
+     6→export interface TranslationStrings {
+     7→  // Common
+     8→  save: string
+     9→  cancel: string
+    10→  delete: string
+    11→  edit: string
+    12→  create: string
+    13→  search: string
+    14→  loading: string
+    15→  no_results: string
+    16→  confirm: string
+    17→  close: string
+    18→  back: string
+    19→  next: string
+    20→  previous: string
+    21→  submit: string
+    22→  reset: string
+    23→  yes: string
+    24→  no: string
+    25→  actions: string
+    26→  status: string
+    27→  date: string
+    28→  amount: string
+    29→  total: string
+    30→  description: string
+    31→  notes: string
+    32→  name: string
+    33→  type: string
+    34→  code: string
+    35→  filter: string
+    36→  export: string
+    37→  import: string
+    38→  print: string
+    39→  refresh: string
+    40→  view: string
+    41→  download: string
+    42→  upload: string
+    43→  error: string
+    44→  success: string
+    45→  warning: string
+    46→  info: string
+    47→  required: string
+    48→  optional: string
+    49→  active: string
+    50→  inactive: string
+    51→  all: string
+    52→  none: string
+    53→  other: string
+    54→  more: string
+    55→  less: string
+    56→
+    57→  // Navigation
+    58→  dashboard: string
+    59→  chart_of_accounts: string
+    60→  journal_entries: string
+    61→  invoices: string
+    62→  purchases: string
+    63→  inventory: string
+    64→  parties: string
+    65→  reports: string
+    66→  settings: string
+    67→  organization: string
+    68→  users: string
+    69→  sales: string
+    70→  ledger: string
+    71→
+    72→  // Accounting
+    73→  debit: string
+    74→  credit: string
+    75→  balance: string
+    76→  account: string
+    77→  asset: string
+    78→  liability: string
+    79→  equity: string
+    80→  income: string
+    81→  expense: string
+    82→  vat: string
+    83→  tds: string
+    84→  trial_balance: string
+    85→  profit_loss: string
+    86→  balance_sheet: string
+    87→  cash_flow: string
+    88→  opening_balance: string
+    89→  current_balance: string
+    90→  closing_balance: string
+    91→  journal_entry: string
+    92→  voucher: string
+    93→  narration: string
+    94→  posting: string
+    95→  double_entry: string
+    96→  contra: string
+    97→  receipt: string
+    98→  payment: string
+    99→  receivable: string
+   100→  payable: string
+   101→  capital: string
+   102→  retained_earnings: string
+   103→  depreciation: string
+   104→  cost_of_goods_sold: string
+   105→  taxable_amount: string
+   106→  vat_amount: string
+   107→  total_amount: string
+   108→  subtotal: string
+   109→  discount: string
+   110→  net_amount: string
+   111→  currency_npr: string
+   112→
+   113→  // Auth
+   114→  login: string
+   115→  register: string
+   116→  email: string
+   117→  password: string
+   118→  confirm_password: string
+   119→  name_label: string
+   120→  business_name: string
+   121→  logout: string
+   122→  welcome: string
+   123→  forgot_password: string
+   124→  reset_password: string
+   125→  change_password: string
+   126→  profile: string
+   127→  sign_in: string
+   128→  sign_up: string
+   129→  already_have_account: string
+   130→  dont_have_account: string
+   131→  invalid_credentials: string
+   132→  registration_success: string
+   133→  login_success: string
+   134→  logout_success: string
+   135→  email_required: string
+   136→  password_required: string
+   137→  password_min_length: string
+   138→  passwords_dont_match: string
+   139→  email_already_exists: string
+   140→
+   141→  // Plans
+   142→  free: string
+   143→  pro: string
+   144→  enterprise: string
+   145→  monthly: string
+   146→  yearly: string
+   147→  upgrade: string
+   148→  downgrade: string
+   149→  current_plan: string
+   150→  features: string
+   151→  limited_access: string
+   152→  all_features: string
+   153→  contact_us: string
+   154→  trial_period: string
+   155→  trial_ends: string
+   156→  subscription_active: string
+   157→  subscription_expired: string
+   158→  days_remaining: string
+   159→  unlimited: string
+   160→
+   161→  // Simple mode
+   162→  add_income: string
+   163→  add_expense: string
+   164→  quick_entry: string
+   165→  income_category: string
+   166→  expense_category: string
+   167→  payment_method: string
+   168→  cash: string
+   169→  bank: string
+   170→  online: string
+   171→  cheque: string
+   172→  from_party: string
+   173→  to_party: string
+   174→  received_from: string
+   175→  paid_to: string
+   176→  simple_mode: string
+   177→  advanced_mode: string
+   178→
+   179→  // Admin
+   180→  admin_portal: string
+   181→  manage_users: string
+   182→  manage_subscriptions: string
+   183→  all_organizations: string
+   184→  system_settings: string
+   185→  super_admin: string
+   186→  user_management: string
+   187→  activate: string
+   188→  deactivate: string
+   189→  user_status: string
+   190→  plan_type: string
+   191→  organization_name: string
+   192→  created_at: string
+   193→  updated_at: string
+   194→  last_login: string
+   195→
+   196→  // Invoices & Sales
+   197→  invoice_number: string
+   198→  invoice_date: string
+   199→  due_date: string
+   200→  bill_to: string
+   201→  ship_to: string
+   202→  quantity: string
+   203→  unit_price: string
+   204→  line_total: string
+   205→  draft: string
+   206→  sent: string
+   207→  paid: string
+   208→  partial: string
+   209→  overdue: string
+   210→  cancelled: string
+   211→  mark_as_paid: string
+   212→  mark_as_sent: string
+   213→  cancel_invoice: string
+   214→  new_invoice: string
+   215→  sales_return: string
+   216→
+   217→  // Purchases
+   218→  purchase_bill: string
+   219→  supplier: string
+   220→  customer: string
+   221→  bill_number: string
+   222→  bill_date: string
+   223→  purchase_return: string
+   224→  new_purchase: string
+   225→  received: string
+   226→
+   227→  // Inventory
+   228→  product: string
+   229→  products: string
+   230→  warehouse: string
+   231→  stock: string
+   232→  stock_in: string
+   233→  stock_out: string
+   234→  stock_adjustment: string
+   235→  low_stock: string
+   236→  out_of_stock: string
+   237→  in_stock: string
+   238→  sku: string
+   239→  unit: string
+   240→  category: string
+   241→  brand: string
+   242→  selling_price: string
+   243→  cost_price: string
+   244→  min_stock: string
+   245→  max_stock: string
+   246→  batch_number: string
+   247→  expiry_date: string
+   248→
+   249→  // Parties
+   250→  party: string
+   251→  customer_label: string
+   252→  supplier_label: string
+   253→  employee: string
+   254→  both: string
+   255→  pan_number: string
+   256→  credit_limit: string
+   257→  contact_person: string
+   258→  province: string
+   259→  city: string
+   260→  address: string
+   261→  phone: string
+   262→  bank_name: string
+   263→  bank_account: string
+   264→  tds_applicable: string
+   265→  ssf_applicable: string
+   266→
+   267→  // Reports
+   268→  report_type: string
+   269→  period: string
+   270→  from_date: string
+   271→  to_date: string
+   272→  generate_report: string
+   273→  financial_summary: string
+   274→  monthly_summary: string
+   275→  yearly_summary: string
+   276→  vat_report: string
+   277→  tds_report: string
+   278→
+   279→  // Fiscal Year
+   280→  fiscal_year: string
+   281→  is_current: string
+   282→  is_locked: string
+   283→  lock_period: string
+   284→
+   285→  // Settings
+   286→  preferences: string
+   287→  language: string
+   288→  theme: string
+   289→  light: string
+   290→  dark: string
+   291→  system: string
+   292→  tax_configuration: string
+   293→  vat_enabled: string
+   294→  tds_enabled: string
+   295→  ssf_enabled: string
+   296→  default_warehouse: string
+   297→  invoice_prefix: string
+   298→  bill_prefix: string
+   299→  journal_prefix: string
+   300→}
+   301→
+   302→const translations: Record<Locale, TranslationStrings> = {
+   303→  en: {
+   304→    // Common
+   305→    save: 'Save',
+   306→    cancel: 'Cancel',
+   307→    delete: 'Delete',
+   308→    edit: 'Edit',
+   309→    create: 'Create',
+   310→    search: 'Search',
+   311→    loading: 'Loading...',
+   312→    no_results: 'No results found',
+   313→    confirm: 'Confirm',
+   314→    close: 'Close',
+   315→    back: 'Back',
+   316→    next: 'Next',
+   317→    previous: 'Previous',
+   318→    submit: 'Submit',
+   319→    reset: 'Reset',
+   320→    yes: 'Yes',
+   321→    no: 'No',
+   322→    actions: 'Actions',
+   323→    status: 'Status',
+   324→    date: 'Date',
+   325→    amount: 'Amount',
+   326→    total: 'Total',
+   327→    description: 'Description',
+   328→    notes: 'Notes',
+   329→    name: 'Name',
+   330→    type: 'Type',
+   331→    code: 'Code',
+   332→    filter: 'Filter',
+   333→    export: 'Export',
+   334→    import: 'Import',
+   335→    print: 'Print',
+   336→    refresh: 'Refresh',
+   337→    view: 'View',
+   338→    download: 'Download',
+   339→    upload: 'Upload',
+   340→    error: 'Error',
+   341→    success: 'Success',
+   342→    warning: 'Warning',
+   343→    info: 'Info',
+   344→    required: 'Required',
+   345→    optional: 'Optional',
+   346→    active: 'Active',
+   347→    inactive: 'Inactive',
+   348→    all: 'All',
+   349→    none: 'None',
+   350→    other: 'Other',
+   351→    more: 'More',
+   352→    less: 'Less',
+   353→
+   354→    // Navigation
+   355→    dashboard: 'Dashboard',
+   356→    chart_of_accounts: 'Chart of Accounts',
+   357→    journal_entries: 'Journal Entries',
+   358→    invoices: 'Invoices',
+   359→    purchases: 'Purchases',
+   360→    inventory: 'Inventory',
+   361→    parties: 'Parties',
+   362→    reports: 'Reports',
+   363→    settings: 'Settings',
+   364→    organization: 'Organization',
+   365→    users: 'Users',
+   366→    sales: 'Sales',
+   367→    ledger: 'Ledger',
+   368→
+   369→    // Accounting
+   370→    debit: 'Debit',
+   371→    credit: 'Credit',
+   372→    balance: 'Balance',
+   373→    account: 'Account',
+   374→    asset: 'Asset',
+   375→    liability: 'Liability',
+   376→    equity: 'Equity',
+   377→    income: 'Income',
+   378→    expense: 'Expense',
+   379→    vat: 'VAT',
+   380→    tds: 'TDS',
+   381→    trial_balance: 'Trial Balance',
+   382→    profit_loss: 'Profit & Loss',
+   383→    balance_sheet: 'Balance Sheet',
+   384→    cash_flow: 'Cash Flow',
+   385→    opening_balance: 'Opening Balance',
+   386→    current_balance: 'Current Balance',
+   387→    closing_balance: 'Closing Balance',
+   388→    journal_entry: 'Journal Entry',
+   389→    voucher: 'Voucher',
+   390→    narration: 'Narration',
+   391→    posting: 'Posting',
+   392→    double_entry: 'Double Entry',
+   393→    contra: 'Contra',
+   394→    receipt: 'Receipt',
+   395→    payment: 'Payment',
+   396→    receivable: 'Receivable',
+   397→    payable: 'Payable',
+   398→    capital: 'Capital',
+   399→    retained_earnings: 'Retained Earnings',
+   400→    depreciation: 'Depreciation',
+   401→    cost_of_goods_sold: 'Cost of Goods Sold',
+   402→    taxable_amount: 'Taxable Amount',
+   403→    vat_amount: 'VAT Amount',
+   404→    total_amount: 'Total Amount',
+   405→    subtotal: 'Subtotal',
+   406→    discount: 'Discount',
+   407→    net_amount: 'Net Amount',
+   408→    currency_npr: 'NPR',
+   409→
+   410→    // Auth
+   411→    login: 'Login',
+   412→    register: 'Register',
+   413→    email: 'Email',
+   414→    password: 'Password',
+   415→    confirm_password: 'Confirm Password',
+   416→    name_label: 'Name',
+   417→    business_name: 'Business Name',
+   418→    logout: 'Logout',
+   419→    welcome: 'Welcome',
+   420→    forgot_password: 'Forgot Password?',
+   421→    reset_password: 'Reset Password',
+   422→    change_password: 'Change Password',
+   423→    profile: 'Profile',
+   424→    sign_in: 'Sign In',
+   425→    sign_up: 'Sign Up',
+   426→    already_have_account: 'Already have an account?',
+   427→    dont_have_account: "Don't have an account?",
+   428→    invalid_credentials: 'Invalid email or password',
+   429→    registration_success: 'Registration successful!',
+   430→    login_success: 'Login successful!',
+   431→    logout_success: 'Logged out successfully',
+   432→    email_required: 'Email is required',
+   433→    password_required: 'Password is required',
+   434→    password_min_length: 'Password must be at least 6 characters',
+   435→    passwords_dont_match: 'Passwords do not match',
+   436→    email_already_exists: 'Email already registered',
+   437→
+   438→    // Plans
+   439→    free: 'Free',
+   440→    pro: 'Pro',
+   441→    enterprise: 'Enterprise',
+   442→    monthly: 'Monthly',
+   443→    yearly: 'Yearly',
+   444→    upgrade: 'Upgrade',
+   445→    downgrade: 'Downgrade',
+   446→    current_plan: 'Current Plan',
+   447→    features: 'Features',
+   448→    limited_access: 'Limited Access',
+   449→    all_features: 'All Features',
+   450→    contact_us: 'Contact Us',
+   451→    trial_period: 'Trial Period',
+   452→    trial_ends: 'Trial Ends',
+   453→    subscription_active: 'Subscription Active',
+   454→    subscription_expired: 'Subscription Expired',
+   455→    days_remaining: 'days remaining',
+   456→    unlimited: 'Unlimited',
+   457→
+   458→    // Simple mode
+   459→    add_income: 'Add Income',
+   460→    add_expense: 'Add Expense',
+   461→    quick_entry: 'Quick Entry',
+   462→    income_category: 'Income Category',
+   463→    expense_category: 'Expense Category',
+   464→    payment_method: 'Payment Method',
+   465→    cash: 'Cash',
+   466→    bank: 'Bank',
+   467→    online: 'Online',
+   468→    cheque: 'Cheque',
+   469→    from_party: 'From Party',
+   470→    to_party: 'To Party',
+   471→    received_from: 'Received From',
+   472→    paid_to: 'Paid To',
+   473→    simple_mode: 'Simple Mode',
+   474→    advanced_mode: 'Advanced Mode',
+   475→
+   476→    // Admin
+   477→    admin_portal: 'Admin Portal',
+   478→    manage_users: 'Manage Users',
+   479→    manage_subscriptions: 'Manage Subscriptions',
+   480→    all_organizations: 'All Organizations',
+   481→    system_settings: 'System Settings',
+   482→    super_admin: 'Super Admin',
+   483→    user_management: 'User Management',
+   484→    activate: 'Activate',
+   485→    deactivate: 'Deactivate',
+   486→    user_status: 'User Status',
+   487→    plan_type: 'Plan Type',
+   488→    organization_name: 'Organization Name',
+   489→    created_at: 'Created At',
+   490→    updated_at: 'Updated At',
+   491→    last_login: 'Last Login',
+   492→
+   493→    // Invoices & Sales
+   494→    invoice_number: 'Invoice Number',
+   495→    invoice_date: 'Invoice Date',
+   496→    due_date: 'Due Date',
+   497→    bill_to: 'Bill To',
+   498→    ship_to: 'Ship To',
+   499→    quantity: 'Quantity',
+   500→    unit_price: 'Unit Price',
+   501→    line_total: 'Line Total',
+   502→    draft: 'Draft',
+   503→    sent: 'Sent',
+   504→    paid: 'Paid',
+   505→    partial: 'Partial',
+   506→    overdue: 'Overdue',
+   507→    cancelled: 'Cancelled',
+   508→    mark_as_paid: 'Mark as Paid',
+   509→    mark_as_sent: 'Mark as Sent',
+   510→    cancel_invoice: 'Cancel Invoice',
+   511→    new_invoice: 'New Invoice',
+   512→    sales_return: 'Sales Return',
+   513→
+   514→    // Purchases
+   515→    purchase_bill: 'Purchase Bill',
+   516→    supplier: 'Supplier',
+   517→    customer: 'Customer',
+   518→    bill_number: 'Bill Number',
+   519→    bill_date: 'Bill Date',
+   520→    purchase_return: 'Purchase Return',
+   521→    new_purchase: 'New Purchase',
+   522→    received: 'Received',
+   523→
+   524→    // Inventory
+   525→    product: 'Product',
+   526→    products: 'Products',
+   527→    warehouse: 'Warehouse',
+   528→    stock: 'Stock',
+   529→    stock_in: 'Stock In',
+   530→    stock_out: 'Stock Out',
+   531→    stock_adjustment: 'Stock Adjustment',
+   532→    low_stock: 'Low Stock',
+   533→    out_of_stock: 'Out of Stock',
+   534→    in_stock: 'In Stock',
+   535→    sku: 'SKU',
+   536→    unit: 'Unit',
+   537→    category: 'Category',
+   538→    brand: 'Brand',
+   539→    selling_price: 'Selling Price',
+   540→    cost_price: 'Cost Price',
+   541→    min_stock: 'Min Stock',
+   542→    max_stock: 'Max Stock',
+   543→    batch_number: 'Batch Number',
+   544→    expiry_date: 'Expiry Date',
+   545→
+   546→    // Parties
+   547→    party: 'Party',
+   548→    customer_label: 'Customer',
+   549→    supplier_label: 'Supplier',
+   550→    employee: 'Employee',
+   551→    both: 'Both',
+   552→    pan_number: 'PAN Number',
+   553→    credit_limit: 'Credit Limit',
+   554→    contact_person: 'Contact Person',
+   555→    province: 'Province',
+   556→    city: 'City',
+   557→    address: 'Address',
+   558→    phone: 'Phone',
+   559→    bank_name: 'Bank Name',
+   560→    bank_account: 'Bank Account',
+   561→    tds_applicable: 'TDS Applicable',
+   562→    ssf_applicable: 'SSF Applicable',
+   563→
+   564→    // Reports
+   565→    report_type: 'Report Type',
+   566→    period: 'Period',
+   567→    from_date: 'From Date',
+   568→    to_date: 'To Date',
+   569→    generate_report: 'Generate Report',
+   570→    financial_summary: 'Financial Summary',
+   571→    monthly_summary: 'Monthly Summary',
+   572→    yearly_summary: 'Yearly Summary',
+   573→    vat_report: 'VAT Report',
+   574→    tds_report: 'TDS Report',
+   575→
+   576→    // Fiscal Year
+   577→    fiscal_year: 'Fiscal Year',
+   578→    is_current: 'Current',
+   579→    is_locked: 'Locked',
+   580→    lock_period: 'Lock Period',
+   581→
+   582→    // Settings
+   583→    preferences: 'Preferences',
+   584→    language: 'Language',
+   585→    theme: 'Theme',
+   586→    light: 'Light',
+   587→    dark: 'Dark',
+   588→    system: 'System',
+   589→    tax_configuration: 'Tax Configuration',
+   590→    vat_enabled: 'VAT Enabled',
+   591→    tds_enabled: 'TDS Enabled',
+   592→    ssf_enabled: 'SSF Enabled',
+   593→    default_warehouse: 'Default Warehouse',
+   594→    invoice_prefix: 'Invoice Prefix',
+   595→    bill_prefix: 'Bill Prefix',
+   596→    journal_prefix: 'Journal Prefix',
+   597→  },
+   598→
+   599→  ne: {
+   600→    // Common
+   601→    save: 'सुरक्षित गर्नुहोस्',
+   602→    cancel: 'रद्द गर्नुहोस्',
+   603→    delete: 'मेटाउनुहोस्',
+   604→    edit: 'सम्पादन गर्नुहोस्',
+   605→    create: 'सिर्जना गर्नुहोस्',
+   606→    search: 'खोज्नुहोस्',
+   607→    loading: 'लोड हुँदैछ...',
+   608→    no_results: 'नतिजा भेटिएन',
+   609→    confirm: 'पुष्टि गर्नुहोस्',
+   610→    close: 'बन्द गर्नुहोस्',
+   611→    back: 'पछाडि',
+   612→    next: 'अर्को',
+   613→    previous: 'अघिल्लो',
+   614→    submit: 'बुझाउनुहोस्',
+   615→    reset: 'रिसेट गर्नुहोस्',
+   616→    yes: 'हो',
+   617→    no: 'होइन',
+   618→    actions: 'कार्यहरू',
+   619→    status: 'स्थिति',
+   620→    date: 'मिति',
+   621→    amount: 'रकम',
+   622→    total: 'जम्मा',
+   623→    description: 'विवरण',
+   624→    notes: 'नोट',
+   625→    name: 'नाम',
+   626→    type: 'प्रकार',
+   627→    code: 'कोड',
+   628→    filter: 'फिल्टर',
+   629→    export: 'निर्यात',
+   630→    import: 'आयात',
+   631→    print: 'प्रिन्ट',
+   632→    refresh: 'रिफ्रेश',
+   633→    view: 'हेर्नुहोस्',
+   634→    download: 'डाउनलोड',
+   635→    upload: 'अपलोड',
+   636→    error: 'त्रुटि',
+   637→    success: 'सफल',
+   638→    warning: 'चेतावनी',
+   639→    info: 'जानकारी',
+   640→    required: 'आवश्यक',
+   641→    optional: 'वैकल्पिक',
+   642→    active: 'सक्रिय',
+   643→    inactive: 'निष्क्रिय',
+   644→    all: 'सबै',
+   645→    none: 'कुनै पनि होइन',
+   646→    other: 'अन्य',
+   647→    more: 'थप',
+   648→    less: 'कम',
+   649→
+   650→    // Navigation
+   651→    dashboard: 'ड्यासबोर्ड',
+   652→    chart_of_accounts: 'खाता योजना',
+   653→    journal_entries: 'जर्नल प्रविष्टि',
+   654→    invoices: 'इनभ्वाइस',
+   655→    purchases: 'खरिद',
+   656→    inventory: 'इन्भेन्ट्री',
+   657→    parties: 'पार्टी',
+   658→    reports: 'रिपोर्ट',
+   659→    settings: 'सेटिङ',
+   660→    organization: 'संस्था',
+   661→    users: 'प्रयोगकर्ता',
+   662→    sales: 'बिक्री',
+   663→    ledger: 'खाता',
+   664→
+   665→    // Accounting
+   666→    debit: 'डेबिट',
+   667→    credit: 'क्रेडिट',
+   668→    balance: 'मौज्दात',
+   669→    account: 'खाता',
+   670→    asset: 'सम्पत्ति',
+   671→    liability: 'दायित्व',
+   672→    equity: 'इक्विटी',
+   673→    income: 'आम्दानी',
+   674→    expense: 'खर्च',
+   675→    vat: 'भ्याट',
+   676→    tds: 'टीडीएस',
+   677→    trial_balance: 'ट्रायल ब्यालेन्स',
+   678→    profit_loss: 'नाफा नोक्सान',
+   679→    balance_sheet: 'ब्यालेन्स सिट',
+   680→    cash_flow: 'नगद प्रवाह',
+   681→    opening_balance: 'सुरु मौज्दात',
+   682→    current_balance: 'हालको मौज्दात',
+   683→    closing_balance: 'अन्तिम मौज्दात',
+   684→    journal_entry: 'जर्नल प्रविष्टि',
+   685→    voucher: 'भौचर',
+   686→    narration: 'विवरण',
+   687→    posting: 'पोस्टिङ',
+   688→    double_entry: 'डबल एन्ट्री',
+   689→    contra: 'कन्ट्रा',
+   690→    receipt: 'प्राप्ति',
+   691→    payment: 'भुक्तानी',
+   692→    receivable: 'प्राप्य',
+   693→    payable: 'देय',
+   694→    capital: 'पूँजी',
+   695→    retained_earnings: 'सञ्चित आम्दानी',
+   696→    depreciation: 'ह्रास',
+   697→    cost_of_goods_sold: 'बेचिएको वस्तुको लागत',
+   698→    taxable_amount: 'करयोग्य रकम',
+   699→    vat_amount: 'भ्याट रकम',
+   700→    total_amount: 'कुल रकम',
+   701→    subtotal: 'उपजम्मा',
+   702→    discount: 'छुट',
+   703→    net_amount: 'खुद रकम',
+   704→    currency_npr: 'रु',
+   705→
+   706→    // Auth
+   707→    login: 'लगइन',
+   708→    register: 'दर्ता',
+   709→    email: 'इमेल',
+   710→    password: 'पासवर्ड',
+   711→    confirm_password: 'पासवर्ड पुष्टि',
+   712→    name_label: 'नाम',
+   713→    business_name: 'व्यवसायको नाम',
+   714→    logout: 'लगआउट',
+   715→    welcome: 'स्वागत छ',
+   716→    forgot_password: 'पासवर्ड बिर्सनुभयो?',
+   717→    reset_password: 'पासवर्ड रिसेट',
+   718→    change_password: 'पासवर्ड परिवर्तन',
+   719→    profile: 'प्रोफाइल',
+   720→    sign_in: 'साइन इन',
+   721→    sign_up: 'साइन अप',
+   722→    already_have_account: 'पहिले नै खाता छ?',
+   723→    dont_have_account: 'खाता छैन?',
+   724→    invalid_credentials: 'गलत इमेल वा पासवर्ड',
+   725→    registration_success: 'दर्ता सफल!',
+   726→    login_success: 'लगइन सफल!',
+   727→    logout_success: 'लगआउट सफल',
+   728→    email_required: 'इमेल आवश्यक छ',
+   729→    password_required: 'पासवर्ड आवश्यक छ',
+   730→    password_min_length: 'पासवर्ड कम्तिमा ६ अक्षरको हुनुपर्छ',
+   731→    passwords_dont_match: 'पासवर्ड मेल खाँदैन',
+   732→    email_already_exists: 'इमेल पहिले नै दर्ता छ',
+   733→
+   734→    // Plans
+   735→    free: 'निःशुल्क',
+   736→    pro: 'प्रो',
+   737→    enterprise: 'एन्टरप्राइज',
+   738→    monthly: 'मासिक',
+   739→    yearly: 'वार्षिक',
+   740→    upgrade: 'अपग्रेड',
+   741→    downgrade: 'डाउनग्रेड',
+   742→    current_plan: 'हालको योजना',
+   743→    features: 'विशेषताहरू',
+   744→    limited_access: 'सीमित पहुँच',
+   745→    all_features: 'सबै विशेषताहरू',
+   746→    contact_us: 'हामीलाई सम्पर्क गर्नुहोस्',
+   747→    trial_period: 'परीक्षण अवधि',
+   748→    trial_ends: 'परीक्षण समाप्त',
+   749→    subscription_active: 'सदस्यता सक्रिय',
+   750→    subscription_expired: 'सदस्यता समाप्त',
+   751→    days_remaining: 'दिन बाँकी',
+   752→    unlimited: 'असीमित',
+   753→
+   754→    // Simple mode
+   755→    add_income: 'आम्दानी थप्नुहोस्',
+   756→    add_expense: 'खर्च थप्नुहोस्',
+   757→    quick_entry: 'द्रुत प्रविष्टि',
+   758→    income_category: 'आम्दानी श्रेणी',
+   759→    expense_category: 'खर्च श्रेणी',
+   760→    payment_method: 'भुक्तानी विधि',
+   761→    cash: 'नगद',
+   762→    bank: 'बैंक',
+   763→    online: 'अनलाइन',
+   764→    cheque: 'चेक',
+   765→    from_party: 'पार्टीबाट',
+   766→    to_party: 'पार्टीमा',
+   767→    received_from: 'बाट प्राप्त',
+   768→    paid_to: 'लाई भुक्तानी',
+   769→    simple_mode: 'सरल मोड',
+   770→    advanced_mode: 'उन्नत मोड',
+   771→
+   772→    // Admin
+   773→    admin_portal: 'प्रशासन पोर्टल',
+   774→    manage_users: 'प्रयोगकर्ता व्यवस्थापन',
+   775→    manage_subscriptions: 'सदस्यता व्यवस्थापन',
+   776→    all_organizations: 'सबै संस्थाहरू',
+   777→    system_settings: 'प्रणाली सेटिङ',
+   778→    super_admin: 'सुपर प्रशासक',
+   779→    user_management: 'प्रयोगकर्ता व्यवस्थापन',
+   780→    activate: 'सक्रिय गर्नुहोस्',
+   781→    deactivate: 'निष्क्रिय गर्नुहोस्',
+   782→    user_status: 'प्रयोगकर्ता स्थिति',
+   783→    plan_type: 'योजना प्रकार',
+   784→    organization_name: 'संस्थाको नाम',
+   785→    created_at: 'सिर्जना मिति',
+   786→    updated_at: 'अद्यावधिक मिति',
+   787→    last_login: 'अन्तिम लगइन',
+   788→
+   789→    // Invoices & Sales
+   790→    invoice_number: 'इनभ्वाइस नम्बर',
+   791→    invoice_date: 'इनभ्वाइस मिति',
+   792→    due_date: 'देय मिति',
+   793→    bill_to: 'बिल गर्ने',
+   794→    ship_to: 'शिप गर्ने',
+   795→    quantity: 'परिमाण',
+   796→    unit_price: 'एकाइ मूल्य',
+   797→    line_total: 'लाइन जम्मा',
+   798→    draft: 'ड्राफ्ट',
+   799→    sent: 'पठाइएको',
+   800→    paid: 'भुक्तानी भएको',
+   801→    partial: 'आंशिक',
+   802→    overdue: 'अतिरिक्त',
+   803→    cancelled: 'रद्द',
+   804→    mark_as_paid: 'भुक्तानी भएको चिन्ह',
+   805→    mark_as_sent: 'पठाइएको चिन्ह',
+   806→    cancel_invoice: 'इनभ्वाइस रद्द',
+   807→    new_invoice: 'नयाँ इनभ्वाइस',
+   808→    sales_return: 'बिक्री फिर्ता',
+   809→
+   810→    // Purchases
+   811→    purchase_bill: 'खरिद बिल',
+   812→    supplier: 'आपूर्तिकर्ता',
+   813→    customer: 'ग्राहक',
+   814→    bill_number: 'बिल नम्बर',
+   815→    bill_date: 'बिल मिति',
+   816→    purchase_return: 'खरिद फिर्ता',
+   817→    new_purchase: 'नयाँ खरिद',
+   818→    received: 'प्राप्त',
+   819→
+   820→    // Inventory
+   821→    product: 'उत्पादन',
+   822→    products: 'उत्पादनहरू',
+   823→    warehouse: 'गोदाम',
+   824→    stock: 'स्टक',
+   825→    stock_in: 'स्टक आवक',
+   826→    stock_out: 'स्टक जावक',
+   827→    stock_adjustment: 'स्टक समायोजन',
+   828→    low_stock: 'कम स्टक',
+   829→    out_of_stock: 'स्टक सकियो',
+   830→    in_stock: 'स्टकमा छ',
+   831→    sku: 'SKU',
+   832→    unit: 'एकाइ',
+   833→    category: 'श्रेणी',
+   834→    brand: 'ब्रान्ड',
+   835→    selling_price: 'बिक्री मूल्य',
+   836→    cost_price: 'लागत मूल्य',
+   837→    min_stock: 'न्यूनतम स्टक',
+   838→    max_stock: 'अधिकतम स्टक',
+   839→    batch_number: 'ब्याच नम्बर',
+   840→    expiry_date: 'समाप्ति मिति',
+   841→
+   842→    // Parties
+   843→    party: 'पार्टी',
+   844→    customer_label: 'ग्राहक',
+   845→    supplier_label: 'आपूर्तिकर्ता',
+   846→    employee: 'कर्मचारी',
+   847→    both: 'दुवै',
+   848→    pan_number: 'प्यान नम्बर',
+   849→    credit_limit: 'क्रेडिट सीमा',
+   850→    contact_person: 'सम्पर्क व्यक्ति',
+   851→    province: 'प्रदेश',
+   852→    city: 'शहर',
+   853→    address: 'ठेगाना',
+   854→    phone: 'फोन',
+   855→    bank_name: 'बैंकको नाम',
+   856→    bank_account: 'बैंक खाता',
+   857→    tds_applicable: 'टीडीएस लागू',
+   858→    ssf_applicable: 'SSF लागू',
+   859→
+   860→    // Reports
+   861→    report_type: 'रिपोर्ट प्रकार',
+   862→    period: 'अवधि',
+   863→    from_date: 'बाट मिति',
+   864→    to_date: 'सम्म मिति',
+   865→    generate_report: 'रिपोर्ट उत्पन्न',
+   866→    financial_summary: 'वित्तीय सारांश',
+   867→    monthly_summary: 'मासिक सारांश',
+   868→    yearly_summary: 'वार्षिक सारांश',
+   869→    vat_report: 'भ्याट रिपोर्ट',
+   870→    tds_report: 'टीडीएस रिपोर्ट',
+   871→
+   872→    // Fiscal Year
+   873→    fiscal_year: 'आर्थिक वर्ष',
+   874→    is_current: 'हालको',
+   875→    is_locked: 'लक गरिएको',
+   876→    lock_period: 'अवधि लक',
+   877→
+   878→    // Settings
+   879→    preferences: 'प्राथमिकताहरू',
+   880→    language: 'भाषा',
+   881→    theme: 'विषयवस्तु',
+   882→    light: 'लाइट',
+   883→    dark: 'डार्क',
+   884→    system: 'प्रणाली',
+   885→    tax_configuration: 'कर विन्यास',
+   886→    vat_enabled: 'भ्याट सक्षम',
+   887→    tds_enabled: 'टीडीएस सक्षम',
+   888→    ssf_enabled: 'SSF सक्षम',
+   889→    default_warehouse: 'पूर्वनिर्धारित गोदाम',
+   890→    invoice_prefix: 'इनभ्वाइस उपसर्ग',
+   891→    bill_prefix: 'बिल उपसर्ग',
+   892→    journal_prefix: 'जर्नल उपसर्ग',
+   893→  },
+   894→
+   895→  hi: {
+   896→    // Common
+   897→    save: 'सेव करें',
+   898→    cancel: 'रद्द करें',
+   899→    delete: 'हटाएं',
+   900→    edit: 'संपादित करें',
+   901→    create: 'बनाएं',
+   902→    search: 'खोजें',
+   903→    loading: 'लोड हो रहा है...',
+   904→    no_results: 'कोई परिणाम नहीं मिला',
+   905→    confirm: 'पुष्टि करें',
+   906→    close: 'बंद करें',
+   907→    back: 'वापस',
+   908→    next: 'अगला',
+   909→    previous: 'पिछला',
+   910→    submit: 'जमा करें',
+   911→    reset: 'रीसेट',
+   912→    yes: 'हां',
+   913→    no: 'नहीं',
+   914→    actions: 'कार्रवाई',
+   915→    status: 'स्थिति',
+   916→    date: 'तारीख',
+   917→    amount: 'राशि',
+   918→    total: 'कुल',
+   919→    description: 'विवरण',
+   920→    notes: 'नोट',
+   921→    name: 'नाम',
+   922→    type: 'प्रकार',
+   923→    code: 'कोड',
+   924→    filter: 'फ़िल्टर',
+   925→    export: 'निर्यात',
+   926→    import: 'आयात',
+   927→    print: 'प्रिंट',
+   928→    refresh: 'रीफ़्रेश',
+   929→    view: 'देखें',
+   930→    download: 'डाउनलोड',
+   931→    upload: 'अपलोड',
+   932→    error: 'त्रुटि',
+   933→    success: 'सफल',
+   934→    warning: 'चेतावनी',
+   935→    info: 'जानकारी',
+   936→    required: 'आवश्यक',
+   937→    optional: 'वैकल्पिक',
+   938→    active: 'सक्रिय',
+   939→    inactive: 'निष्क्रिय',
+   940→    all: 'सभी',
+   941→    none: 'कोई नहीं',
+   942→    other: 'अन्य',
+   943→    more: 'अधिक',
+   944→    less: 'कम',
+   945→
+   946→    // Navigation
+   947→    dashboard: 'डैशबोर्ड',
+   948→    chart_of_accounts: 'खाता योजना',
+   949→    journal_entries: 'जर्नल प्रविष्टि',
+   950→    invoices: 'इनवॉइस',
+   951→    purchases: 'खरीद',
+   952→    inventory: 'इन्वेंट्री',
+   953→    parties: 'पार्टी',
+   954→    reports: 'रिपोर्ट',
+   955→    settings: 'सेटिंग्स',
+   956→    organization: 'संगठन',
+   957→    users: 'उपयोगकर्ता',
+   958→    sales: 'बिक्री',
+   959→    ledger: 'लेजर',
+   960→
+   961→    // Accounting
+   962→    debit: 'डेबिट',
+   963→    credit: 'क्रेडिट',
+   964→    balance: 'शेष',
+   965→    account: 'खाता',
+   966→    asset: 'संपत्ति',
+   967→    liability: 'देनदारी',
+   968→    equity: 'इक्विटी',
+   969→    income: 'आय',
+   970→    expense: 'व्यय',
+   971→    vat: 'वैट',
+   972→    tds: 'टीडीएस',
+   973→    trial_balance: 'ट्रायल बैलेंस',
+   974→    profit_loss: 'लाभ हानि',
+   975→    balance_sheet: 'बैलेंस शीट',
+   976→    cash_flow: 'नकद प्रवाह',
+   977→    opening_balance: 'आरंभिक शेष',
+   978→    current_balance: 'वर्तमान शेष',
+   979→    closing_balance: 'अंतिम शेष',
+   980→    journal_entry: 'जर्नल प्रविष्टि',
+   981→    voucher: 'वाउचर',
+   982→    narration: 'विवरण',
+   983→    posting: 'पोस्टिंग',
+   984→    double_entry: 'डबल एंट्री',
+   985→    contra: 'कॉन्ट्रा',
+   986→    receipt: 'रसीद',
+   987→    payment: 'भुगतान',
+   988→    receivable: 'प्राप्य',
+   989→    payable: 'देय',
+   990→    capital: 'पूंजी',
+   991→    retained_earnings: 'प्राप्य आय',
+   992→    depreciation: 'मूल्यह्रास',
+   993→    cost_of_goods_sold: 'बेची गई वस्तुओं की लागत',
+   994→    taxable_amount: 'कर योग्य राशि',
+   995→    vat_amount: 'वैट राशि',
+   996→    total_amount: 'कुल राशि',
+   997→    subtotal: 'उपकुल',
+   998→    discount: 'छूट',
+   999→    net_amount: 'शुद्ध राशि',
+  1000→    currency_npr: 'रु',
+  1001→
+  1002→    // Auth
+  1003→    login: 'लॉगिन',
+  1004→    register: 'रजिस्टर',
+  1005→    email: 'ईमेल',
+  1006→    password: 'पासवर्ड',
+  1007→    confirm_password: 'पासवर्ड की पुष्टि',
+  1008→    name_label: 'नाम',
+  1009→    business_name: 'व्यवसाय का नाम',
+  1010→    logout: 'लॉगआउट',
+  1011→    welcome: 'स्वागत है',
+  1012→    forgot_password: 'पासवर्ड भूल गए?',
+  1013→    reset_password: 'पासवर्ड रीसेट',
+  1014→    change_password: 'पासवर्ड बदलें',
+  1015→    profile: 'प्रोफाइल',
+  1016→    sign_in: 'साइन इन',
+  1017→    sign_up: 'साइन अप',
+  1018→    already_have_account: 'पहले से खाता है?',
+  1019→    dont_have_account: 'खाता नहीं है?',
+  1020→    invalid_credentials: 'गलत ईमेल या पासवर्ड',
+  1021→    registration_success: 'रजिस्ट्रेशन सफल!',
+  1022→    login_success: 'लॉगिन सफल!',
+  1023→    logout_success: 'लॉगआउट सफल',
+  1024→    email_required: 'ईमेल आवश्यक है',
+  1025→    password_required: 'पासवर्ड आवश्यक है',
+  1026→    password_min_length: 'पासवर्ड कम से कम 6 अक्षर का होना चाहिए',
+  1027→    passwords_dont_match: 'पासवर्ड मेल नहीं खाते',
+  1028→    email_already_exists: 'ईमेल पहले से पंजीकृत है',
+  1029→
+  1030→    // Plans
+  1031→    free: 'मुफ्त',
+  1032→    pro: 'प्रो',
+  1033→    enterprise: 'एंटरप्राइज',
+  1034→    monthly: 'मासिक',
+  1035→    yearly: 'वार्षिक',
+  1036→    upgrade: 'अपग्रेड',
+  1037→    downgrade: 'डाउनग्रेड',
+  1038→    current_plan: 'वर्तमान योजना',
+  1039→    features: 'सुविधाएं',
+  1040→    limited_access: 'सीमित पहुंच',
+  1041→    all_features: 'सभी सुविधाएं',
+  1042→    contact_us: 'हमसे संपर्क करें',
+  1043→    trial_period: 'परीक्षण अवधि',
+  1044→    trial_ends: 'परीक्षण समाप्त',
+  1045→    subscription_active: 'सदस्यता सक्रिय',
+  1046→    subscription_expired: 'सदस्यता समाप्त',
+  1047→    days_remaining: 'दिन शेष',
+  1048→    unlimited: 'असीमित',
+  1049→
+  1050→    // Simple mode
+  1051→    add_income: 'आय जोड़ें',
+  1052→    add_expense: 'व्यय जोड़ें',
+  1053→    quick_entry: 'त्वरित प्रविष्टि',
+  1054→    income_category: 'आय श्रेणी',
+  1055→    expense_category: 'व्यय श्रेणी',
+  1056→    payment_method: 'भुगतान विधि',
+  1057→    cash: 'नकद',
+  1058→    bank: 'बैंक',
+  1059→    online: 'ऑनलाइन',
+  1060→    cheque: 'चेक',
+  1061→    from_party: 'पार्टी से',
+  1062→    to_party: 'पार्टी को',
+  1063→    received_from: 'से प्राप्त',
+  1064→    paid_to: 'को भुगतान',
+  1065→    simple_mode: 'सरल मोड',
+  1066→    advanced_mode: 'उन्नत मोड',
+  1067→
+  1068→    // Admin
+  1069→    admin_portal: 'एडमिन पोर्टल',
+  1070→    manage_users: 'उपयोगकर्ता प्रबंधन',
+  1071→    manage_subscriptions: 'सदस्यता प्रबंधन',
+  1072→    all_organizations: 'सभी संगठन',
+  1073→    system_settings: 'सिस्टम सेटिंग्स',
+  1074→    super_admin: 'सुपर एडमिन',
+  1075→    user_management: 'उपयोगकर्ता प्रबंधन',
+  1076→    activate: 'सक्रिय करें',
+  1077→    deactivate: 'निष्क्रिय करें',
+  1078→    user_status: 'उपयोगकर्ता स्थिति',
+  1079→    plan_type: 'योजना प्रकार',
+  1080→    organization_name: 'संगठन का नाम',
+  1081→    created_at: 'बनाया गया',
+  1082→    updated_at: 'अपडेट किया गया',
+  1083→    last_login: 'अंतिम लॉगिन',
+  1084→
+  1085→    // Invoices & Sales
+  1086→    invoice_number: 'इनवॉइस नंबर',
+  1087→    invoice_date: 'इनवॉइस तारीख',
+  1088→    due_date: 'नियत तारीख',
+  1089→    bill_to: 'बिल को',
+  1090→    ship_to: 'शिप को',
+  1091→    quantity: 'मात्रा',
+  1092→    unit_price: 'यूनिट मूल्य',
+  1093→    line_total: 'लाइन कुल',
+  1094→    draft: 'ड्राफ्ट',
+  1095→    sent: 'भेजा गया',
+  1096→    paid: 'भुगतान किया',
+  1097→    partial: 'आंशिक',
+  1098→    overdue: 'अतिदेय',
+  1099→    cancelled: 'रद्द',
+  1100→    mark_as_paid: 'भुगतान किया चिह्नित',
+  1101→    mark_as_sent: 'भेजा गया चिह्नित',
+  1102→    cancel_invoice: 'इनवॉइस रद्द करें',
+  1103→    new_invoice: 'नया इनवॉइस',
+  1104→    sales_return: 'बिक्री वापसी',
+  1105→
+  1106→    // Purchases
+  1107→    purchase_bill: 'खरीद बिल',
+  1108→    supplier: 'आपूर्तिकर्ता',
+  1109→    customer: 'ग्राहक',
+  1110→    bill_number: 'बिल नंबर',
+  1111→    bill_date: 'बिल तारीख',
+  1112→    purchase_return: 'खरीद वापसी',
+  1113→    new_purchase: 'नई खरीद',
+  1114→    received: 'प्राप्त',
+  1115→
+  1116→    // Inventory
+  1117→    product: 'उत्पाद',
+  1118→    products: 'उत्पाद',
+  1119→    warehouse: 'गोदाम',
+  1120→    stock: 'स्टॉक',
+  1121→    stock_in: 'स्टॉक इन',
+  1122→    stock_out: 'स्टॉक आउट',
+  1123→    stock_adjustment: 'स्टॉक समायोजन',
+  1124→    low_stock: 'कम स्टॉक',
+  1125→    out_of_stock: 'स्टॉक खत्म',
+  1126→    in_stock: 'स्टॉक में',
+  1127→    sku: 'SKU',
+  1128→    unit: 'यूनिट',
+  1129→    category: 'श्रेणी',
+  1130→    brand: 'ब्रांड',
+  1131→    selling_price: 'बिक्री मूल्य',
+  1132→    cost_price: 'लागत मूल्य',
+  1133→    min_stock: 'न्यूनतम स्टॉक',
+  1134→    max_stock: 'अधिकतम स्टॉक',
+  1135→    batch_number: 'बैच नंबर',
+  1136→    expiry_date: 'समाप्ति तारीख',
+  1137→
+  1138→    // Parties
+  1139→    party: 'पार्टी',
+  1140→    customer_label: 'ग्राहक',
+  1141→    supplier_label: 'आपूर्तिकर्ता',
+  1142→    employee: 'कर्मचारी',
+  1143→    both: 'दोनों',
+  1144→    pan_number: 'पैन नंबर',
+  1145→    credit_limit: 'क्रेडिट सीमा',
+  1146→    contact_person: 'संपर्क व्यक्ति',
+  1147→    province: 'प्रांत',
+  1148→    city: 'शहर',
+  1149→    address: 'पता',
+  1150→    phone: 'फोन',
+  1151→    bank_name: 'बैंक का नाम',
+  1152→    bank_account: 'बैंक खाता',
+  1153→    tds_applicable: 'टीडीएस लागू',
+  1154→    ssf_applicable: 'SSF लागू',
+  1155→
+  1156→    // Reports
+  1157→    report_type: 'रिपोर्ट प्रकार',
+  1158→    period: 'अवधि',
+  1159→    from_date: 'से तारीख',
+  1160→    to_date: 'तक तारीख',
+  1161→    generate_report: 'रिपोर्ट बनाएं',
+  1162→    financial_summary: 'वित्तीय सारांश',
+  1163→    monthly_summary: 'मासिक सारांश',
+  1164→    yearly_summary: 'वार्षिक सारांश',
+  1165→    vat_report: 'वैट रिपोर्ट',
+  1166→    tds_report: 'टीडीएस रिपोर्ट',
+  1167→
+  1168→    // Fiscal Year
+  1169→    fiscal_year: 'वित्तीय वर्ष',
+  1170→    is_current: 'वर्तमान',
+  1171→    is_locked: 'लॉक किया गया',
+  1172→    lock_period: 'अवधि लॉक',
+  1173→
+  1174→    // Settings
+  1175→    preferences: 'प्राथमिकताएं',
+  1176→    language: 'भाषा',
+  1177→    theme: 'थीम',
+  1178→    light: 'लाइट',
+  1179→    dark: 'डार्क',
+  1180→    system: 'सिस्टम',
+  1181→    tax_configuration: 'कर विन्यास',
+  1182→    vat_enabled: 'वैट सक्षम',
+  1183→    tds_enabled: 'टीडीएस सक्षम',
+  1184→    ssf_enabled: 'SSF सक्षम',
+  1185→    default_warehouse: 'डिफ़ॉल्ट गोदाम',
+  1186→    invoice_prefix: 'इनवॉइस उपसर्ग',
+  1187→    bill_prefix: 'बिल उपसर्ग',
+  1188→    journal_prefix: 'जर्नल उपसर्ग',
+  1189→  },
+  1190→}
+  1191→
+  1192→/**
+  1193→ * Get translations for a given locale
+  1194→ */
+  1195→export function getTranslations(locale: Locale = 'en'): TranslationStrings {
+  1196→  return translations[locale] || translations.en
+  1197→}
+  1198→
+  1199→/**
+  1200→ * Get a single translation value by key and locale
+  1201→ */
+  1202→export function t(key: keyof TranslationStrings, locale: Locale = 'en'): string {
+  1203→  const trans = getTranslations(locale)
+  1204→  return trans[key] || translations.en[key] || key
+  1205→}
+  1206→
+  1207→/**
+  1208→ * Hook-like function for useTranslation
+  1209→ * Returns an object with the `t` function bound to the given locale
+  1210→ */
+  1211→export function useTranslation(locale: Locale = 'en') {
+  1212→  const trans = getTranslations(locale)
+  1213→
+  1214→  return {
+  1215→    t: (key: keyof TranslationStrings) => trans[key] || translations.en[key] || key,
+  1216→    locale,
+  1217→    translations: trans,
+  1218→  }
+  1219→}
+  1220→
+  1221→/**
+  1222→ * Get all available locales
+  1223→ */
+  1224→export function getLocales(): { code: Locale; name: string; nativeName: string }[] {
+  1225→  return [
+  1226→    { code: 'en', name: 'English', nativeName: 'English' },
+  1227→    { code: 'ne', name: 'Nepali', nativeName: 'नेपाली' },
+  1228→    { code: 'hi', name: 'Hindi', nativeName: 'हिन्दी' },
+  1229→  ]
+  1230→}
+  1231→
+  1232→export { translations }
+  1233→

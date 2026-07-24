@@ -8,7 +8,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sh
 import { TooltipProvider } from '@/components/ui/tooltip'
 import { cn } from '@/lib/utils'
 import { Loader2 } from 'lucide-react'
-import { CLIENT_SESSION_KEY, getSessionHeaders } from '@/lib/session'
+import { CLIENT_SESSION_KEY, getSessionHeaders, authFetch } from '@/lib/session'
 import { useKeyboardShortcuts } from '@/hooks/use-keyboard-shortcuts'
 import { CommandPalette } from '@/components/shared/command-palette'
 import { ShortcutCheatsheet } from '@/components/shared/shortcut-cheatsheet'
@@ -521,7 +521,16 @@ export default function AppLayout({
               }
               case 'switch-language': {
                 const currentLang = useAppStore.getState().language
-                useAppStore.getState().setLanguage(currentLang === 'en' ? 'ne' : 'en')
+                const nextLang = currentLang === 'en' ? 'ne' : 'en'
+                useAppStore.getState().setLanguage(nextLang)
+                // Persist language preference to database
+                authFetch('/api/user/language', {
+                  method: 'PUT',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ language: nextLang }),
+                }).catch(() => {
+                  // silently fail - language is already updated in Zustand store
+                })
                 break
               }
               case 'toggle-sidebar': setSidebarOpen(!sidebarOpen); break

@@ -3,6 +3,13 @@ import { NEPAL_COA_GROUPS, DEFAULT_ACCOUNTS } from '@/lib/nepal-accounting'
 import { NextResponse } from 'next/server'
 import { getSessionUserId } from '@/lib/auth'
 
+// Plan hierarchy for determining "best" plan
+const PLAN_HIERARCHY: Record<string, number> = {
+  free: 0,
+  pro: 1,
+  enterprise: 2,
+}
+
 // Plan limits for number of organizations
 const PLAN_ORG_LIMITS: Record<string, number> = {
   free: 1,
@@ -101,7 +108,7 @@ export async function POST(request: Request) {
       )
     }
 
-    // Check the user's plan limits
+    // Check the user's plan limits and find their best plan
     const user = await db.user.findUnique({
       where: { id: effectiveUserId },
       include: {
@@ -123,17 +130,19 @@ export async function POST(request: Request) {
     }
 
     // Determine the highest plan among user's organizations
-    // For new org creation, check how many orgs the user already has
     const currentOrgCount = user.organizations.length
-
-    // Find the best plan the user has across their organizations
     let bestPlan = 'free'
+    let bestPlanLevel = PLAN_HIERARCHY['free']
+
     for (const uo of user.organizations) {
-      const plan = uo.organization.plan
-      if (plan === 'enterprise') { bestPlan = 'enterprise'; break }
-      if (plan === 'pro') { bestPlan = 'pro' }
+      const planLevel = PLAN_HIERARCHY[uo.organization.plan] || 0
+      if (planLevel > bestPlanLevel) {
+        bestPlanLevel = planLevel
+        bestPlan = uo.organization.plan
+      }
     }
 
+    // Enforce plan limits based on the best plan
     const orgLimit = PLAN_ORG_LIMITS[bestPlan] || PLAN_ORG_LIMITS['free']
     if (currentOrgCount >= orgLimit) {
       return NextResponse.json(
@@ -146,7 +155,19 @@ export async function POST(request: Request) {
       )
     }
 
-    // Create the organization
+    // Determine the new org's plan — inherit the best plan from user's existing orgs
+    const newOrgPlan = bestPlan
+
+    // Determine subscription details based on the inherited plan
+    const now = new Date()
+    const thirtyDays = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
+    const oneYear = new Date(Date.now() + 365 * 24 * 60 * 60 * 1000)
+
+    const subscriptionStatus = newOrgPlan === 'free' ? 'trialing' : 'active'
+    const subscriptionEnd = newOrgPlan === 'free' ? thirtyDays : oneYear
+    const trialEndsAt = newOrgPlan === 'free' ? thirtyDays : null
+
+    // Create the organization with the inherited plan
     const org = await db.organization.create({
       data: {
         name,
@@ -156,9 +177,11 @@ export async function POST(request: Request) {
         ssfEnabled: false,
         mode: 'simple',
         fiscalYear: '2081/82',
-        plan: 'free',
-        subscriptionStatus: 'trialing',
-        trialEndsAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+        plan: newOrgPlan,
+        subscriptionStatus,
+        subscriptionStart: now,
+        subscriptionEnd,
+        trialEndsAt,
       },
     })
 
@@ -245,15 +268,34 @@ export async function POST(request: Request) {
       },
     })
 
-    // Create default Subscription with free plan and 30-day trial
+    // Create Subscription record — inherit the best plan from user's existing orgs
     await db.subscription.create({
       data: {
         organizationId: org.id,
-        plan: 'free',
-        status: 'trialing',
-        currentPeriodStart: new Date(),
-        currentPeriodEnd: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
-        trialEndsAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+        plan: newOrgPlan,
+        status: subscriptionStatus,
+        currentPeriodStart: now,
+        currentPeriodEnd: subscriptionEnd,
+        trialEndsAt,
+      },
+    })
+
+    // Audit log for org creation
+    await db.auditLog.create({
+      data: {
+        organizationId: org.id,
+        userId: effectiveUserId,
+        action: 'create',
+        module: 'organization',
+        recordId: org.id,
+        recordType: 'organization',
+        details: JSON.stringify({
+          action: 'create_organization',
+          orgName: name,
+          inheritedPlan: newOrgPlan,
+          userBestPlan: bestPlan,
+          performedBy: user.email,
+        }),
       },
     })
 
@@ -271,6 +313,7 @@ export async function POST(request: Request) {
         ssfEnabled: org.ssfEnabled,
         fiscalYear: org.fiscalYear,
         subscriptionStatus: org.subscriptionStatus,
+        inheritedPlan: newOrgPlan,
       },
     }, { status: 201 })
 

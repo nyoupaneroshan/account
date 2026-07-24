@@ -11,6 +11,7 @@ import { Checkbox } from '@/components/ui/checkbox'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { cn } from '@/lib/utils'
 import { Eye, EyeOff, Loader2, Calculator, Shield, Globe } from 'lucide-react'
+import { CLIENT_SESSION_KEY, saveClientSession } from '@/lib/session'
 
 export function AuthScreen({ onShowPricing }: { onShowPricing: () => void }) {
   const router = useRouter()
@@ -49,6 +50,7 @@ export function AuthScreen({ onShowPricing }: { onShowPricing: () => void }) {
       })
       const data = await res.json()
       if (data.success) {
+        saveClientSession(data.token)
         setCurrentUser(data.user)
         setUserOrganizations(data.organizations)
         setLanguage(data.user.language || 'en')
@@ -99,6 +101,7 @@ export function AuthScreen({ onShowPricing }: { onShowPricing: () => void }) {
       })
       const data = await res.json()
       if (data.success) {
+        saveClientSession(data.token)
         setCurrentUser(data.user)
         setUserOrganizations(data.organizations)
         setLanguage(regLanguage)

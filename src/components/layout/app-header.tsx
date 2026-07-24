@@ -306,15 +306,13 @@ export function AppHeader({ onLogout }: { onLogout?: () => void }) {
           onClick={() => {
             const next = language === 'en' ? 'ne' : 'en'
             setLanguage(next)
-            try {
-              authFetch('/api/user/language', {
-                method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ language: next }),
-              })
-            } catch {
-              // silently fail
-            }
+            authFetch('/api/user/language', {
+              method: 'PUT',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ language: next }),
+            }).catch(() => {
+              // silently fail - language is already updated in Zustand store
+            })
           }}
         >
           <Globe className={cn(

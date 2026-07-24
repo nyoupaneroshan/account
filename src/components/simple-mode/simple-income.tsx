@@ -6,6 +6,7 @@ import { useAppStore } from '@/store/app-store'
 import { calculateVAT, formatNPR, NEPAL_VAT_RATE } from '@/lib/nepal-accounting'
 import { t } from '@/lib/i18n'
 import { authFetch } from '@/lib/session'
+import { cn } from '@/lib/utils'
 import { toast } from 'sonner'
 import {
   Card,
