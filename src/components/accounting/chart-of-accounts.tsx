@@ -153,7 +153,7 @@ export function ChartOfAccounts() {
       if (!res.ok) throw new Error('Failed to fetch accounts')
       const data = await res.json()
       setAccounts(data)
-      const groupIds = [...new Set(data.map((a: Account) => a.group.id))]
+      const groupIds = [...new Set(data.map((a: Account) => a.group.id))] as string[]
       setExpandedGroups(groupIds)
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Failed to load accounts'

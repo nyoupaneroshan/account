@@ -33,6 +33,9 @@ import {
   Globe,
   Palette,
   ShieldAlert,
+  ShieldCheck,
+  Server,
+  RefreshCw,
   Save,
   Loader2,
   Upload,
@@ -42,6 +45,7 @@ import {
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { authFetch } from '@/lib/session'
+import { cn } from '@/lib/utils'
 
 // ============================================================
 // Constants
@@ -110,6 +114,19 @@ export function SettingsView() {
     defaultTerms: 'Payment due within 30 days.',
   })
 
+  // IRD & CBMS Configuration
+  const [cbmsConfig, setCbmsConfig] = useState({
+    cbmsEnabled: true,
+    cbmsIsSandbox: true,
+    irdSoftwareCode: 'HISAB_PRO_V1',
+    cbmsUrl: 'https://cbapi.ird.gov.np/api/bill',
+    cbmsReturnUrl: 'https://cbapi.ird.gov.np/api/billreturn',
+    cbmsUsername: '',
+    cbmsPassword: '',
+    creditNotePrefix: 'CN-',
+  })
+  const [testingIrd, setTestingIrd] = useState(false)
+
   // Preferences
   const [preferences, setPreferences] = useState({
     language: language,
@@ -147,6 +164,16 @@ export function SettingsView() {
             prefix: data.invoicePrefix || 'INV-',
             nextNumber: data.invoiceNextNumber || '001',
             defaultTerms: data.invoiceDefaultTerms || 'Payment due within 30 days.',
+          })
+          setCbmsConfig({
+            cbmsEnabled: data.cbmsEnabled ?? true,
+            cbmsIsSandbox: data.cbmsIsSandbox ?? true,
+            irdSoftwareCode: data.irdSoftwareCode || 'HISAB_PRO_V1',
+            cbmsUrl: data.cbmsUrl || 'https://cbapi.ird.gov.np/api/bill',
+            cbmsReturnUrl: data.cbmsReturnUrl || 'https://cbapi.ird.gov.np/api/billreturn',
+            cbmsUsername: data.cbmsUsername || '',
+            cbmsPassword: data.cbmsPassword || '',
+            creditNotePrefix: data.creditNotePrefix || 'CN-',
           })
           if (data.mode) {
             setPreferences(prev => ({ ...prev, defaultMode: data.mode }))
@@ -186,6 +213,28 @@ export function SettingsView() {
     setMode(preferences.defaultMode as 'simple' | 'advanced')
   }, [preferences.defaultMode, setMode])
 
+  const handleTestIrd = async () => {
+    if (!currentOrgId) return
+    setTestingIrd(true)
+    try {
+      const res = await authFetch('/api/cbms/test', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ orgId: currentOrgId }),
+      })
+      const result = await res.json()
+      if (result.success) {
+        toast.success(`IRD Connection OK: Code ${result.responseCode} - ${result.message}`)
+      } else {
+        toast.error(`IRD Connection Failed: ${result.message}`)
+      }
+    } catch {
+      toast.error('Network error while testing IRD connection')
+    } finally {
+      setTestingIrd(false)
+    }
+  }
+
   const handleSaveOrg = async (showToast = true) => {
     if (!currentOrgId) return
     setSaving(true)
@@ -208,10 +257,18 @@ export function SettingsView() {
           tdsEnabled: taxConfig.tdsEnabled,
           ssfEnabled: taxConfig.ssfEnabled,
           invoicePrefix: invoiceConfig.prefix,
+          creditNotePrefix: cbmsConfig.creditNotePrefix,
           invoiceNextNumber: invoiceConfig.nextNumber,
           invoiceDefaultTerms: invoiceConfig.defaultTerms,
           mode: preferences.defaultMode,
           language: preferences.language,
+          cbmsEnabled: cbmsConfig.cbmsEnabled,
+          cbmsIsSandbox: cbmsConfig.cbmsIsSandbox,
+          irdSoftwareCode: cbmsConfig.irdSoftwareCode,
+          cbmsUrl: cbmsConfig.cbmsUrl,
+          cbmsReturnUrl: cbmsConfig.cbmsReturnUrl,
+          cbmsUsername: cbmsConfig.cbmsUsername,
+          cbmsPassword: cbmsConfig.cbmsPassword,
         }),
       })
       const data = await res.json()
@@ -235,7 +292,7 @@ export function SettingsView() {
       handleSaveOrg(false)
     }, 1500)
     return () => clearTimeout(timer)
-  }, [orgForm, taxConfig, invoiceConfig, preferences])
+  }, [orgForm, taxConfig, invoiceConfig, preferences, cbmsConfig])
 
   const handleDeleteOrg = async () => {
     toast.error('Organization deletion is disabled for safety. Contact support.')
@@ -262,7 +319,7 @@ export function SettingsView() {
           </h1>
           <p className="text-sm text-muted-foreground">सेटिङ — Configure your accounting preferences</p>
         </div>
-        <Button onClick={handleSaveOrg} disabled={saving}>
+        <Button onClick={() => handleSaveOrg(true)} disabled={saving}>
           {saving ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
           {t('save', language as 'en' | 'ne' | 'hi')}
         </Button>
@@ -485,6 +542,136 @@ export function SettingsView() {
         </CardContent>
       </Card>
 
+      {/* IRD & CBMS Configuration */}
+      <Card>
+        <CardHeader className="pb-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <ShieldCheck className="h-5 w-5 text-emerald-600" />
+              <CardTitle className="text-base">IRD Compliance & CBMS Real-Time Sync / आन्तरिक राजस्व विभाग</CardTitle>
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleTestIrd}
+              disabled={testingIrd}
+              className="text-xs"
+            >
+              <Server className={cn('h-3.5 w-3.5 mr-1.5 text-primary', testingIrd && 'animate-pulse')} />
+              {testingIrd ? 'Testing...' : 'Test IRD Server'}
+            </Button>
+          </div>
+          <CardDescription>
+            Central Billing Monitoring System (CBMS) API credentials and statutory electronic invoicing settings
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium">Real-Time CBMS Sync (वास्तविक समय CBMS सिङ्क)</p>
+                <p className="text-xs text-muted-foreground">
+                  Transmit every sales invoice and credit note directly to IRD server as per Rule 2074
+                </p>
+              </div>
+              <Switch
+                checked={cbmsConfig.cbmsEnabled}
+                onCheckedChange={(v) => setCbmsConfig(prev => ({ ...prev, cbmsEnabled: v }))}
+              />
+            </div>
+
+            <Separator />
+
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium">Sandbox Mode (परीक्षण मोड)</p>
+                <p className="text-xs text-muted-foreground">
+                  Simulate IRD responses locally without requiring live IRD VPN credentials
+                </p>
+              </div>
+              <div className="flex items-center gap-2">
+                <Badge variant="outline" className={cbmsConfig.cbmsIsSandbox ? 'text-amber-600 border-amber-300' : 'text-emerald-600 border-emerald-300'}>
+                  {cbmsConfig.cbmsIsSandbox ? 'Sandbox (Test)' : 'Production (Live)'}
+                </Badge>
+                <Switch
+                  checked={cbmsConfig.cbmsIsSandbox}
+                  onCheckedChange={(v) => setCbmsConfig(prev => ({ ...prev, cbmsIsSandbox: v }))}
+                />
+              </div>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
+            <div className="space-y-2">
+              <Label htmlFor="irdSoftwareCode">IRD Software Code (सफ्टवेयर कोड)</Label>
+              <Input
+                id="irdSoftwareCode"
+                value={cbmsConfig.irdSoftwareCode}
+                onChange={(e) => setCbmsConfig(prev => ({ ...prev, irdSoftwareCode: e.target.value }))}
+                placeholder="e.g. HISAB_PRO_V1"
+              />
+              <p className="text-[10px] text-muted-foreground">Software ID authorized by Inland Revenue Department</p>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="creditNotePrefix">Credit Note Prefix (क्रेडिट नोट उपसर्ग)</Label>
+              <Input
+                id="creditNotePrefix"
+                value={cbmsConfig.creditNotePrefix}
+                onChange={(e) => setCbmsConfig(prev => ({ ...prev, creditNotePrefix: e.target.value }))}
+                placeholder="CN-"
+              />
+              <p className="text-[10px] text-muted-foreground">Prefix for Schedule 7 return vouchers (e.g. CN-81/82-00001)</p>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="cbmsUsername">CBMS Username (करदाता प्रयोगकर्ता नाम)</Label>
+              <Input
+                id="cbmsUsername"
+                value={cbmsConfig.cbmsUsername}
+                onChange={(e) => setCbmsConfig(prev => ({ ...prev, cbmsUsername: e.target.value }))}
+                placeholder="Taxpayer PAN or CBMS user"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="cbmsPassword">CBMS Password (पासवर्ड)</Label>
+              <Input
+                id="cbmsPassword"
+                type="password"
+                value={cbmsConfig.cbmsPassword}
+                onChange={(e) => setCbmsConfig(prev => ({ ...prev, cbmsPassword: e.target.value }))}
+                placeholder="••••••••"
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="cbmsUrl" className="text-xs">Invoice Sync Endpoint (/api/bill)</Label>
+              <Input
+                id="cbmsUrl"
+                value={cbmsConfig.cbmsUrl}
+                onChange={(e) => setCbmsConfig(prev => ({ ...prev, cbmsUrl: e.target.value }))}
+                placeholder="https://cbapi.ird.gov.np/api/bill"
+                className="font-mono text-xs"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="cbmsReturnUrl" className="text-xs">Credit Note Return Endpoint (/api/billreturn)</Label>
+              <Input
+                id="cbmsReturnUrl"
+                value={cbmsConfig.cbmsReturnUrl}
+                onChange={(e) => setCbmsConfig(prev => ({ ...prev, cbmsReturnUrl: e.target.value }))}
+                placeholder="https://cbapi.ird.gov.np/api/billreturn"
+                className="font-mono text-xs"
+              />
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
       {/* Invoice Settings */}
       <Card>
         <CardHeader className="pb-3">
@@ -667,7 +854,7 @@ export function SettingsView() {
 
       {/* Save Button (bottom) */}
       <div className="flex items-center gap-3 pt-2">
-        <Button onClick={handleSaveOrg} disabled={saving} size="lg">
+        <Button onClick={() => handleSaveOrg(true)} disabled={saving} size="lg">
           {saving ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
           {saving ? 'Saving...' : t('save', language as 'en' | 'ne' | 'hi')}
         </Button>

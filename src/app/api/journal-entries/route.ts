@@ -218,6 +218,25 @@ export async function POST(request: Request) {
             data: { currentBalance: { increment: balanceAdjustment } },
           })
         }
+
+        // Update party current balance if partyId is provided
+        if (line.partyId) {
+          const party = await tx.party.findUnique({ where: { id: line.partyId } })
+          if (party) {
+            let partyAdjustment = 0
+            if (party.partyType === 'supplier') {
+              partyAdjustment = (line.credit || 0) - (line.debit || 0)
+            } else {
+              partyAdjustment = (line.debit || 0) - (line.credit || 0)
+            }
+            if (partyAdjustment !== 0) {
+              await tx.party.update({
+                where: { id: party.id },
+                data: { currentBalance: { increment: partyAdjustment } },
+              })
+            }
+          }
+        }
       }
 
       return journalEntry

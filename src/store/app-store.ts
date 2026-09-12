@@ -5,6 +5,7 @@ export type AppModule =
   | 'dashboard'
   | 'simple-income'
   | 'simple-expense'
+  | 'khata'
   | 'chart-of-accounts'
   | 'journal-entries'
   | 'journal-entry-new'
@@ -24,6 +25,8 @@ export type AppModule =
   | 'cash-flow'
   | 'vat-report'
   | 'tds-report'
+  | 'tax-registers'
+  | 'cbms-monitor'
   | 'settings'
   | 'organization'
   | 'users'
@@ -84,11 +87,12 @@ interface AppState {
   currentOrgId: string | null
   currentOrgName: string
   setCurrentOrg: (id: string, name: string) => void
+  getCurrentOrgRole: () => string
 
   // Sidebar
   sidebarOpen: boolean
   setSidebarOpen: (open: boolean) => void
-
+  
   // Fiscal Year
   currentFiscalYear: string
   setCurrentFiscalYear: (fy: string) => void
@@ -118,7 +122,7 @@ interface AppState {
   setRefreshSession: (fn: () => Promise<void>) => void
 }
 
-export const useAppStore = create<AppState>((set) => ({
+export const useAppStore = create<AppState>((set, get) => ({
   mode: loadPersistedMode(),
   setMode: (mode) => {
     persistMode(mode)
@@ -135,7 +139,21 @@ export const useAppStore = create<AppState>((set) => ({
 
   currentOrgId: null,
   currentOrgName: 'My Business',
-  setCurrentOrg: (id, name) => set({ currentOrgId: id, currentOrgName: name }),
+  setCurrentOrg: (id, name) => {
+    if (typeof window !== 'undefined') {
+      try {
+        localStorage.setItem('hisab-current-org', id)
+      } catch {
+        // ignore
+      }
+    }
+    set({ currentOrgId: id, currentOrgName: name })
+  },
+  getCurrentOrgRole: () => {
+    const { currentOrgId, userOrganizations } = get()
+    const org = userOrganizations.find((o) => o.id === currentOrgId)
+    return org?.role || 'staff'
+  },
 
   sidebarOpen: true,
   setSidebarOpen: (open) => set({ sidebarOpen: open }),

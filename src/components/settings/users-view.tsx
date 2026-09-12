@@ -125,7 +125,9 @@ function MaskedEmailBadge({ email, canSeeFullData }: { email: string; canSeeFull
   return (
     <span className="text-sm text-muted-foreground inline-flex items-center gap-1">
       {email}
-      <EyeOff className="h-3 w-3 text-muted-foreground/50" title="Email masked for privacy" />
+      <span title="Email masked for privacy">
+        <EyeOff className="h-3 w-3 text-muted-foreground/50" />
+      </span>
     </span>
   )
 }

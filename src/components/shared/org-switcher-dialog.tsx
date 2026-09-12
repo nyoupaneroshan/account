@@ -12,6 +12,7 @@ import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
 import { cn } from '@/lib/utils'
 import { Check, Building2 } from 'lucide-react'
+import { getRoleInfo } from '@/lib/rbac'
 
 interface OrgSwitcherDialogProps {
   open: boolean
@@ -100,7 +101,14 @@ export function OrgSwitcherDialog({ open, onOpenChange }: OrgSwitcherDialogProps
                     >
                       {org.plan.charAt(0).toUpperCase() + org.plan.slice(1)}
                     </Badge>
-                    <span className="text-[10px] text-zinc-500">{org.role}</span>
+                    <Badge
+                      className={cn(
+                        "text-[8px] px-1 py-0 h-3.5 leading-none font-medium border",
+                        getRoleInfo(org.role).badgeClass
+                      )}
+                    >
+                      {getRoleInfo(org.role).labelNepali}
+                    </Badge>
                   </div>
                 </div>
                 {isActive && (

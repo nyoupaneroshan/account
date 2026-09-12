@@ -695,6 +695,14 @@ export function DashboardView() {
                 onClick={() => router.push('/expense')}
                 variant="danger"
               />
+              <QuickActionCard
+                icon={BookOpen}
+                label="Udharo Khata"
+                labelNepali="उधारो खाता"
+                description="Customer & supplier credit"
+                onClick={() => router.push('/khata')}
+                variant="primary"
+              />
             </>
           ) : (
             <QuickActionCard
@@ -809,6 +817,42 @@ export function DashboardView() {
           delay={300}
         />
       </div>
+
+      {/* ── SIMPLE MODE: Udharo Khata Summary Bar ── */}
+      {mode === 'simple' && (
+        <Card className="glass-card bg-gradient-to-r from-emerald-500/[0.05] via-transparent to-red-500/[0.05] border-white/[0.08]">
+          <CardContent className="p-4 flex flex-col sm:flex-row items-center justify-between gap-4">
+            <div className="flex items-center gap-3">
+              <div className="h-10 w-10 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400 shrink-0">
+                <BookOpen className="h-5 w-5" />
+              </div>
+              <div>
+                <h4 className="text-sm font-semibold text-zinc-200">
+                  उधारो खाता सारांश (Khata Summary)
+                </h4>
+                <p className="text-xs text-zinc-400 mt-0.5">
+                  ग्राहकबाट लिन बाँकी:{' '}
+                  <strong className="text-emerald-400 font-semibold">
+                    {formatNPR(data.totalReceivable)}
+                  </strong>
+                  &nbsp;&nbsp;|&nbsp;&nbsp;साहुलाई तिर्न बाँकी:{' '}
+                  <strong className="text-red-400 font-semibold">
+                    {formatNPR(data.totalPayable)}
+                  </strong>
+                </p>
+              </div>
+            </div>
+            <Button
+              size="sm"
+              onClick={() => router.push('/khata')}
+              className="bg-emerald-600 hover:bg-emerald-500 text-white text-xs h-8 px-3 gap-1.5 shrink-0"
+            >
+              उधारो खाता हेर्नुहोस्
+              <ArrowRight className="h-3.5 w-3.5" />
+            </Button>
+          </CardContent>
+        </Card>
+      )}
 
       {/* ── ADVANCED MODE: Additional Stats (4 cards) ── */}
       {mode === 'advanced' && hasFeature(currentPlan, 'advancedMode') && (

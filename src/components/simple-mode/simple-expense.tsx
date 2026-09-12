@@ -52,7 +52,10 @@ import {
   Loader2,
   Receipt,
   RefreshCw,
+  QrCode,
 } from 'lucide-react'
+import { BsDatePicker } from '@/components/shared/bs-date-picker'
+import { numberToNepaliWords, adToBs } from '@/lib/bikram-sambat'
 
 // ─── Account code mappings ─────────────────────────────────────
 const EXPENSE_CATEGORY_MAP: Record<string, string> = {
@@ -69,6 +72,9 @@ const PAYMENT_ACCOUNT_MAP: Record<string, string> = {
   'Bank': '11002',
   'Online': '11002',
   'Cheque': '11002',
+  'eSewa': '11002',
+  'Khalti': '11002',
+  'Fonepay': '11002',
 }
 
 const INPUT_VAT_CODE = '22002'
@@ -83,10 +89,11 @@ const EXPENSE_CATEGORIES = [
 ]
 
 const PAYMENT_METHODS = [
-  { value: 'Cash', label: 'Cash', labelNp: 'नगद', icon: Banknote, color: 'text-green-600' },
-  { value: 'Bank', label: 'Bank', labelNp: 'बैंक', icon: Building2, color: 'text-blue-600' },
-  { value: 'Online', label: 'Online', labelNp: 'अनलाइन', icon: Smartphone, color: 'text-teal-600' },
-  { value: 'Cheque', label: 'Cheque', labelNp: 'चेक', icon: FileCheck, color: 'text-orange-600' },
+  { value: 'Cash', label: 'Cash', labelNp: 'नगद', icon: Banknote, color: 'text-emerald-500' },
+  { value: 'Fonepay', label: 'Fonepay QR', labelNp: 'फोनपे', icon: QrCode, color: 'text-red-500' },
+  { value: 'eSewa', label: 'eSewa', labelNp: 'ईसेवा', icon: Smartphone, color: 'text-green-500' },
+  { value: 'Khalti', label: 'Khalti', labelNp: 'खल्ती', icon: CreditCard, color: 'text-purple-500' },
+  { value: 'Bank', label: 'Bank / Cheque', labelNp: 'बैंक/चेक', icon: Building2, color: 'text-blue-500' },
 ]
 
 // ─── Types ─────────────────────────────────────────────────────
@@ -242,7 +249,7 @@ export function SimpleExpense() {
         partyId: partyId || undefined,
       })
 
-      const narration = `Expense: ${notes || category} (${category}) via ${paymentMethod}${vatInclusive ? ' (VAT Inclusive)' : ''}`
+      const narration = `Expense: ${notes || category} (${category}) via ${paymentMethod}${vatInclusive ? ' (VAT Inclusive)' : ''} [BS: ${adToBs(date).formattedBs}]`
 
       const res = await authFetch('/api/journal-entries', {
         method: 'POST',
@@ -351,6 +358,12 @@ export function SimpleExpense() {
                   required
                 />
               </div>
+              {parsedAmount > 0 && (
+                <div className="p-2.5 rounded-lg bg-red-500/10 border border-red-500/20 text-xs flex flex-col sm:flex-row sm:items-center justify-between gap-1">
+                  <span className="text-zinc-400 font-medium">अक्षरमा (In Words):</span>
+                  <span className="font-semibold text-red-400">{numberToNepaliWords(parsedAmount)}</span>
+                </div>
+              )}
               {vatInclusive && parsedAmount > 0 && (
                 <div className="bg-muted/50 rounded-lg p-3 space-y-1 text-sm">
                   <div className="flex justify-between">
@@ -490,13 +503,10 @@ export function SimpleExpense() {
 
             {/* Date */}
             <div className="space-y-2">
-              <Label htmlFor="expense-date" className="text-sm font-semibold">{t('date')}</Label>
-              <Input
-                id="expense-date"
-                type="date"
+              <BsDatePicker
                 value={date}
-                onChange={(e) => setDate(e.target.value)}
-                className="h-11"
+                onChange={(adDate) => setDate(adDate)}
+                label="कारोबार मिति (Transaction Date - BS / वि.सं.)"
               />
             </div>
 

@@ -42,6 +42,17 @@ model Organization {
   subscriptionEnd   DateTime?
   trialEndsAt       DateTime?
 
+  // IRD & CBMS Configuration
+  cbmsEnabled   Boolean  @default(false)
+  cbmsUrl       String   @default("https://cbapi.ird.gov.np/api/bill")
+  cbmsReturnUrl String   @default("https://cbapi.ird.gov.np/api/billreturn")
+  cbmsUsername  String?
+  cbmsPassword  String?
+  cbmsIsSandbox Boolean  @default(true)
+  irdSoftwareCode String @default("HISABPRO-2081")
+  invoicePrefix String   @default("INV")
+  creditNotePrefix String @default("CN")
+
   // Relations
   users         UserOrganization[]
   accounts      Account[]
@@ -52,6 +63,8 @@ model Organization {
   warehouses    Warehouse[]
   invoices      Invoice[]
   purchaseBills PurchaseBill[]
+  creditNotes   CreditNote[]
+  cbmsLogs      CbmsSyncLog[]
   taxRates      TaxRate[]
   auditLogs     AuditLog[]
   settings      OrganizationSetting[]
@@ -338,6 +351,7 @@ model Product {
   stockTransactions StockTransaction[]
   invoiceLines   InvoiceLine[]
   purchaseBillLines PurchaseBillLine[]
+  creditNoteLines CreditNoteLine[]
 
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
@@ -419,29 +433,52 @@ model StockTransaction {
 model Invoice {
   id              String   @id @default(cuid())
   organizationId  String
-  invoiceNumber   String   // Auto-generated e.g. "INV-001"
+  invoiceNumber   String   // Auto-generated e.g. "INV-81/82-00001"
+  fiscalYear      String?  // e.g. "2081/82"
   date            DateTime
+  dateBS          String?  // e.g. "2081-05-27"
+  transactionTime String?  // e.g. "14:30:15"
   dueDate         DateTime?
   partyId         String?
-  invoiceType     String   @default("sales") // "sales", "sales_return"
-  status          String   @default("draft") // "draft", "sent", "paid", "partial", "overdue", "cancelled"
+  invoiceType     String   @default("sales") // "sales", "sales_return", "abbreviated"
+  status          String   @default("draft") // "draft", "issued", "sent", "paid", "partial", "overdue", "cancelled"
+  paymentMode     String   @default("cash")  // "cash", "credit", "bank", "cheque", "digital"
   subtotal        Float    @default(0)
   discountAmount  Float    @default(0)
   taxableAmount   Float    @default(0)
+  exemptAmount    Float    @default(0)       // Non-taxable / exempt sales (Schedule 1)
   vatAmount       Float    @default(0)
   totalAmount     Float    @default(0)
   amountPaid      Float    @default(0)
   amountDue       Float    @default(0)
   tdsAmount       Float    @default(0)
-  panNumber       String?  // Party PAN for IRD compliance
+  panNumber       String?  // Buyer PAN for IRD compliance
+  buyerName       String?  // Buyer Name
+  buyerAddress    String?  // Buyer Address
   billingAddress  String?
   shippingAddress String?
   notes           String?
   terms           String?
   journalEntryId  String?  // Link to auto-created journal entry
 
+  // IRD Audit & Print Tracking
+  printCount      Int      @default(0)       // 0 = unprinted, 1 = "कर बीजक", >1 = "कर बीजकको प्रतिलिपि"
+  lastPrintedAt   DateTime?
+  cancelReason    String?  // Mandatory reason for invoice cancellation under IRD
+  cancelledAt     DateTime?
+  cancelledBy     String?
+  isRealtime      Boolean  @default(true)
+
+  // CBMS Real-time Synchronization
+  syncStatus      String   @default("pending") // "pending", "synced", "failed", "not_applicable"
+  syncResponseCode Int?    // IRD CBMS response code (200=success, 100, 101, 102, 104)
+  syncResponseMessage String?
+  syncedAt        DateTime?
+  syncAttempts    Int      @default(0)
+
   organization    Organization @relation(fields: [organizationId], references: [id])
   lines           InvoiceLine[]
+  creditNotes     CreditNote[]
 
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
@@ -451,6 +488,7 @@ model Invoice {
   @@index([partyId])
   @@index([date])
   @@index([status])
+  @@index([syncStatus])
 }
 
 model InvoiceLine {
@@ -458,12 +496,14 @@ model InvoiceLine {
   invoiceId       String
   productId       String?
   description     String
+  hsnCode         String?  // Harmonized System Code for IRD
   quantity        Float    @default(1)
   unit            String?
   unitPrice       Float    @default(0)
   discountPercent Float    @default(0)
   discountAmount  Float    @default(0)
   taxableAmount   Float    @default(0)
+  isExempt        Boolean  @default(false)   // True if exempt from VAT
   vatRate         Float?
   vatAmount       Float    @default(0)
   totalAmount     Float    @default(0)
@@ -480,6 +520,81 @@ model InvoiceLine {
 }
 
 // ============================================================
+// SALES RETURN & CREDIT NOTES (क्रेडिट नोट)
+// ============================================================
+
+model CreditNote {
+  id                  String   @id @default(cuid())
+  organizationId      String
+  creditNoteNumber    String   // Auto-generated e.g. "CN-81/82-00001"
+  fiscalYear          String   // e.g. "2081/82"
+  originalInvoiceId   String
+  originalInvoiceNo   String   // Original bill reference
+  date                DateTime
+  dateBS              String?  // Bikram Sambat date e.g. "2081-05-27"
+  partyId             String?
+  partyName           String
+  partyPan            String?
+  reason              String   // Mandatory reason under IRD guidelines
+  subtotal            Float    @default(0)
+  taxableAmount       Float    @default(0)
+  exemptAmount        Float    @default(0)
+  vatAmount           Float    @default(0)
+  totalAmount         Float    @default(0)
+  paymentMode         String   @default("cash")
+
+  // IRD Print Tracking
+  printCount          Int      @default(0)
+  lastPrintedAt       DateTime?
+
+  // CBMS Sync (/api/billreturn)
+  syncStatus          String   @default("pending") // "pending", "synced", "failed"
+  syncResponseCode    Int?
+  syncResponseMessage String?
+  syncedAt            DateTime?
+  syncAttempts        Int      @default(0)
+
+  journalEntryId      String?  // Reversal journal entry
+
+  organization        Organization @relation(fields: [organizationId], references: [id])
+  invoice             Invoice      @relation(fields: [originalInvoiceId], references: [id])
+  lines               CreditNoteLine[]
+
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  @@unique([organizationId, creditNoteNumber])
+  @@index([organizationId])
+  @@index([originalInvoiceId])
+  @@index([date])
+  @@index([syncStatus])
+}
+
+model CreditNoteLine {
+  id              String   @id @default(cuid())
+  creditNoteId    String
+  productId       String?
+  description     String
+  hsnCode         String?
+  quantity        Float    @default(1)
+  unit            String?
+  unitPrice       Float    @default(0)
+  taxableAmount   Float    @default(0)
+  vatRate         Float?
+  vatAmount       Float    @default(0)
+  totalAmount     Float    @default(0)
+
+  creditNote      CreditNote @relation(fields: [creditNoteId], references: [id], onDelete: Cascade)
+  product         Product?   @relation(fields: [productId], references: [id])
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([creditNoteId])
+  @@index([productId])
+}
+
+// ============================================================
 // PURCHASE MANAGEMENT
 // ============================================================
 
@@ -488,7 +603,9 @@ model PurchaseBill {
   organizationId  String
   billNumber      String   // Auto-generated e.g. "PUR-001"
   supplierBillNo  String?  // Supplier's own bill number
+  fiscalYear      String?  // e.g. "2081/82"
   date            DateTime
+  dateBS          String?  // Bikram Sambat date
   dueDate         DateTime?
   partyId         String?
   billType        String   @default("purchase") // "purchase", "purchase_return"
@@ -496,12 +613,17 @@ model PurchaseBill {
   subtotal        Float    @default(0)
   discountAmount  Float    @default(0)
   taxableAmount   Float    @default(0)
+  exemptAmount    Float    @default(0) // Exempt purchases (Annex 6)
+  capitalAmount   Float    @default(0) // Capital goods purchases (Annex 6)
   vatAmount       Float    @default(0)
   totalAmount     Float    @default(0)
   amountPaid      Float    @default(0)
   amountDue       Float    @default(0)
   tdsAmount       Float    @default(0)
   warehouseId     String?
+  isImport        Boolean  @default(false) // Foreign import (Annex 6)
+  pragyapanPatraNo String? // Customs Declaration Number / प्रज्ञापनपत्र नं
+  country         String?  // Import Country
   notes           String?
   journalEntryId  String?
 
@@ -544,6 +666,33 @@ model PurchaseBillLine {
 
   @@index([purchaseBillId])
   @@index([productId])
+}
+
+// ============================================================
+// CBMS AUDIT & TRANSMISSION LOGS
+// ============================================================
+
+model CbmsSyncLog {
+  id              String   @id @default(cuid())
+  organizationId  String
+  billType        String   // "invoice" or "credit_note"
+  billId          String
+  billNumber      String
+  endpoint        String
+  requestPayload  String   // Serialized JSON payload sent to IRD
+  responseCode    Int?     // HTTP or CBMS Status code (e.g. 200, 100, 101, 102, 104)
+  responseBody    String?
+  isSuccess       Boolean  @default(false)
+  errorMessage    String?
+  durationMs      Int?
+
+  organization    Organization @relation(fields: [organizationId], references: [id])
+
+  createdAt       DateTime @default(now())
+
+  @@index([organizationId])
+  @@index([billId])
+  @@index([createdAt])
 }
 
 // ============================================================

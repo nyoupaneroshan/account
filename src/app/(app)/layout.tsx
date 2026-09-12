@@ -337,7 +337,9 @@ export default function AppLayout({
   useEffect(() => {
     const doRestore = async () => {
       await restoreSession()
-      setRefreshSession(refreshSessionData)
+      setRefreshSession(async () => {
+        await refreshSessionData()
+      })
     }
     doRestore()
   }, [])

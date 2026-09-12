@@ -1,9 +1,27 @@
-// Nepal-specific accounting constants and helpers
+// Export Bikram Sambat engine and localization utilities
+export * from './bikram-sambat'
 
 // VAT Configuration
 export const NEPAL_VAT_RATE = 0.13 // 13% standard rate
 export const NEPAL_VAT_THRESHOLD = 5000000 // NPR 50 lakh threshold
 export const NEPAL_CORPORATE_TAX = 0.25 // 25% corporate tax
+
+// IRD Compliance & CBMS Constants
+export const IRD_PAN_LENGTH = 9
+export const IRD_BUYER_PAN_MANDATORY_THRESHOLD = 10000 // Transactions above NPR 10,000 require Buyer PAN
+export const CBMS_DEFAULT_BILL_URL = 'https://cbapi.ird.gov.np/api/bill'
+export const CBMS_DEFAULT_RETURN_URL = 'https://cbapi.ird.gov.np/api/billreturn'
+
+// Statutory Payment Modes
+export const PAYMENT_MODES = [
+  { value: 'cash', label: 'Cash (नगद)' },
+  { value: 'credit', label: 'Credit (उधारो)' },
+  { value: 'bank', label: 'Bank Transfer (बैंक)' },
+  { value: 'cheque', label: 'Cheque (चेक)' },
+  { value: 'digital', label: 'Digital / Wallet (डिजिटल/वालेट)' },
+] as const
+
+export type PaymentMode = typeof PAYMENT_MODES[number]['value']
 
 // TDS Rates by category
 export const TDS_RATES: Record<string, number> = {

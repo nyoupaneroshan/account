@@ -124,7 +124,7 @@ export async function GET(request: Request) {
     const monthsWithData = Object.keys(monthlyMap).sort()
     const lastDataMonth = monthsWithData.length > 0 ? monthsWithData[monthsWithData.length - 1] : null
 
-    const monthlyData = []
+    const monthlyData: { month: string; key: string; income: number; expense: number }[] = []
     const now = new Date()
 
     // Determine the end month: use the most recent month with data, or current month

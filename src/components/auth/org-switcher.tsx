@@ -28,6 +28,7 @@ import { cn } from '@/lib/utils'
 import { authFetch } from '@/lib/session'
 import { Building2, ChevronsUpDown, Plus, Check, Loader2 } from 'lucide-react'
 import { getPlan } from '@/lib/plans'
+import { getRoleInfo } from '@/lib/rbac'
 import { toast } from 'sonner'
 
 const planBadgeVariant: Record<string, 'default' | 'secondary' | 'outline'> = {
@@ -175,7 +176,14 @@ export function OrgSwitcher() {
                   >
                     {org.plan.charAt(0).toUpperCase() + org.plan.slice(1)}
                   </Badge>
-                  <span className="text-[10px] text-muted-foreground">{org.role}</span>
+                  <Badge
+                    className={cn(
+                      "text-[8px] px-1.5 py-0 h-3.5 leading-none font-medium border",
+                      getRoleInfo(org.role).badgeClass
+                    )}
+                  >
+                    {getRoleInfo(org.role).labelNepali}
+                  </Badge>
                 </div>
               </div>
               {org.id === currentOrgId && (

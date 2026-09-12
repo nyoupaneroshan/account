@@ -334,13 +334,11 @@ export async function POST(request: Request) {
               })
 
               // Update or create stock level
-              const existingStock = await tx.stockLevel.findUnique({
+              const existingStock = await tx.stockLevel.findFirst({
                 where: {
-                  productId_warehouseId_batchNumber: {
-                    productId: line.productId,
-                    warehouseId: whId,
-                    batchNumber: line.batchNumber || null,
-                  },
+                  productId: line.productId,
+                  warehouseId: whId,
+                  ...(line.batchNumber ? { batchNumber: line.batchNumber } : {}),
                 },
               })
 
@@ -382,7 +380,7 @@ export async function POST(request: Request) {
     })
 
     // Fetch with party info
-    let party = null
+    let party: any = null
     if (partyId) {
       party = await db.party.findUnique({
         where: { id: partyId },
@@ -509,13 +507,10 @@ export async function PUT(request: Request) {
             },
           })
 
-          const stockLevel = await tx.stockLevel.findUnique({
+          const stockLevel = await tx.stockLevel.findFirst({
             where: {
-              productId_warehouseId_batchNumber: {
-                productId: st.productId,
-                warehouseId: st.warehouseId,
-                batchNumber: null,
-              },
+              productId: st.productId,
+              warehouseId: st.warehouseId,
             },
           })
 

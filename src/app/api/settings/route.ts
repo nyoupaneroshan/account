@@ -79,11 +79,20 @@ export async function GET(request: Request) {
       currency: org.currency,
       plan: org.plan,
       // Invoice settings from OrganizationSetting
-      invoicePrefix: settingsMap['invoicePrefix'] || 'INV',
+      invoicePrefix: org.invoicePrefix || settingsMap['invoicePrefix'] || 'INV',
+      creditNotePrefix: org.creditNotePrefix || 'CN',
       invoiceNextNumber: settingsMap['invoiceNextNumber'] || '1',
       invoiceDefaultTerms: settingsMap['invoiceDefaultTerms'] || 'Payment due within 30 days',
       // VAT rate from OrganizationSetting
       vatRate: settingsMap['vatRate'] || '13',
+      // IRD & CBMS Configuration
+      cbmsEnabled: org.cbmsEnabled,
+      cbmsUrl: org.cbmsUrl || 'https://cbapi.ird.gov.np/api/bill',
+      cbmsReturnUrl: org.cbmsReturnUrl || 'https://cbapi.ird.gov.np/api/billreturn',
+      cbmsUsername: org.cbmsUsername || '',
+      cbmsPassword: org.cbmsPassword ? '••••••••' : '',
+      cbmsIsSandbox: org.cbmsIsSandbox,
+      irdSoftwareCode: org.irdSoftwareCode || 'HISAB_PRO_V1',
     })
 
   } catch (error) {
@@ -125,6 +134,14 @@ export async function PUT(request: Request) {
       mode,
       language,
       vatRate,
+      cbmsEnabled,
+      cbmsUrl,
+      cbmsReturnUrl,
+      cbmsUsername,
+      cbmsPassword,
+      cbmsIsSandbox,
+      irdSoftwareCode,
+      creditNotePrefix,
     } = body
 
     if (!orgId) {
@@ -171,6 +188,15 @@ export async function PUT(request: Request) {
         ...(ssfEnabled !== undefined && { ssfEnabled }),
         ...(mode !== undefined && { mode }),
         ...(language !== undefined && { language }),
+        ...(invoicePrefix !== undefined && { invoicePrefix }),
+        ...(creditNotePrefix !== undefined && { creditNotePrefix }),
+        ...(cbmsEnabled !== undefined && { cbmsEnabled }),
+        ...(cbmsUrl !== undefined && { cbmsUrl }),
+        ...(cbmsReturnUrl !== undefined && { cbmsReturnUrl }),
+        ...(cbmsUsername !== undefined && { cbmsUsername }),
+        ...(cbmsPassword !== undefined && cbmsPassword !== '••••••••' && { cbmsPassword }),
+        ...(cbmsIsSandbox !== undefined && { cbmsIsSandbox }),
+        ...(irdSoftwareCode !== undefined && { irdSoftwareCode }),
       },
     })
 
@@ -239,10 +265,17 @@ export async function PUT(request: Request) {
         fiscalYear: updatedOrg.fiscalYear,
         currency: updatedOrg.currency,
         plan: updatedOrg.plan,
-        invoicePrefix: settingsMap['invoicePrefix'] || 'INV',
+        invoicePrefix: updatedOrg.invoicePrefix || settingsMap['invoicePrefix'] || 'INV',
+        creditNotePrefix: updatedOrg.creditNotePrefix || 'CN',
         invoiceNextNumber: settingsMap['invoiceNextNumber'] || '1',
         invoiceDefaultTerms: settingsMap['invoiceDefaultTerms'] || 'Payment due within 30 days',
         vatRate: settingsMap['vatRate'] || '13',
+        cbmsEnabled: updatedOrg.cbmsEnabled,
+        cbmsUrl: updatedOrg.cbmsUrl || 'https://cbapi.ird.gov.np/api/bill',
+        cbmsReturnUrl: updatedOrg.cbmsReturnUrl || 'https://cbapi.ird.gov.np/api/billreturn',
+        cbmsUsername: updatedOrg.cbmsUsername || '',
+        cbmsIsSandbox: updatedOrg.cbmsIsSandbox,
+        irdSoftwareCode: updatedOrg.irdSoftwareCode || 'HISAB_PRO_V1',
       },
     })
 

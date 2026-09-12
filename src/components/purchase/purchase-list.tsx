@@ -422,10 +422,10 @@ export function PurchaseList() {
                               )}
                             </div>
                           </TableCell>
-                          <TableCell className={isCancelled && 'line-through'}>
+                          <TableCell className={cn(isCancelled && 'line-through')}>
                             {formatDate(bill.date)}
                           </TableCell>
-                          <TableCell className={isCancelled && 'line-through'}>
+                          <TableCell className={cn(isCancelled && 'line-through')}>
                             {bill.party?.name || '\u2014'}
                           </TableCell>
                           <TableCell className={cn('text-right font-medium', isCancelled && 'line-through')}>

@@ -31,6 +31,7 @@ import {
   LogOut,
   Folder,
   Sparkles,
+  ChevronsUpDown,
 } from 'lucide-react'
 import { Switch } from '@/components/ui/switch'
 import { ScrollArea } from '@/components/ui/scroll-area'
@@ -38,9 +39,16 @@ import { Badge } from '@/components/ui/badge'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Separator } from '@/components/ui/separator'
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip'
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
 import Image from 'next/image'
+import {
+  canAccessAdvancedMode,
+  canManageOrganization,
+  canManageUsers,
+  getRoleInfo,
+} from '@/lib/rbac'
+import { OrgSwitcherDialog } from '@/components/shared/org-switcher-dialog'
 
 interface NavItem {
   id: AppModule
@@ -61,6 +69,7 @@ interface NavGroup {
 // Module ID to URL path mapping
 const MODULE_PATH_MAP: Record<string, string> = {
   'dashboard': '/dashboard',
+  'khata': '/khata',
   'simple-income': '/income',
   'simple-expense': '/expense',
   'chart-of-accounts': '/accounts',
@@ -82,6 +91,8 @@ const MODULE_PATH_MAP: Record<string, string> = {
   'cash-flow': '/reports',
   'vat-report': '/reports',
   'tds-report': '/reports',
+  'tax-registers': '/tax-registers',
+  'cbms-monitor': '/cbms-monitor',
   'settings': '/settings',
   'organization': '/organization',
   'users': '/users',
@@ -94,9 +105,10 @@ const SIMPLE_NAV: NavGroup[] = [
     labelNepali: 'मुख्य',
     items: [
       { id: 'dashboard', label: 'Dashboard', labelNepali: 'ड्यासबोर्ड', icon: LayoutDashboard, path: '/dashboard', shortcut: 'Alt+1' },
-      { id: 'parties', label: 'Parties', labelNepali: 'पक्षहरू', icon: Users, path: '/parties', shortcut: 'Alt+2' },
-      { id: 'invoices', label: 'Invoices', labelNepali: 'इनभ्वाइस', icon: Receipt, path: '/invoices', shortcut: 'Alt+3' },
-      { id: 'purchases', label: 'Purchases', labelNepali: 'खरिद', icon: ShoppingCart, path: '/purchases', shortcut: 'Alt+4' },
+      { id: 'khata', label: 'Udharo Khata', labelNepali: 'उधारो खाता', icon: BookOpen, path: '/khata', shortcut: 'Alt+2' },
+      { id: 'parties', label: 'Parties', labelNepali: 'पक्षहरू', icon: Users, path: '/parties', shortcut: 'Alt+3' },
+      { id: 'invoices', label: 'Invoices', labelNepali: 'इनभ्वाइस', icon: Receipt, path: '/invoices', shortcut: 'Alt+4' },
+      { id: 'purchases', label: 'Purchases', labelNepali: 'खरिद', icon: ShoppingCart, path: '/purchases', shortcut: 'Alt+5' },
     ],
     defaultOpen: true,
   },
@@ -108,6 +120,15 @@ const SIMPLE_NAV: NavGroup[] = [
       { id: 'simple-expense', label: 'Add Expense', labelNepali: 'खर्च थप्नुहोस्', icon: MinusCircle, path: '/expense', shortcut: 'F4' },
     ],
     defaultOpen: true,
+  },
+  {
+    label: 'IRD Compliance',
+    labelNepali: 'आन्तरिक राजस्व विभाग',
+    items: [
+      { id: 'tax-registers', label: 'Tax Registers', labelNepali: 'कर खाताहरू', icon: FileSpreadsheet, path: '/tax-registers' },
+      { id: 'cbms-monitor', label: 'CBMS Monitor', labelNepali: 'CBMS मोनिटर', icon: Shield, path: '/cbms-monitor' },
+    ],
+    defaultOpen: false,
   },
   {
     label: 'Reports',
@@ -150,6 +171,15 @@ const ADVANCED_NAV: NavGroup[] = [
     defaultOpen: false,
   },
   {
+    label: 'IRD Compliance',
+    labelNepali: 'आन्तरिक राजस्व विभाग',
+    items: [
+      { id: 'tax-registers', label: 'Tax Registers', labelNepali: 'कर खाताहरू (अनुसूची ५-१०)', icon: FileSpreadsheet, path: '/tax-registers', shortcut: 'Alt+7' },
+      { id: 'cbms-monitor', label: 'CBMS Real-time', labelNepali: 'CBMS सिङ्क मोनिटर', icon: Shield, path: '/cbms-monitor' },
+    ],
+    defaultOpen: true,
+  },
+  {
     label: 'Reports',
     labelNepali: 'रिपोर्ट',
     items: [
@@ -179,15 +209,47 @@ export function AppSidebar({ onLogout }: { onLogout?: () => void }) {
   const pathname = usePathname()
   const { mode, setMode, currentOrgName, currentFiscalYear, currentUser, userOrganizations, currentOrgId, setIsAdminPortal, setSidebarOpen } = useAppStore()
   const isSuperAdmin = currentUser?.role === 'super_admin'
-  const navGroups = mode === 'simple' ? SIMPLE_NAV : ADVANCED_NAV
 
-  // Compute default open groups for the current mode
-  const defaultOpenGroups = useMemo(
-    () => Object.fromEntries(
-      navGroups.filter(g => g.defaultOpen).map(g => [g.label, true])
-    ),
-    [navGroups]
-  )
+  const [orgDialogOpen, setOrgDialogOpen] = useState(false)
+
+  // Current organization and active role
+  const currentOrg = userOrganizations.find(o => o.id === currentOrgId)
+  const currentRole = currentOrg?.role || 'staff'
+  const roleInfo = getRoleInfo(currentRole)
+  const canSwitchAdvanced = canAccessAdvancedMode(currentRole, isSuperAdmin)
+
+  // Safety: Ensure staff/viewers cannot stay in advanced mode
+  useEffect(() => {
+    if (!canSwitchAdvanced && mode === 'advanced') {
+      setMode('simple')
+    }
+  }, [canSwitchAdvanced, mode, setMode])
+
+  // Filter nav groups by role permissions
+  const rawNav = mode === 'simple' ? SIMPLE_NAV : ADVANCED_NAV
+  const navGroups = rawNav
+    .map((group) => {
+      if (group.label === 'Settings') {
+        return {
+          ...group,
+          items: group.items.filter((item) => {
+            if (item.id === 'organization' && !canManageOrganization(currentRole, isSuperAdmin)) return false
+            if (item.id === 'users' && !canManageUsers(currentRole, isSuperAdmin)) return false
+            return true
+          }),
+        }
+      }
+      return group
+    })
+    .filter((group) => group.items.length > 0)
+
+  // Compute default open groups for current mode
+  const defaultOpenGroups: Record<string, boolean> = {}
+  for (const g of navGroups) {
+    if (g.defaultOpen) {
+      defaultOpenGroups[g.label] = true
+    }
+  }
 
   const [userOverrides, setUserOverrides] = useState<Record<string, boolean>>({})
   const openGroups = { ...defaultOpenGroups, ...userOverrides }
@@ -214,9 +276,6 @@ export function AppSidebar({ onLogout }: { onLogout?: () => void }) {
     return false
   }
 
-  // Org switcher
-  const currentOrg = userOrganizations.find(o => o.id === currentOrgId)
-
   return (
     <div className="flex h-full flex-col bg-[#0c0f14] w-72 noise-overlay relative overflow-hidden">
       {/* Subtle gradient mesh background */}
@@ -228,10 +287,15 @@ export function AppSidebar({ onLogout }: { onLogout?: () => void }) {
       {/* Content wrapper above the gradient */}
       <div className="relative z-10 flex h-full flex-col">
 
-        {/* Organization Header — Polished with subtle gradient background */}
-        <div className="p-4 border-b border-white/[0.06] bg-gradient-to-b from-white/[0.03] to-transparent">
+        {/* Organization Header — Clickable to switch organization with active role badge */}
+        <button
+          type="button"
+          onClick={() => setOrgDialogOpen(true)}
+          title="संस्था स्विच गर्न थिच्नुहोस् (Click to switch organization)"
+          className="w-full text-left p-3.5 border-b border-white/[0.06] bg-gradient-to-b from-white/[0.03] to-transparent hover:bg-white/[0.05] transition-all group"
+        >
           <div className="flex items-center gap-3">
-            <div className="h-10 w-10 rounded-xl overflow-hidden bg-gradient-to-br from-emerald-500/20 to-emerald-700/30 flex items-center justify-center shrink-0 ring-2 ring-emerald-500/20 ring-offset-1 ring-offset-[#0c0f14] transition-premium group-hover:ring-emerald-500/40">
+            <div className="h-10 w-10 rounded-xl overflow-hidden bg-gradient-to-br from-emerald-500/20 to-emerald-700/30 flex items-center justify-center shrink-0 ring-2 ring-emerald-500/20 ring-offset-1 ring-offset-[#0c0f14] transition-all group-hover:ring-emerald-500/40 group-hover:scale-105">
               <Image
                 src="/logo-generated.png"
                 alt="Hisab Pro"
@@ -242,43 +306,39 @@ export function AppSidebar({ onLogout }: { onLogout?: () => void }) {
               />
             </div>
             <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-2">
-                <h3 className="text-sm font-semibold text-zinc-100 truncate tracking-tight">{currentOrgName}</h3>
+              <div className="flex items-center justify-between gap-1">
+                <h3 className="text-sm font-semibold text-zinc-100 truncate tracking-tight group-hover:text-emerald-300 transition-colors">
+                  {currentOrgName}
+                </h3>
+                <ChevronsUpDown className="h-3.5 w-3.5 text-zinc-500 group-hover:text-emerald-400 shrink-0 transition-colors" />
+              </div>
+              <div className="flex items-center gap-1.5 mt-1 flex-wrap">
+                {/* Role badge in Nepali */}
+                <Badge
+                  className={cn(
+                    "text-[8px] px-1.5 py-0 h-4 leading-none font-semibold border",
+                    roleInfo.badgeClass
+                  )}
+                >
+                  {roleInfo.labelNepali}
+                </Badge>
                 {/* Mode badge in header */}
                 <Badge
                   className={cn(
-                    "text-[8px] px-1.5 py-0 h-4 leading-none font-bold uppercase tracking-wider border-0 shrink-0 transition-premium",
+                    "text-[8px] px-1.5 py-0 h-4 leading-none font-bold uppercase tracking-wider border-0 shrink-0",
                     mode === 'simple'
                       ? 'bg-emerald-500/15 text-emerald-400'
                       : 'bg-violet-500/15 text-violet-400'
                   )}
                 >
-                  {mode === 'simple' ? 'SIM' : 'ADV'}
+                  {mode === 'simple' ? 'सरल' : 'उन्नत'}
                 </Badge>
-              </div>
-              <div className="flex items-center gap-2 mt-0.5">
-                <span className="text-[11px] text-zinc-500 font-medium">FY: {currentFiscalYear}</span>
-                {currentOrg && (
-                  <Badge
-                    className={cn(
-                      "text-[9px] px-1.5 py-0 h-4 leading-none font-semibold border-0 transition-premium",
-                      currentOrg.plan === 'pro'
-                        ? 'bg-emerald-500/20 text-emerald-400 shadow-[0_0_8px_rgba(16,185,129,0.15)]'
-                        : currentOrg.plan === 'enterprise'
-                          ? 'bg-amber-500/20 text-amber-400 shadow-[0_0_8px_rgba(245,158,11,0.15)]'
-                          : 'bg-zinc-700/50 text-zinc-400'
-                    )}
-                  >
-                    {currentOrg.plan === 'pro' && <Sparkles className="h-2.5 w-2.5 mr-0.5 inline" />}
-                    {currentOrg.plan.charAt(0).toUpperCase() + currentOrg.plan.slice(1)}
-                  </Badge>
-                )}
               </div>
             </div>
           </div>
-        </div>
+        </button>
 
-        {/* Mode Toggle — Enhanced with visual distinction and descriptions */}
+        {/* Mode Toggle — Restricted based on active RBAC role */}
         <div className={cn(
           "px-4 py-3 border-b border-white/[0.06] transition-all duration-300",
           mode === 'simple'
@@ -287,40 +347,53 @@ export function AppSidebar({ onLogout }: { onLogout?: () => void }) {
         )}>
           <div className="flex items-center justify-between gap-2">
             <span className={cn(
-              "text-[11px] font-semibold uppercase tracking-wider transition-premium",
+              "text-[11px] font-semibold uppercase tracking-wider transition-colors",
               mode === 'simple' ? 'text-emerald-400' : 'text-zinc-600'
             )}>
               Simple
             </span>
             <Switch
               checked={mode === 'advanced'}
-              onCheckedChange={(checked) => setMode(checked ? 'advanced' : 'simple')}
+              disabled={!canSwitchAdvanced}
+              onCheckedChange={(checked) => {
+                if (canSwitchAdvanced) {
+                  setMode(checked ? 'advanced' : 'simple')
+                }
+              }}
               className={cn(
-                "transition-premium",
+                "transition-colors",
                 mode === 'advanced'
                   ? 'data-[state=checked]:bg-violet-600'
                   : 'data-[state=checked]:bg-emerald-600',
-                'data-[state=unchecked]:bg-zinc-700'
+                'data-[state=unchecked]:bg-zinc-700',
+                !canSwitchAdvanced && 'opacity-50 cursor-not-allowed'
               )}
             />
             <span className={cn(
-              "text-[11px] font-semibold uppercase tracking-wider transition-premium",
+              "text-[11px] font-semibold uppercase tracking-wider transition-colors",
               mode === 'advanced' ? 'text-violet-400' : 'text-zinc-600'
             )}>
               Advanced
             </span>
-            {/* F5 shortcut hint */}
-            <kbd className="px-1 py-0.5 rounded bg-white/[0.04] border border-white/[0.06] text-[9px] text-zinc-500 font-mono shrink-0 ml-1">
-              F5
-            </kbd>
+            {canSwitchAdvanced && (
+              <kbd className="px-1 py-0.5 rounded bg-white/[0.04] border border-white/[0.06] text-[9px] text-zinc-500 font-mono shrink-0 ml-1">
+                F5
+              </kbd>
+            )}
           </div>
           <p className={cn(
             "text-[10px] mt-1.5 tracking-wide transition-colors duration-300",
-            mode === 'simple' ? 'text-emerald-500/60' : 'text-violet-500/60'
+            !canSwitchAdvanced
+              ? 'text-amber-400/80'
+              : mode === 'simple'
+                ? 'text-emerald-500/60'
+                : 'text-violet-500/60'
           )}>
-            {mode === 'simple'
-              ? 'सरल मोड · Easy entry, auto-accounting'
-              : 'उन्नत मोड · Full double-entry system'
+            {!canSwitchAdvanced
+              ? 'उन्नत मोडका लागि व्यवस्थापक वा लेखापाल अनुमति चाहिन्छ'
+              : mode === 'simple'
+                ? 'सरल मोड · Easy entry, auto-accounting'
+                : 'उन्नत मोड · Full double-entry system'
             }
           </p>
         </div>
@@ -468,6 +541,9 @@ export function AppSidebar({ onLogout }: { onLogout?: () => void }) {
           </div>
         </div>
       </div>
+
+      {/* Organization Switcher Dialog */}
+      <OrgSwitcherDialog open={orgDialogOpen} onOpenChange={setOrgDialogOpen} />
     </div>
   )
 }

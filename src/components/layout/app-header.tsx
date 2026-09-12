@@ -54,6 +54,7 @@ import { authFetch } from '@/lib/session'
 // Pathname to breadcrumb mapping
 const PATH_SEGMENT_MAP: Record<string, string> = {
   'dashboard': 'Dashboard',
+  'khata': 'उधारो खाता (Khata)',
   'income': 'Add Income',
   'expense': 'Add Expense',
   'accounts': 'Chart of Accounts',
@@ -376,16 +377,23 @@ export function AppHeader({ onLogout }: { onLogout?: () => void }) {
               <div className="px-3 py-1.5">
                 <p className="text-xs font-semibold text-zinc-500 uppercase tracking-wider">Organizations</p>
               </div>
-              {userOrganizations.map((org) => (
-                <DropdownMenuItem
-                  key={org.id}
-                  onClick={() => useAppStore.getState().setCurrentOrg(org.id, org.name)}
-                  className="gap-2 text-zinc-300 focus:text-zinc-100 focus:bg-white/[0.04] transition-premium py-2 cursor-pointer"
-                >
-                  <Building2 className="h-3.5 w-3.5 text-zinc-500" />
-                  {org.name}
-                </DropdownMenuItem>
-              ))}
+              {userOrganizations.map((org) => {
+                const isSelected = org.id === useAppStore.getState().currentOrgId
+                return (
+                  <DropdownMenuItem
+                    key={org.id}
+                    onClick={() => useAppStore.getState().setCurrentOrg(org.id, org.name)}
+                    className={cn(
+                      "gap-2 text-zinc-300 focus:text-zinc-100 focus:bg-white/[0.04] transition-premium py-2 cursor-pointer",
+                      isSelected && "text-emerald-400 font-semibold"
+                    )}
+                  >
+                    <Building2 className="h-3.5 w-3.5 text-zinc-500" />
+                    <span className="truncate">{org.name}</span>
+                    {isSelected && <span className="ml-auto text-xs text-emerald-400 font-bold">✓</span>}
+                  </DropdownMenuItem>
+                )
+              })}
             </div>
 
             {isSuperAdmin && (

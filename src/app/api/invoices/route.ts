@@ -1,5 +1,6 @@
 import { db } from '@/lib/db'
-import { NEPAL_VAT_RATE, isDebitNature } from '@/lib/nepal-accounting'
+import { NEPAL_VAT_RATE, isDebitNature, adToBs } from '@/lib/nepal-accounting'
+import { syncInvoiceToCbms } from '@/lib/cbms'
 import { NextResponse } from 'next/server'
 
 // GET /api/invoices?orgId=xxx&status=xxx&fromDate=xxx&toDate=xxx&partyId=xxx
@@ -40,9 +41,23 @@ export async function GET(request: Request) {
       include: {
         lines: {
           include: {
-            product: { select: { id: true, name: true, code: true, unit: true } },
+            product: { select: { id: true, name: true, code: true, unit: true, hsnCode: true } },
           },
           orderBy: { sortOrder: 'asc' },
+        },
+        organization: {
+          select: {
+            id: true,
+            name: true,
+            nameNepali: true,
+            panNumber: true,
+            address: true,
+            phone: true,
+            email: true,
+            cbmsEnabled: true,
+            cbmsIsSandbox: true,
+            irdSoftwareCode: true,
+          },
         },
       },
       orderBy: [{ date: 'desc' }, { invoiceNumber: 'desc' }],
@@ -53,7 +68,7 @@ export async function GET(request: Request) {
     const parties = partyIds.length > 0
       ? await db.party.findMany({
           where: { id: { in: partyIds } },
-          select: { id: true, name: true, nameNepali: true, panNumber: true, partyType: true },
+          select: { id: true, name: true, nameNepali: true, panNumber: true, partyType: true, address: true, city: true, phone: true },
         })
       : []
 
@@ -74,7 +89,7 @@ export async function GET(request: Request) {
   }
 }
 
-// POST /api/invoices - Create invoice with lines
+// POST /api/invoices - Create invoice with lines & IRD compliance
 export async function POST(request: Request) {
   try {
     const body = await request.json()
@@ -82,6 +97,7 @@ export async function POST(request: Request) {
       orgId, date, dueDate, partyId, invoiceType,
       lines, discountAmount, notes, terms,
       billingAddress, shippingAddress, panNumber,
+      buyerName, buyerAddress, paymentMode,
     } = body
 
     if (!orgId || !date || !lines || !Array.isArray(lines) || lines.length === 0) {
@@ -91,9 +107,32 @@ export async function POST(request: Request) {
       )
     }
 
+    const org = await db.organization.findUnique({
+      where: { id: orgId },
+      select: {
+        id: true,
+        panNumber: true,
+        invoicePrefix: true,
+        cbmsEnabled: true,
+        fiscalYear: true,
+      },
+    })
+
+    if (!org) {
+      return NextResponse.json({ error: 'Organization not found' }, { status: 404 })
+    }
+
+    const invoiceDate = new Date(date)
+    const bsInfo = adToBs(invoiceDate)
+    const fiscalYear = org.fiscalYear || bsInfo.fiscalYear // e.g. "2081/82"
+    const dateBS = bsInfo.str // e.g. "2081-05-27"
+    const now = new Date()
+    const transactionTime = now.toTimeString().split(' ')[0] // e.g. "14:30:15"
+
     // Calculate line totals
     let subtotal = 0
     let totalTaxableAmount = 0
+    let totalExemptAmount = 0
     let totalVatAmount = 0
     let totalAmount = 0
 
@@ -101,37 +140,46 @@ export async function POST(request: Request) {
       (line: {
         productId?: string
         description: string
+        hsnCode?: string
         quantity?: number
         unit?: string
         unitPrice?: number
         vatRate?: number
         discountPercent?: number
+        isExempt?: boolean
       }, index: number) => {
         const qty = line.quantity || 1
         const price = line.unitPrice || 0
         const discountPct = line.discountPercent || 0
+        const isExempt = line.isExempt ?? false
 
         const lineSubtotal = qty * price
         const lineDiscount = lineSubtotal * (discountPct / 100)
-        const lineTaxableAmount = lineSubtotal - lineDiscount
-        const vatRate = line.vatRate !== undefined ? line.vatRate : NEPAL_VAT_RATE * 100 // stored as percentage
-        const lineVatAmount = lineTaxableAmount * (vatRate / 100)
-        const lineTotalAmount = lineTaxableAmount + lineVatAmount
+        const lineNet = lineSubtotal - lineDiscount
+        const vatRate = isExempt ? 0 : (line.vatRate !== undefined ? line.vatRate : NEPAL_VAT_RATE * 100)
+        const lineVatAmount = isExempt ? 0 : lineNet * (vatRate / 100)
+        const lineTotalAmount = lineNet + lineVatAmount
 
         subtotal += lineSubtotal
-        totalTaxableAmount += lineTaxableAmount
+        if (isExempt) {
+          totalExemptAmount += lineNet
+        } else {
+          totalTaxableAmount += lineNet
+        }
         totalVatAmount += lineVatAmount
         totalAmount += lineTotalAmount
 
         return {
           productId: line.productId || null,
           description: line.description,
+          hsnCode: line.hsnCode || null,
           quantity: qty,
           unit: line.unit || null,
           unitPrice: price,
           discountPercent: discountPct,
           discountAmount: lineDiscount,
-          taxableAmount: lineTaxableAmount,
+          taxableAmount: isExempt ? 0 : lineNet,
+          isExempt,
           vatRate: vatRate,
           vatAmount: lineVatAmount,
           totalAmount: lineTotalAmount,
@@ -144,21 +192,30 @@ export async function POST(request: Request) {
     const invoiceDiscount = discountAmount || 0
     totalAmount -= invoiceDiscount
 
-    // Auto-generate invoice number
+    // IRD Sequential Invoice Numbering:
+    // Format: {PREFIX}-{FY_SHORT}-{00001} e.g. "INV-81/82-00001"
+    const prefix = org.invoicePrefix || 'INV'
+    const fyShort = fiscalYear.includes('/') ? fiscalYear.split('/')[0].slice(-2) + '/' + fiscalYear.split('/')[1] : fiscalYear
+    const pattern = `${prefix}-${fyShort}-`
+
     const lastInvoice = await db.invoice.findFirst({
-      where: { organizationId: orgId },
+      where: {
+        organizationId: orgId,
+        invoiceNumber: { startsWith: pattern },
+      },
       orderBy: { invoiceNumber: 'desc' },
       select: { invoiceNumber: true },
     })
 
     let nextNumber = 1
     if (lastInvoice) {
-      const match = lastInvoice.invoiceNumber.match(/INV-(\d+)/)
-      if (match) {
-        nextNumber = parseInt(match[1]) + 1
+      const parts = lastInvoice.invoiceNumber.split('-')
+      const lastSeq = parseInt(parts[parts.length - 1], 10)
+      if (!isNaN(lastSeq)) {
+        nextNumber = lastSeq + 1
       }
     }
-    const invoiceNumber = `INV-${String(nextNumber).padStart(3, '0')}`
+    const invoiceNumber = `${pattern}${String(nextNumber).padStart(5, '0')}`
 
     // Create invoice with auto journal entry in a transaction
     const invoice = await db.$transaction(async (tx) => {
@@ -167,23 +224,32 @@ export async function POST(request: Request) {
         data: {
           organizationId: orgId,
           invoiceNumber,
-          date: new Date(date),
+          fiscalYear,
+          date: invoiceDate,
+          dateBS,
+          transactionTime,
           dueDate: dueDate ? new Date(dueDate) : null,
           partyId: partyId || null,
           invoiceType: invoiceType || 'sales',
-          status: 'draft',
+          status: 'issued', // Issued upon generation per IRD compliance
+          paymentMode: paymentMode || 'cash',
           subtotal,
           discountAmount: invoiceDiscount,
           taxableAmount: totalTaxableAmount,
+          exemptAmount: totalExemptAmount,
           vatAmount: totalVatAmount,
           totalAmount,
           amountPaid: 0,
           amountDue: totalAmount,
           panNumber: panNumber || null,
+          buyerName: buyerName || null,
+          buyerAddress: buyerAddress || null,
           billingAddress: billingAddress || null,
           shippingAddress: shippingAddress || null,
           notes: notes || null,
           terms: terms || null,
+          isRealtime: true,
+          syncStatus: org.cbmsEnabled ? 'pending' : 'not_applicable',
           lines: {
             create: processedLines,
           },
@@ -191,7 +257,7 @@ export async function POST(request: Request) {
         include: {
           lines: {
             include: {
-              product: { select: { id: true, name: true, code: true, unit: true } },
+              product: { select: { id: true, name: true, code: true, unit: true, hsnCode: true } },
             },
           },
         },
@@ -214,10 +280,10 @@ export async function POST(request: Request) {
       const vatOutputAccount = await tx.account.findFirst({
         where: { organizationId: orgId, subType: 'vat_output', isActive: true },
       })
+      const revenueAccount = salesAccount || serviceAccount
 
-      if (receivableAccount && (salesAccount || serviceAccount) && vatOutputAccount) {
-        const debitAccount = partyId ? receivableAccount : (cashAccount || receivableAccount)
-        const revenueAccount = salesAccount || serviceAccount
+      if (receivableAccount && revenueAccount && vatOutputAccount) {
+        const debitAccount = (partyId ? receivableAccount : (cashAccount || receivableAccount))!
 
         // Determine the revenue portion (total - VAT)
         const revenueAmount = totalTaxableAmount
@@ -324,13 +390,10 @@ export async function POST(request: Request) {
               })
 
               // Update stock level
-              const stockLevel = await tx.stockLevel.findUnique({
+              const stockLevel = await tx.stockLevel.findFirst({
                 where: {
-                  productId_warehouseId_batchNumber: {
-                    productId: line.productId,
-                    warehouseId: warehouse.id,
-                    batchNumber: null,
-                  },
+                  productId: line.productId,
+                  warehouseId: warehouse.id,
                 },
               })
 
@@ -356,16 +419,36 @@ export async function POST(request: Request) {
       return inv
     })
 
-    // Fetch with party info
-    let party = null
+    // Real-time CBMS Sync attempt if enabled
+    if (org.cbmsEnabled) {
+      try {
+        await syncInvoiceToCbms(invoice.id)
+      } catch (cbmsErr) {
+        console.error('CBMS auto-sync error:', cbmsErr)
+      }
+    }
+
+    // Fetch refreshed invoice with party info
+    const refreshed = await db.invoice.findUnique({
+      where: { id: invoice.id },
+      include: {
+        lines: {
+          include: {
+            product: { select: { id: true, name: true, code: true, unit: true, hsnCode: true } },
+          },
+        },
+      },
+    })
+
+    let party: any = null
     if (partyId) {
       party = await db.party.findUnique({
         where: { id: partyId },
-        select: { id: true, name: true, nameNepali: true, panNumber: true, partyType: true },
+        select: { id: true, name: true, nameNepali: true, panNumber: true, partyType: true, address: true, city: true, phone: true },
       })
     }
 
-    return NextResponse.json({ ...invoice, party }, { status: 201 })
+    return NextResponse.json({ ...(refreshed || invoice), party }, { status: 201 })
   } catch (error) {
     console.error('Invoices POST error:', error)
     return NextResponse.json(
@@ -379,7 +462,7 @@ export async function POST(request: Request) {
 export async function PUT(request: Request) {
   try {
     const body = await request.json()
-    const { id, status, amountPaid } = body
+    const { id, status, amountPaid, cancelReason } = body
 
     if (!id) {
       return NextResponse.json({ error: 'Invoice id is required' }, { status: 400 })
@@ -387,7 +470,7 @@ export async function PUT(request: Request) {
 
     const existing = await db.invoice.findUnique({
       where: { id },
-      include: { lines: true },
+      include: { lines: true, organization: true },
     })
 
     if (!existing) {
@@ -404,7 +487,7 @@ export async function PUT(request: Request) {
     const data: Record<string, unknown> = {}
 
     if (status) {
-      const validStatuses = ['draft', 'sent', 'paid', 'partial', 'overdue', 'cancelled']
+      const validStatuses = ['draft', 'issued', 'sent', 'paid', 'partial', 'overdue', 'cancelled']
       if (!validStatuses.includes(status)) {
         return NextResponse.json(
           { error: `Invalid status. Must be one of: ${validStatuses.join(', ')}` },
@@ -412,6 +495,17 @@ export async function PUT(request: Request) {
         )
       }
       data.status = status
+
+      if (status === 'cancelled') {
+        if (!cancelReason || String(cancelReason).trim().length === 0) {
+          return NextResponse.json(
+            { error: 'A cancellation reason is required under IRD regulations (रद्द गर्नुको कारण अनिवार्य छ)' },
+            { status: 400 }
+          )
+        }
+        data.cancelReason = cancelReason
+        data.cancelledAt = new Date()
+      }
     }
 
     if (amountPaid !== undefined) {
@@ -433,8 +527,15 @@ export async function PUT(request: Request) {
     // If cancelling, reverse journal entry
     if (status === 'cancelled' && existing.journalEntryId) {
       await db.$transaction(async (tx) => {
-        // Cancel the invoice
-        await tx.invoice.update({ where: { id }, data: { status: 'cancelled' } })
+        // Cancel the invoice with mandatory IRD reason
+        await tx.invoice.update({
+          where: { id },
+          data: {
+            status: 'cancelled',
+            cancelReason: cancelReason || null,
+            cancelledAt: new Date(),
+          },
+        })
 
         // Cancel the related journal entry
         const je = await tx.journalEntry.findUnique({
@@ -488,13 +589,10 @@ export async function PUT(request: Request) {
           })
 
           // Update stock level
-          const stockLevel = await tx.stockLevel.findUnique({
+          const stockLevel = await tx.stockLevel.findFirst({
             where: {
-              productId_warehouseId_batchNumber: {
-                productId: st.productId,
-                warehouseId: st.warehouseId,
-                batchNumber: null,
-              },
+              productId: st.productId,
+              warehouseId: st.warehouseId,
             },
           })
 
